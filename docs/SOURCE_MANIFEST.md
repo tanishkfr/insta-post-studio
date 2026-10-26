@@ -33,6 +33,7 @@ BEND CI reference: [run 40325071662](https://github.com/tanishkfr/Bend/actions/r
 
 6. The installed Shapes `package-lock.json` gained npm `peer` metadata during installation; it was restored to the committed upstream bytes so the baseline stays exact.
 7. A clean clone of the private remote was tested after push: root `npm ci`, contracts typecheck, host build, host tests and dev server all passed. All four legacy hashes matched, and Shapes/Typography/BEND again showed **0 file differences** against the pinned staging clones. `.gitattributes` marks `tools/**` as byte-preserving so Windows line-ending conversion cannot alter imported baselines.
+8. **Phase 1 re-check:** `tools/legacy/vector/arnav.html` remains byte-identical at SHA-256 `24633B7233A5E7AD088D1E4423AACD21D838F215654F838170077328C1CB5AA2`. `git diff phase-0/foundation -- tools` is empty. The automated `sourceIntegrity` unit guard enforces this hash. No other imported tool source was modified in Phase 1.
 
 Full upstream histories are **not** included. History and provenance remain recoverable through the commit SHAs above and the original repositories. No original files were deleted or rewritten.
 

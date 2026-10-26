@@ -1,6 +1,8 @@
 # Integration Architecture — Studio 2.0
 
-Phase 0 defines boundaries only. No compositor, adapter runtime or asset database is implemented yet.
+**Phase 1 status:** the authoritative project store, IndexedDB persistence, secure iframe transport and the Vector adapter are implemented. Other tools are still preserved baselines and are not integrated.
+
+Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md).
 
 ## 1. Product principle
 
@@ -165,3 +167,21 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 - No edits to preserved tool source beyond README/notice preservation and the host app.
 - No deployment, public exposure or changes to upstream repositories/Vercel.
 - No claim of feature parity from copying source alone.
+
+## 12. Phase 1 implementation map
+
+| Architecture area | Implemented location |
+| --- | --- |
+| Project state, ordering, history | `apps/studio/src/state/projectStore.ts` |
+| Project autosave/hydration | `apps/studio/src/state/useProjectPersistence.ts` |
+| Project persistence + schema validation | `apps/studio/src/storage/projectRepository.ts` |
+| Asset/source-state persistence + integrity | `apps/studio/src/storage/assetRepository.ts` |
+| Object URL lifecycle | `apps/studio/src/storage/objectUrls.ts` |
+| Iframe transport + origin/sender/scope validation | `apps/studio/src/adapters/iframe/` |
+| Vector editor wrapper and bridge | Vite plugin in `apps/studio/vite.config.ts`, `apps/studio/src/adapters/vector/vectorBridge.js` |
+| Vector capture/update/sanitization | `apps/studio/src/adapters/vector/` |
+| Working canvas/layers/inspector | `apps/studio/src/components/` |
+
+**Deviations from the Phase 0 design:** none of consequence. The only contract extension is `ToolSourceStateReference.revision` plus optional content hashes on source/rendered references, needed to make source revisions explicit. Vector currently runs same-origin in development/deployment; the transport already requires exact origins and can move to a dedicated tool origin later.
+
+**Still absent by design:** general compositor/ext, asset garbage collection, multi-artboard host UI, adapters for Image/Generate/Typography/Shapes/BEND, and final multi-layer export.

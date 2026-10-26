@@ -1,8 +1,11 @@
 # Feature Parity Matrix — Studio 2.0
 
 **Baseline date:** 2026-10-26  
+**Phase 1 status:** Vector is integrated; all other tool boundaries remain as recorded in Phase 0.  
 **Baseline commits:** see [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md)  
 **Purpose:** the non-regression contract for future phases. It records what exists, not what is planned.
+
+> **Phase 1 update:** the original editor inventories below remain the source-preservation contract. Vector source re-entry, secure transport, host persistence and the working SVG compositor were added in Phase 1. Their automated evidence is in the new [Phase 1 integration](#phase-1-integration-verified) section and [PHASE_1_TEST_REPORT.md](PHASE_1_TEST_REPORT.md). No other tool was integrated or marked tested.
 
 ## Status legend
 
@@ -57,7 +60,7 @@ Entry point: standalone `arnav.html`; embedded in legacy shell. `FlowEngine` is 
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| VEC-01 | Procedural modes: Ribbons, Streamlines, Contours | `REG.mode`, `FlowEngine`, `#modes` | `P.mode`, `P.ov` | Inline JS, SVG DOM | SVG items | Preserve generator algorithms exactly; each mode is a separate maturity path | R (default Ribbons generated 62 items), S (mode switching) |
+| VEC-01 | Procedural modes: Ribbons, Streamlines, Contours | `REG.mode`, `FlowEngine`, `#modes` | `P.mode`, `P.ov` | Inline JS, SVG DOM | SVG items | Preserve generator algorithms exactly; each mode is a separate maturity path | T (browser: default Ribbons + Contours switch in round-trip), R (default) |
 | VEC-02 | Field plugins: Soft noise, Ridged noise, Sine interference; plugin/bake API | `REG.field`, `FlowEngine.register()`, `bake()` | `P.field`; `KIT` helpers | Inline JS | SVG paths/polygons | Do not replace with a generic noise substitute | S |
 | VEC-03 | Four presets and four palettes | `PRESETS`, `PALETTES`, preset/palette handlers | `P` | DOM | SVG | Presets should be restorable source state | S |
 | VEC-04 | Five canvas sizes: poster, square, phone, story, wide | `SIZES` | `P` / `res.W/H` | SVG | SVG/PNG sizes | Host artboard needs mapping; generator canvas may differ from final layer dimensions | R (1000×1414 poster) |
@@ -66,14 +69,14 @@ Entry point: standalone `arnav.html`; embedded in legacy shell. `FlowEngine` is 
 | VEC-07 | Schema-driven controls, seed dice, randomise shape | `SCHEMA`, `build()`, `refresh()`, `#rand` | `P` | DOM | Updated SVG | Preserve schema; future inspector may expose selected source params | R (Randomise button visible), S |
 | VEC-08 | Selection: click hit-test, shift-click, marquee, select all, escape | `SEL`, `hit()`, `pip()`, `dseg()`, `inRect()` | `SEL` | SVG APIs, pointer events | Selection overlay | Selection not part of exported SVG; source-state only | S |
 | VEC-09 | Transforms: move, rotate, corner scale, snap, arrow nudge, numeric fields, flips, ±90°, z-order | pointer gestures, `snapMove()`, inspector | Baked item array | DOMPoint, matrix helpers | Modified SVG | Host transform is presentation-level; avoid duplicating in both models without rules | S |
-| VEC-10 | Object edit and bake cycle: colour, weight, opacity, hide, make editable/back to generated | `ensureBaked()`, `OV0`, Edit tab | `HIST`/baked `res.items` | DOM | SVG | “Back to generated” history semantics must survive serialization | S |
+| VEC-10 | Object edit and bake cycle: colour, weight, opacity, hide, make editable/back to generated | `ensureBaked()`, `OV0`, Edit tab | `HIST`/baked `res.items` | DOM | SVG | “Back to generated” history semantics must survive serialization | T (browser: Make editable, Select all, Duplicate, restored editable state), S (per-object inspector combinations) |
 | VEC-11 | Undo/redo history (max 100), keyboard shortcuts | `HIST`/`REDO`, `commit()`, `jump()`, `undo()`, `redo()` | Page-local stacks | Keyboard | Baked state | Generator param changes before bake are not in history **L** | S |
 | VEC-12 | Internal clipboard: copy, copy area, cut, paste, duplicate; system clipboard for SVG/JSON | `CLIP`, `copySel()`, `pasteClip()`, `navigator.clipboard` | `CLIP` + selection | Clipboard API | SVG/JSON | Copy area semantics rely on clipping; preserve | S |
 | VEC-13 | SVG import: sanitise and sample paths/shapes (cap 4,000 raw / 500 samples) | `impSVG()`, `place()`, `#imp` | Baked items | DOMParser, SVG length/CTM APIs | Editable polyline items | Text/images/use/gradients/masks unsupported **L**; imported geometry is flattened | S |
 | VEC-14 | Raster import: downsample to 180 px, extract nine luminance contours | `impImg()`, `fit`/`place()` | Baked items | Canvas2D, FileReader | SVG contour items | Not a photographic image layer; a stylisation at import | S |
 | VEC-15 | Export SVG, export PNG (2×), copy SVG, copy/load generator JSON | `#svg`, `#png`, `#cs`, `#cj`, `#lj` | `P` + `res` | Blob, object URLs, canvas rasterisation, clipboard | SVG, PNG, JSON | SVG output is the preferred first compositable asset; JSON is generator state only, not full history | S |
 | VEC-16 | “Use in Generate” shell handoff by serialising `#stage svg` | `upstream/index.html` `useAsset('vector')` | Shell `F.svg` | Same-origin iframe, XMLSerializer | SVG data URL + W/H | Adapter must strip `#ovl`, preserve viewBox; current handoff works | R (1000×1414 SVG captured; 62 items) |
-| VEC-17 | Project persistence / autosave | None | — | — | — | Must build serialization for source re-entry; shell handoff is not restorable state | L |
+| VEC-17 | Project persistence / autosave | Studio adapter (Phase 1) adds versioned source state; original standalone page still has none | `ToolSourceStateReference` + IndexedDB | Tool bridge, IndexedDB | Editable Vector source JSON | New integration feature; standalone remains a static editor | T (Studio adapter round-trip); L (standalone) |
 | VEC-18 | Editing model limits: no freehand/node editing, mostly polylines (no Béziers), text not selectable, generated geometry frozen after bake | source architecture | — | — | — | Preserve as known scope; do not silently replace with a simplified vector editor | L |
 | VEC-19 | External/browser requirements | inline page | — | Google Fonts; SVG DOM APIs; Blob; clipboard | — | Font embedding/offline deterministic PNG export needs a future decision | E |
 
@@ -224,21 +227,59 @@ Entry: `src/main.tsx` → `src/app/App.tsx` (`/`, `/studio`, `/studio/edit`, `/i
 
 ## 7. Cross-cutting shared gaps
 
-| Gap | Impact | Owner in Phase 1 |
+| Gap | Impact after Phase 1 | Follow-up |
 | --- | --- | --- |
-| No tool implements `ToolAdapterV1` | Host cannot open/save/restore/render any tool yet | Adapter layer + one pilot tool |
-| Image/Vector/Type/Generate/Shapes have no shared project serialization; BEND has its own schema/package | Source re-entry must be added per tool without deleting existing state | Tool adapters |
+| Only Vector implements `ToolAdapterV1` | Image/Type/Generate/Shapes/BEND still need adapters; the transport and project/asset engine are reusable | Phase 2+ adapters |
+| Vector now has full source serialization/re-entry; Image/Type/Generate/Shapes still lack shared project serialization; BEND has its own schema/package | Source re-entry must be added per remaining tool without deleting existing state | Remaining tool adapters |
 | Shapes has no export/render API | Transparent layer output and final composition require a new render path | Shapes adapter |
 | Legacy shell handoff is direct DOM access and low resolution for Image | Not safe/scalable as a host integration; replace with adapter protocol | Image adapter |
 | Generate has no visual export, only DOM and Claude-host spec export | Cannot publish a composition asset yet | Generate adapter/host capture |
 | Typography/Generate rely on Google Fonts; Custom Type relies on cdnjs opentype.js | Offline/secure iframe requirements and export determinism | Typography adapter |
 | No upstream licence grants for Legacy, Shapes, Typography | Private use only until permission is obtained | Project owner |
-| Most inventory rows are not feature-acceptance tested | Parity is proven only for tested/verified rows; build a repeatable adapter acceptance suite before refactors | Phase 1 test plan |
+| Old source/rendered revisions are never deleted | Safe undo/history, but IndexedDB grows over time | Reference-aware GC after project history persistence is designed |
+| Host has no final composition export | Single-artboard editing works; all-layer export is still deferred | Host compositor phase |
+| Vector runs same-origin in current deployment | Exact-origin transport is ready, but production isolation still needs a dedicated tool origin | Deployment topology |
+| No host UI for multiple artboards | Store/contract support artboards; only the first/active artboard is exposed in this phase | Host UI phase |
+| Host undo is not persisted | Source/rendered/project data survive reload; host undo history is session-only | Project history persistence |
 
 ## 8. How to use this matrix
 
-1. Any Phase 1 change that removes or alters a row marked **T**, **R** or **S** is a regression unless explicitly re-scoped.
+1. Any change that removes or alters a row marked **T**, **R** or **S** is a regression unless explicitly re-scoped.
 2. A feature may move between editors only if its output and source-state behavior remain available.
 3. New adapter work adds a verification row; it does not upgrade **S** to **T** without a repeatable test.
 4. Environment-limited features (**E**) must remain available when their environment exists and must fail honestly otherwise.
 5. Keep specialized exports even when host composition export is implemented.
+
+## 9. Phase 1 integration — verified
+
+Legend references in the rows below are automated evidence from `npm test` (unit/component) and `npm run test:browser` (Chromium, 1440×900). See [PHASE_1_TEST_REPORT.md](PHASE_1_TEST_REPORT.md) for commands and screenshots.
+
+| # | Integrated capability | Source / implementation | Verification |
+| --- | --- | --- | --- |
+| INT-01 | Authoritative project store: name, format, active artboard/tool, selection, layer CRUD, visibility/lock/opacity/transforms, ordering | `apps/studio/src/state/projectStore.ts` | T (7 unit tests + browser journeys) |
+| INT-02 | `Artboard.layerOrder` / per-layer `order` / `project.layerOrder` reconciliation | `synchronizeLayerOrder()` | T (unit) |
+| INT-03 | Host undo/redo for committed document changes | project store history, topbar/shortcut | T (unit + Journey C) |
+| INT-04 | Durable project save/reload with compare-and-set revisions and schema validation | `storage/projectRepository.ts` | T (6 unit + repeated browser reloads) |
+| INT-05 | IndexedDB binary assets, content hashing, dedupe, integrity verification | `storage/assetRepository.ts` | T (6 unit) |
+| INT-06 | Immutable Vector source revisions + retained old assets for undo | `AssetRepository.putSourceState`, `ToolSourceStateReference.revision` | T (Journey A/B + storage tests) |
+| INT-07 | Object-URL lifecycle registry | `storage/objectUrls.ts` | T (unit) |
+| INT-08 | Secure iframe runtime with exact origin/sender/scope/request validation, timeouts, cancellation, stale-response rejection, listener disposal | `adapters/iframe/IframeToolAdapter.ts`, `protocol.ts` | T (12 transport checks incl. fake adapter) |
+| INT-09 | Deterministic fake adapter for conformance | `tests/fixtures/fake-tool/fake-adapter.html` | T (browser) |
+| INT-10 | Generated Vector integration page without modifying original source | `vite.config.ts` plugin + `adapters/vector/vectorBridge.js` | T (browser + SHA-256 source guard) |
+| INT-11 | Full Vector source-state capture/restore (params, seed, colours, baked geometry, transforms, history/redo, view/selection) | bridge `serializeSourceState`/`restoreSourceState` | T (procedural + baked browser round-trips) |
+| INT-12 | Fresh SVG render with overlay exclusion, native viewBox/dimensions | bridge `renderArtwork` | T (browser: `#ovl` absent, viewBox preserved) |
+| INT-13 | SVG sanitization before storage/render | `adapters/vector/svgSanitizer.ts` | T (3 unit) |
+| INT-14 | Publish transaction: source/render persisted and read back before layer commit | `adapters/vector/captureVectorArtwork.ts` | T (Journey A/B, storage failure) |
+| INT-15 | New layer creation with recognizable name, centered aspect-preserving transform | `adapters/vector/vectorLayer.ts` | T (browser) |
+| INT-16 | Re-edit and republish retain layer ID, name, transform, opacity, visibility, lock, artboard and stacking order | `applyLayerArtwork` + tests | T (Journey A/B transform; Journey C hidden/reordered republish) |
+| INT-17 | Cancel an in-progress edit leaves the prior source untouched | Vector session close path | T (Journey C) |
+| INT-18 | Host canvas renders sanitized SVG with aspect ratio and position/size/rotation/opacity/visibility; flip/scale fields supported | `CanvasWorkspace.tsx` | T (browser) |
+| INT-19 | Layer panel select/rename/reorder/hide/lock/duplicate/delete/open source | `LayersPanel.tsx` | T (browser + components) |
+| INT-20 | Inspector name/source/revision/transform/opacity/visibility/lock/Edit/Download | `InspectorPanel.tsx` | T (browser + components) |
+| INT-21 | Direct move/resize with selection outline and artboard clamping | `CanvasWorkspace.tsx` | T (browser pointer test) |
+| INT-22 | In-memory project New + latest-project auto-load | `useProjectPersistence.ts` | T (browser) |
+| INT-23 | Failure UX: storage failure, unsupported source version, missing rendered asset, transport failures | host UI + repositories/transport | T (browser + unit) |
+| INT-24 | No console errors, host overflow or broken core fonts in tested desktop workflows | Playwright console guard + layout/font checks | T (smoke) |
+| INT-25 | Final multi-layer composition export | Not implemented (explicit non-goal) | L |
+
+**Original Vector capabilities still not exhaustively exercised:** imports, clipboard, PNG export, original undo/redo, all per-object inspector controls and edge-case path selection. The source remains unchanged; these retain **S** status above.
