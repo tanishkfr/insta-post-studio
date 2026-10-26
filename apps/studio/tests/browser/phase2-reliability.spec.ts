@@ -200,7 +200,7 @@ test("a failed project write rolls back an Image update to the previous durable 
   });
 
   await page.getByRole("button", { name: "Update layer" }).click();
-  await expect(page.getByRole("alert")).toContainText(/previous durable layer was preserved/i, {
+  await expect(page.locator(".publish-error")).toContainText(/previous durable layer was preserved/i, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
@@ -260,7 +260,7 @@ test("a failed source-asset write leaves the previous Image revision intact", as
     };
   });
   await page.getByRole("button", { name: "Update layer" }).click();
-  await expect(page.getByRole("alert")).toContainText(/could not publish/i, {
+  await expect(page.locator(".publish-error")).toContainText(/could not publish/i, {
     timeout: 30_000,
   });
   await page.evaluate(() => {
@@ -320,3 +320,4 @@ test("Type Library font load failure is reported and the layer remains", async (
   await page.unroute("**/tools/typography/fonts-data.js");
   await page.unroute("**/tools/typography/fonts/*");
 });
+
