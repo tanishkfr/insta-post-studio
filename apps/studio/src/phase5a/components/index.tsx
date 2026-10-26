@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface ToolItem { id: string; name: string; purpose: string; enabled: boolean; reason?: string }
 export interface LayerItem { id: string; name: string; source: string; kind: string; visible: boolean; locked: boolean }
@@ -24,12 +24,24 @@ export function StudioInspectorLayout(p: { layer: LayerItem | null; onEdit: () =
   return <section className="p5a-inspector" aria-labelledby="p5a-inspector-title"><div className="p5a-section-head"><h2 id="p5a-inspector-title">Inspector</h2></div>{p.layer ? <><div className="p5a-source"><small>Selected layer</small><strong>{p.layer.name}</strong><span>Source · {p.layer.source}</span></div><div className="p5a-props"><h3>Transform</h3><div className="p5a-fields">{(["x","y","scale","rotation","opacity"] as const).map(key => <label key={key}>{key}<input type="number" value={p.values[key]} onChange={e => p.onChange(key,e.target.value)}/></label>)}</div><h3>Appearance</h3><label className="p5a-blend">Blend mode <select value={p.values.blend} onChange={e => p.onChange("blend",e.target.value)}><option>Normal</option><option>Multiply</option><option>Screen</option></select></label></div><button onClick={p.onEdit}>Edit source</button>{p.children}</> : <StudioEmptyStates title="Nothing selected" detail="Select a layer to see its properties."/>}</section>;
 }
 
-export function StudioToolSessionHeader(p: { tool: string; project: string; artboard: string; layer: string; status: string; publishing: boolean; updating: boolean; error?: string; onBack: () => void; onPublish: () => void }) {
-  return <div className="p5a-session"><button onClick={p.onBack} disabled={p.publishing}>← Compose</button><div className="p5a-session-name"><strong>{p.tool}</strong><span>{p.project} / {p.artboard} / {p.layer}</span></div><StudioStatusAndFeedback text={p.error || p.status} kind={p.error ? "alert" : "status"}/><button className="p5a-primary" onClick={p.onPublish} disabled={p.publishing}>{p.publishing ? "Publishing demo…" : p.updating ? "Update layer" : "Add to composition"}</button></div>;
+export function StudioToolSessionHeader(p: { tool: string; project: string; artboard: string; layer: string; status: string; publishing: boolean; updating: boolean; error?: string; onBack: () => void; onPublish: () => void; onRetry?: () => void }) {
+  return <div className="p5a-session"><button onClick={p.onBack} disabled={p.publishing}>← Compose</button><div className="p5a-session-name"><strong>{p.tool}</strong><span>{p.project} / {p.artboard} / {p.layer}</span></div><StudioStatusAndFeedback text={p.error || p.status} kind={p.error ? "alert" : "status"}/>{p.error && p.onRetry && <button onClick={p.onRetry}>Retry</button>}<button className="p5a-primary" onClick={p.onPublish} disabled={p.publishing}>{p.publishing ? "Publishing…" : p.updating ? "Update layer" : "Add to composition"}</button></div>;
 }
 
 export function ContinueInMenu(p: { routes: RouteItem[]; onChoose: (id: string) => void }) {
-  return <details className="p5a-continue"><summary>Continue in…</summary><div className="p5a-menu">{p.routes.map(r => <div key={r.id}><button onClick={() => p.onChoose(r.id)} disabled={!r.enabled} title={r.reason}><strong>{r.label}</strong><small>{r.enabled ? r.description : r.reason}</small></button></div>)}</div></details>;
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  function close() { setOpen(false); trigger.current?.focus(); }
+  return <div className="p5a-continue" ref={root} onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(); } }} onBlur={e => { if (!root.current?.contains(e.relatedTarget)) setOpen(false); }}><button ref={trigger} type="button" aria-expanded={open} aria-controls="p5a-continue-options" onClick={() => setOpen(v => !v)}>Continue in…</button>{open && <div id="p5a-continue-options" className="p5a-menu">{p.routes.map(r => <div key={r.id}><button onClick={() => { close(); p.onChoose(r.id); }} disabled={!r.enabled} title={r.reason}><strong>{r.label}</strong><small>{r.enabled ? r.description : r.reason}</small></button></div>)}</div>}</div>;
+}
+
+/** A host controls visibility and restores focus to its invoking control. */
+export function CompactPanel(p: { title: string; onClose: () => void; children: ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const onClose = useRef(p.onClose); onClose.current = p.onClose;
+  useEffect(() => { const node = dialog.current; node?.showModal(); return () => { if (node?.open) node.close(); }; }, []);
+  return <dialog className="p5a-compact-panel" ref={dialog} aria-label={p.title} onCancel={e => { e.preventDefault(); onClose.current(); }}><div className="p5a-compact-head"><strong>{p.title}</strong><button type="button" onClick={p.onClose}>Close</button></div>{p.children}</dialog>;
 }
 
 export function StudioEmptyStates(p: { title: string; detail: string; action?: { label: string; onClick: () => void } }) {
