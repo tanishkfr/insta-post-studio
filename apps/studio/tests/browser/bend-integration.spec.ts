@@ -26,11 +26,13 @@ test.describe("BEND in Studio", () => {
   test("publishes a playable video layer and reopens the same editable timeline", async ({
     page,
   }) => {
+    test.slow();
     await waitForStudio(page);
     await chooseFormat(page, "instagram-square");
     await openBend(page);
     const frame = bendFrame(page);
     await addBendSignalField(frame);
+    await frame.getByLabel("Duration value").first().fill("2");
     await addBendMotionEcho(frame);
     await page.screenshot({ path: evidence("02-bend-editor-timeline.png"), fullPage: true });
     await publishBend(page);
@@ -536,6 +538,7 @@ test.describe("BEND in Studio", () => {
     await chooseFormat(page, "instagram-square");
     await openBend(page);
     await addBendSignalField(bendFrame(page));
+    await bendFrame(page).getByLabel("Duration value").first().fill("2");
     await publishBend(page);
     const layerElement = page
       .locator('[data-testid="canvas-layer"][data-layer-kind="video"]')

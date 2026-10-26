@@ -5,8 +5,10 @@ export default defineConfig({
   testIgnore: ["bend-production.spec.ts"],
   fullyParallel: false,
   // The preserved Image/Type renderers do synchronous full-resolution work.
-  // Two workers keep the suite deterministic without starving those frames.
-  workers: 2,
+  // Two workers keep the local suite deterministic without starving those frames.
+  // CI runs one worker because BEND video encoding is CPU-heavy and concurrent
+  // WebCodecs/WebGL workers can starve each other on shared runners.
+  workers: process.env.CI ? 1 : 2,
   timeout: 120_000,
   retries: 0,
   reporter: "list",

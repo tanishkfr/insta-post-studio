@@ -187,7 +187,26 @@ export async function publishBend(page: Page, timeout = 240_000): Promise<void> 
   });
   await expect(button).toBeEnabled({ timeout: 90_000 });
   await button.click();
-  await expect(page.getByTestId("artboard")).toBeVisible({ timeout });
+  const artboard = page.getByTestId("artboard");
+  const error = page.locator(".publish-error");
+  const overlay = page.locator(".tool-overlay");
+  await expect
+    .poll(
+      async () => {
+        if (await artboard.isVisible().catch(() => false)) return "artboard";
+        if (await error.isVisible().catch(() => false)) return "error";
+        if (await overlay.isVisible().catch(() => false)) return "overlay";
+        return "waiting";
+      },
+      { timeout, intervals: [250, 500, 1000, 2000] },
+    )
+    .not.toBe("waiting");
+  if (await error.isVisible().catch(() => false)) {
+    throw new Error(`BEND publish failed in Studio: ${await error.innerText()}`);
+  }
+  if (await overlay.isVisible().catch(() => false)) {
+    throw new Error(`BEND editor closed before publication: ${await overlay.innerText()}`);
+  }
   await expect(page.getByTestId("save-state")).toContainText("Saved locally", {
     timeout: 90_000,
   });
