@@ -68,7 +68,7 @@ The checked-in `index.html` is the prebuilt combined application. The old builde
 | BEND unit tests | `npm --prefix tools/bend test` | PASS — 19 files / 129 tests |
 | BEND build | `npm --prefix tools/bend run build` | PASS — 2,855 modules; lazy `portableProject` chunk 652 kB warning |
 | BEND browser | Playwright load against Vite | PASS — editor and First Study project loaded |
-| Typography | static server + browser | PASS — 22 font rows, 8/8 bundled faces loaded, “Fonts ready”; Custom Type loaded, opentype available |
+| Typography | static server + browser | PASS — 21 fonts plus Custom Type link (22 `.font-row` entries), 8/8 bundled faces loaded, “Fonts ready”; Custom Type loaded, opentype available |
 | Legacy | static server + browser | PASS — combined flow and standalone Image/Vector/Generate load; handoff worked |
 | CI workflow | GitHub Actions `Studio CI` | PASS — [run 40329333860](https://github.com/tanishkfr/insta-post-studio/actions/runs/40329333860) |
 | Clean clone | `git clone` remote → `npm ci` → contracts typecheck → build → tests → dev server | PASS — 182 packages from committed lockfile; 43-module build; 3/3 tests; HTTP 200 at `127.0.0.1:4180`; tool trees byte-identical to pinned sources |
