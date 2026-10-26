@@ -40,8 +40,8 @@ browser-tested. Deferred cases are named in section K and the matrix.
 | Studio integration commit | `7409d20` — Shapes/Generate host integration |
 | Tests + docs commit | `ceb7466` — Phase 3 acceptance, evidence, reports |
 | CI for tested head | [run 40384892175](https://github.com/tanishkfr/insta-post-studio/actions/runs/40384892175) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
-| Verified remote head | `ceb746674b37e654e22e3544cf998e496d05b1f1` (before the final docs-only report update) |
-| Documentation head | A subsequent docs-only commit on the same branch; its exact SHA and CI run are in the delivery response. |
+| Final verified remote head | `bc6af8aa0fd992cc116669b66ad6ab494eaf550b` |
+| Final CI | [run 40385823566](https://github.com/tanishkfr/insta-post-studio/actions/runs/40385823566) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
 
 No merge into the Phase 2/default branch, no public Studio deployment, no changes to
 upstream repositories, and no BEND repository/Vercel changes.
