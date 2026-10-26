@@ -20,7 +20,7 @@ test("Studio shell exposes an empty persisted canvas and Image/Vector/Type entri
   await expect(page.getByTestId("tool-typography")).toBeEnabled();
   await expect(page.getByTestId("tool-shapes")).toBeEnabled();
   await expect(page.getByTestId("tool-generate")).toBeEnabled();
-  await expect(page.getByTestId("tool-bend")).toBeDisabled();
+  await expect(page.getByTestId("tool-bend")).toBeEnabled();
   await expect(page.getByText("No layers yet")).toBeVisible();
   await expect
     .poll(() =>

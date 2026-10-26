@@ -1,8 +1,8 @@
 # Integration Architecture — Studio 2.0
 
-**Phase 3 status:** Image, Vector, Type (Library + Custom), Shapes and Generate are integrated. Shapes runs as its own React 18/Three.js bundle behind the scoped iframe transport with a versioned 3D source document and transparent offscreen rendering. Generate runs as a derived integration page over the byte-identical legacy generator, receives real Studio layers, applies reversible host layouts and publishes versioned generated-background layers. BEND remains the preserved Phase 4 baseline.
+**Phase 4 status:** Image, Vector, Type (Library + Custom), Shapes, Generate and BEND are integrated. BEND runs as the complete preserved React 19/PixiJS/Mediabunny editor inside an isolated iframe. Studio stores a versioned `.bendpkg` source reference, publishes verified video + PNG cover + editable package, previews one temporal layer at a time, and supports re-entry/republish with stale-revision protection. Static Studio artwork can be encoded into a real BEND clip and returned as a derivative video layer.
 
-Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md), Image in [IMAGE_ADAPTER.md](IMAGE_ADAPTER.md), Typography in [TYPOGRAPHY_ADAPTER.md](TYPOGRAPHY_ADAPTER.md), Shapes in [SHAPES_ADAPTER.md](SHAPES_ADAPTER.md) and Generate in [GENERATE_ADAPTER.md](GENERATE_ADAPTER.md).
+Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md), Image in [IMAGE_ADAPTER.md](IMAGE_ADAPTER.md), Typography in [TYPOGRAPHY_ADAPTER.md](TYPOGRAPHY_ADAPTER.md), Shapes in [SHAPES_ADAPTER.md](SHAPES_ADAPTER.md), Generate in [GENERATE_ADAPTER.md](GENERATE_ADAPTER.md) and BEND in [BEND_ADAPTER.md](BEND_ADAPTER.md) / [VIDEO_HANDOFF.md](VIDEO_HANDOFF.md).
 
 ## 1. Product principle
 
@@ -79,6 +79,12 @@ Project JSON stores locators:
 
 The eventual asset store needs content hashes, deduplication, missing-asset handling and cleanup that respects undo and all saved projects (BEND already demonstrates this pattern in `tools/bend/src/storage/indexedDb.ts`).
 
+For BEND, large artifacts cross the iframe boundary as **same-origin object URLs** with
+SHA-256 and byte length, never as one enormous `postMessage` value. The host fetches, checks
+size/hash, validates the bytes, stores them in IndexedDB, then acknowledges release. BEND's
+source package follows the same rule on restore; the package URL is ephemeral and never
+persisted. Short static-handoff clips may also carry bounded bytes in the scoped input message.
+
 ## 7. Runtime isolation decisions
 
 | Tool | Runtime decision | Reason |
@@ -88,7 +94,7 @@ The eventual asset store needs content hashes, deduplication, missing-asset hand
 | Generate | Isolated iframe + injected bridge | Static page; consumes host-provided text/image/vector/shapes layers; derived page keeps the original rule engine |
 | Typography | Isolated iframe | Static pages; font assets and canvas state are page-local |
 | Shapes | Isolated iframe + runtime bridge | React 18/R3F 8 must not share a runtime with React 19; WebGL and global CSS require isolation. The bundle is built separately and served at `/tools/shapes/` |
-| BEND | Isolated iframe + dedicated bridge | React 19/Pixi/Mediabunny timeline engine; whole-project source state and temporal rendering |
+| BEND | Isolated iframe + dedicated bridge | React 19/Pixi/Mediabunny timeline engine; whole-project source state, temporal rendering and large verified artifacts require isolation and a dedicated publish controller |
 
 Do **not** render Shapes as a React subtree of the React 19 host. If a future build adopts one React version everywhere, this decision can be revisited with a compatibility spike, but not by hoisting two React majors into one tree.
 
@@ -126,10 +132,16 @@ Do **not** render Shapes as a React subtree of the React 19 host. If a future bu
 - Publishing stores the source revision and rendered PNG only after the render validates. Re-entry restores the 3D document, not the PNG; republish preserves host layer ID/transform/order. Shapes → Image and Generate are supported handoffs.
 
 ### BEND
-- Keep the entire timeline/render engine inside BEND. The host layer is a temporal layer with an optional sequence link and a rendered proxy.
-- BEND already defines a host integration contract (`src/integration/contract.ts`), `.bendpkg` packages, source re-entry, revision checks, and rendered video/poster outputs. The Studio bridge should adapt these concepts to `ToolAdapterV1` rather than reimplement them.
-- Current BEND host handoff renders **preview-quality** video (max 720 px wide). Decide whether final Studio composition uses BEND's full-quality export or the host's own render at export time.
-- `.bendpkg` remains an independent specialized export; the host source-state reference may point to the same package blob or a derived form.
+- The complete BEND editor is built separately (`tools/bend`) with `BEND_BASE=/tools/bend/` and served from `/tools/bend/`; Studio copies the hashed bundle into `dist/tools/bend/`.
+- `tools/bend/src/integration/studioBridge.tsx` mounts the real `EditorPage` and implements the scoped `ToolAdapterV1` transport plus a dedicated `bend/publish` controller.
+- Source state `application/vnd.studio.bend+json` `1.0.0` references a complete editable `.bendpkg` (package asset ID, format/version, project ID, source revision, SHA-256/byte length, source media integrity, canvas/duration/fps/aspect, output/audio/poster metadata and host context).
+- BEND restores packages into a deterministic temporary `bend-studio-` project, reuses content-identical media, and cleans up only its own temporary project (then runs BEND's conservative reference scan).
+- Publication returns same-origin artifact URLs (video, PNG cover, package) with SHA-256/byte length. The host fetches, verifies container magic/hash/size, decodes video/poster, independently parses package completeness/media hashes, and only then stores/commits.
+- Preview uses BEND's 720 px review export; final uses the full composition canvas. A preview is never upsampled or labelled final.
+- Host `video` layers carry a poster + temporal metadata and render the cover in the static composition. Explicit playback allows one temporal layer at a time; source audio is muted by default.
+- Re-entry validates the package and committed revision, restores the native timeline/effects/audio, and republishes to the same layer ID while retaining host presentation and stacking. Stale in-memory/durable revisions are rejected.
+- Static artwork can be rasterized at artboard size, encoded locally to a real MP4/WebM clip and imported through BEND's normal media pipeline. The handoff requires an explicit background treatment and does not claim alpha.
+- Final multi-layer Studio composition, synchronized multi-video/audio composition, carousel export, asset GC and persistent host undo remain deferred.
 
 ## 9. Target data flow
 
@@ -173,7 +185,7 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 - No deployment, public exposure or changes to upstream repositories/Vercel.
 - No claim of feature parity from copying source alone.
 
-## 12. Phase 1–3 implementation map
+## 12. Phase 1–4 implementation map
 
 | Architecture area | Implemented location |
 | --- | --- |
@@ -196,6 +208,11 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 | Reversible host layout application | `projectStore.applyGeneratedLayout`, `GenerateEditor.tsx` |
 | Raster host rendering + object URLs | `components/CanvasWorkspace.tsx`, `storage/objectUrls.ts` |
 | Cross-tool inputs/provenance | `adapters/session/inputAssets.ts`, `adapters/session/layerFactory.ts`, `SharedLayer.provenance` |
+| BEND independently built runtime + nested route | `tools/bend/`, `BEND_BASE`, `apps/studio/vite.config.ts` |
+| BEND scoped bridge + publish controller | `tools/bend/src/integration/studioBridge.tsx`, `studioPublish.ts`, `studioSession.ts` |
+| BEND host source/package validation + capture | `apps/studio/src/adapters/bend/`, `components/BendEditor.tsx` |
+| BEND host temporal layer + playback | `SharedLayer.poster`, `TemporalMetadata`, `CanvasWorkspace.tsx` |
+| Static artwork → BEND clip handoff | `apps/studio/src/adapters/bend/staticToVideo.ts`, `AnimateInBendDialog.tsx` |
 | Working canvas/layers/inspector | `apps/studio/src/components/` |
 
 **Deviations from the Phase 0 design:** the contract extension remains
@@ -206,6 +223,6 @@ instead of a DOM screenshot because Chromium taints `foreignObject` canvas readb
 Tools still run same-origin in development/deployment; the transport already requires
 exact origins and can move to a dedicated tool origin later.
 
-**Still absent by design:** final composition export, asset garbage collection,
-multi-artboard host UI, BEND integration, carousel export, persistent host undo,
-generated z-order application, and dedicated production tool origins.
+**Still absent by design:** final multi-layer composition export, asset garbage collection,
+multi-artboard host UI, carousel export, persistent host undo, generated z-order application,
+synchronized multi-video/audio composition, and dedicated production tool origins.

@@ -350,3 +350,32 @@ build/unit commands. Full command output and screenshots are in
 | INT-68 | Phase 2 native PNG/ZIP/GIF/SVG/OTF exports and Image/Vector/Type workflows remain intact | preserved sources + adapters | **T** (retained Phase 2 browser suite) |
 | INT-69 | Standalone legacy Generate and Shapes still load without Studio boot | preserved source + independent bundle | **T** (Chromium smoke) |
 | INT-70 | Final multi-layer/carousel composition export and Generate z-order application | Not implemented in this phase | L |
+
+## 12. Phase 4 integration — verified
+
+Legend references below are automated evidence from `npm test` / `npm run test:browser`,
+BEND's preserved typecheck/unit/build/browser commands, and the production nested-route
+Playwright config. Full output is in [PHASE_4_TEST_REPORT.md](PHASE_4_TEST_REPORT.md).
+
+| # | Integrated capability | Source / implementation | Verification |
+| --- | --- | --- | --- |
+| BND-35 | Complete preserved BEND editor runs from Studio at `/tools/bend/` in dev and production | `tools/bend`, `BendEditor.tsx`, nested Studio Vite plugin, `BEND_BASE` | **T** (full UI + timeline browser; production nested route) |
+| BND-36 | Base-aware BEND routing without breaking standalone root deployment | `tools/bend/src/app/App.tsx` | **T** (standalone + nested production smoke) |
+| BND-37 | Scoped `ToolAdapterV1` handshake/context/input/restore/render/cancel/close plus dedicated publish controller | `studioBridge.tsx`, `IframeToolAdapter`, shared protocol | **T** (Studio browser + transport suite) |
+| BND-38 | Full editable source reference to a real `.bendpkg` with media integrity, project/source revision, canvas/duration/fps and host metadata | `bendSourceState.ts`, `captureBendArtwork.ts`, `studioSession.ts` | **T** (browser round-trip; unit parse/reject tests) |
+| BND-39 | Package completeness/missing-media/source-hash validation before commit | `bendPackage.ts`, BEND conformance/package decoder | **T** (4 host unit tests + corrupt package browser) |
+| BND-40 | Real video + full-canvas PNG cover + editable package publication as one video layer | `captureBendArtwork.ts`, `createBendVideoLayer` | **T** (browser: decodable video, poster dims, package magic/manifest) |
+| BND-41 | Honest preview (720 px) vs final (full canvas) selection; no upsampling claim | `BendEditor` quality control, `studioPublish.ts`, host metadata validation | **T** (preview and final manual/automated metadata; unit publish rules) |
+| BND-42 | Same-origin bounded artifact handoff with size/hash verification and explicit release | `studioPublish.ts`, `captureBendArtwork.ts`, `bend/publish/ack` | **T** (browser publish/re-entry; no large blob postMessage) |
+| BND-43 | Host temporal layer with cover, poster, playable video, duration/fps/codec/audio metadata | `SharedLayer.poster`, `TemporalMetadata`, `CanvasWorkspace` | **T** (host playback `currentTime > 0`, muted default, pixel/duration checks) |
+| BND-44 | Single-player mute policy and persisted mute/playback controls | `CanvasWorkspace` global play event, inspector/project store | **T** (browser playback/mute persistence) |
+| BND-45 | Edit in BEND restores original timeline/effects/audio, retains layer ID/transform/opacity/visibility/order on republish | `BendEditor`, `captureBendArtwork.guard`, `applyLayerArtwork` | **T** (browser save/reload/edit/republish, same layer id) |
+| BND-46 | Stale/cross-tab revision rejection without overwriting newer artwork | `App.handlePublish` durable revision check, bridge source-version check | **T** (browser forged durable revision) |
+| BND-47 | Cancel/failure/corrupt package/missing media preserve prior committed video/poster/package | capture transaction + BEND temp cleanup + host guard | **T** (browser cancel/corrupt; package unit failures; missing-media decoder) |
+| BND-48 | Static Studio artwork ? real editable BEND video clip at exact artboard size; sources unchanged; derivative provenance | `staticToVideo.ts`, `AnimateInBendDialog`, bridge media import | **T** (published Vector source; real BEND clip/asset; derivative layer; source hash unchanged) |
+| BND-49 | Explicit static-handoff background treatment; no false alpha claim | handoff dialog + encoder metadata | **T** (dialog options; encoded clip metadata) |
+| BND-50 | Explicit fit/reformat decision for mismatched BEND/Studio aspect | `BendEditor` gate + bridge restore policy | **T** (1:1 project on 4:5 artboard fit decision) |
+| BND-51 | Native `.bendpkg` import/export, package restoration and BEND native still/video export remain available | preserved BEND UI/export/package pipeline | **T** (BEND browser 35 pass; Studio package decode/restore) |
+| BND-52 | Audio/source/video streams reported honestly; validated audio fixture and soundtrack package | preserved BEND mixer/exporter + host metadata | **T** (audio fixture browser: `audioPresent`, video+audio package, decode/playback) |
+| BND-53 | No duplicate temporary BEND projects on re-entry; conservative cleanup protects standalone projects | `studioSession.ts`, `cleanupUnreferencedAssets` | **T** (deterministic temp IDs unit; re-entry browser) |
+| BND-54 | Final Studio multi-layer composition, synchronized multi-video/audio, carousel export, asset GC, persistent host undo | Not implemented (explicit non-goals) | L |

@@ -140,6 +140,100 @@ export function generateFrame(page: Page): FrameLocator {
   return page.frameLocator('iframe[title="Generate composition assistant"]');
 }
 
+export async function openBend(page: Page): Promise<void> {
+  await page.getByTestId("tool-bend").click();
+  await waitForBendReady(page);
+}
+
+export async function waitForBendReady(page: Page): Promise<void> {
+  await expect(page.getByTestId("bend-editor")).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: /Publish BEND video|Update BEND layer|Publish motion derivative/,
+    }),
+  ).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByText("Opening preserved BEND editor…")).toHaveCount(0);
+  const frame = page.frameLocator('iframe[title="BEND motion editor"]');
+  await expect(frame.getByRole("heading", { name: /BEND editor:/ })).toBeVisible({
+    timeout: 90_000,
+  });
+  await expect(frame.getByRole("button", { name: "Add", exact: true })).toBeVisible({
+    timeout: 45_000,
+  });
+}
+
+export function bendFrame(page: Page): FrameLocator {
+  return page.frameLocator('iframe[title="BEND motion editor"]');
+}
+
+export async function addBendSignalField(frame: FrameLocator): Promise<void> {
+  await frame.getByRole("button", { name: "Add", exact: true }).click();
+  await frame.getByRole("menuitem", { name: /Signal Field/ }).click();
+  await expect(
+    frame.getByRole("heading", { name: "Signal Field controls", exact: true }),
+  ).toBeVisible({ timeout: 45_000 });
+}
+
+export async function addBendMotionEcho(frame: FrameLocator): Promise<void> {
+  await frame.getByRole("tab", { name: /Effects/ }).click();
+  const button = frame.getByRole("button", { name: /Motion Echo/ }).first();
+  await expect(button).toBeVisible({ timeout: 20_000 });
+  await button.click();
+}
+
+export async function publishBend(page: Page, timeout = 240_000): Promise<void> {
+  const button = page.getByRole("button", {
+    name: /Publish BEND video|Update BEND layer|Publish motion derivative/,
+  });
+  await expect(button).toBeEnabled({ timeout: 90_000 });
+  await button.click();
+  await expect(page.getByTestId("artboard")).toBeVisible({ timeout });
+  await expect(page.getByTestId("save-state")).toContainText("Saved locally", {
+    timeout: 90_000,
+  });
+}
+
+export async function readBendLayer(
+  page: Page,
+  layerId: string,
+): Promise<Record<string, any> | null> {
+  return page.evaluate(async (id) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("studio-projects");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const records = await new Promise<Array<Record<string, any>>>((resolve, reject) => {
+      const transaction = database.transaction("projects", "readonly");
+      const request = transaction.objectStore("projects").getAll();
+      request.onsuccess = () => resolve(request.result as Array<Record<string, any>>);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    records.sort((left, right) => String(right.savedAt).localeCompare(String(left.savedAt)));
+    const layer = (records[0]?.project?.layers ?? []).find(
+      (candidate: Record<string, any>) => candidate.id === id,
+    );
+    return layer ?? null;
+  }, layerId);
+}
+
+export async function readBendSourceState(page: Page): Promise<Record<string, any> | null> {
+  const records = await readSourceStateRecords(page);
+  const bend = records.find((record) => record.tool === "bend");
+  return bend ? JSON.parse(bend.content) : null;
+}
+
+export async function readSourceStateById(
+  page: Page,
+  sourceStateId: string,
+): Promise<Record<string, any> | null> {
+  const records = await readSourceStateRecords(page);
+  const record = records.find((candidate) => candidate.id === sourceStateId);
+  return record ? JSON.parse(record.content) : null;
+}
+
+
 export async function setRange(
   frame: FrameLocator,
   selector: string,
