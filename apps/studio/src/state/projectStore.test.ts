@@ -293,4 +293,66 @@ describe("project store", () => {
     expect(store.getState().past).toHaveLength(beforePast);
     expect(store.getState().future).toHaveLength(0);
   });
+
+  it("adds generated backgrounds behind existing layers in one commit", () => {
+    const store = createProjectStore(project);
+    store.getState().addLayer(makeLayer(project, "Foreground"));
+    const background = makeLayer(store.getState().project, "Background");
+    background.kind = "generated-layout";
+    background.sourceTool = "generate";
+    store.getState().addLayer(background, [], { position: "back" });
+    expect(store.getState().project.artboards[0].layerOrder).toEqual([
+      background.id,
+      "layer_foreground",
+    ]);
+  });
+
+  it("applies a Generate layout as one undoable action and never moves locked layers", () => {
+    const store = createProjectStore(project);
+    store.getState().addLayer(makeLayer(project, "Headline"));
+    const headlineId = store.getState().selectedLayerId!;
+    store.getState().addLayer(makeLayer(store.getState().project, "Locked"));
+    const lockedId = store.getState().selectedLayerId!;
+    store.getState().updateLayer(lockedId, { locked: true });
+    const before = store.getState().project.layers.map((layer) => ({
+      id: layer.id,
+      transform: structuredClone(layer.transform),
+    }));
+    const pastBefore = store.getState().past.length;
+
+    const applied = store.getState().applyGeneratedLayout(project.artboards[0].id, [
+      {
+        hostLayerId: headlineId,
+        centerXPercent: 50,
+        centerYPercent: 30,
+        widthPercent: 60,
+        aspectHOverW: 0.5,
+        rotationDegrees: -4,
+      },
+      {
+        hostLayerId: lockedId,
+        centerXPercent: 20,
+        centerYPercent: 80,
+        widthPercent: 30,
+        aspectHOverW: 1,
+        rotationDegrees: 12,
+      },
+    ]);
+
+    expect(applied).toBe(1);
+    expect(store.getState().past.length).toBe(pastBefore + 1);
+    const headline = store.getState().project.layers.find((layer) => layer.id === headlineId)!;
+    expect(headline.transform.rotationDegrees).toBe(-4);
+    expect(headline.transform.width).toBe(648);
+    expect(headline.transform.height).toBe(324);
+    const locked = store.getState().project.layers.find((layer) => layer.id === lockedId)!;
+    expect(locked.transform).toEqual(
+      before.find((layer) => layer.id === lockedId)!.transform,
+    );
+
+    store.getState().undo();
+    expect(
+      store.getState().project.layers.find((layer) => layer.id === headlineId)!.transform,
+    ).toEqual(before.find((layer) => layer.id === headlineId)!.transform);
+  });
 });

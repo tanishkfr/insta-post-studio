@@ -18,7 +18,9 @@ test("Studio shell exposes an empty persisted canvas and Image/Vector/Type entri
   await expect(page.getByTestId("tool-vector")).toBeEnabled();
   await expect(page.getByTestId("tool-image")).toBeEnabled();
   await expect(page.getByTestId("tool-typography")).toBeEnabled();
-  await expect(page.getByTestId("tool-shapes")).toBeDisabled();
+  await expect(page.getByTestId("tool-shapes")).toBeEnabled();
+  await expect(page.getByTestId("tool-generate")).toBeEnabled();
+  await expect(page.getByTestId("tool-bend")).toBeDisabled();
   await expect(page.getByText("No layers yet")).toBeVisible();
   await expect
     .poll(() =>
@@ -83,4 +85,26 @@ test("preserved standalone Vector baseline still loads", async ({ page }) => {
   await expect(page.locator("#stage svg [data-i]").first()).toBeVisible();
   await page.getByRole("button", { name: "Randomise shape" }).click();
   await expect(page.locator("#stage svg [data-i]").first()).toBeVisible();
+});
+
+test("preserved standalone Generate baseline still loads and regenerates", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4187/generate/generator.html");
+  await expect(page.getByRole("heading", { name: "Generative Art" })).toBeVisible();
+  await expect(page.locator(".var")).toHaveCount(3);
+  await expect(page.locator("#al .as")).toHaveCount(6);
+  await expect(page.locator("#ct select")).toHaveCount(12);
+  const first = await page.locator(".var").first().innerText();
+  await page.getByRole("button", { name: "Regenerate" }).click();
+  await expect(page.locator(".var")).toHaveCount(3);
+  expect(await page.locator(".var").first().innerText()).not.toBe("");
+  void first;
+});
+
+test("independently bundled Shapes baseline still loads without Studio boot config", async ({
+  page,
+}) => {
+  await page.goto("http://127.0.0.1:4175/tools/shapes/index.html");
+  await expect(page.getByRole("heading", { name: "shapes" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Cube" })).toBeVisible();
+  await expect(page.locator("#studioShapesBridgeReady")).toHaveCount(0);
 });

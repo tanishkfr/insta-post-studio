@@ -1,8 +1,8 @@
 # Integration Architecture — Studio 2.0
 
-**Phase 2 status:** the authoritative project store, IndexedDB persistence, secure iframe transport, reusable tool session, Image/Vector/Type adapters, raster host rendering and Image→Vector / Image→Type handoffs are implemented. Generate, Shapes and BEND remain preserved baselines and are not integrated.
+**Phase 3 status:** Image, Vector, Type (Library + Custom), Shapes and Generate are integrated. Shapes runs as its own React 18/Three.js bundle behind the scoped iframe transport with a versioned 3D source document and transparent offscreen rendering. Generate runs as a derived integration page over the byte-identical legacy generator, receives real Studio layers, applies reversible host layouts and publishes versioned generated-background layers. BEND remains the preserved Phase 4 baseline.
 
-Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md).
+Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md), Image in [IMAGE_ADAPTER.md](IMAGE_ADAPTER.md), Typography in [TYPOGRAPHY_ADAPTER.md](TYPOGRAPHY_ADAPTER.md), Shapes in [SHAPES_ADAPTER.md](SHAPES_ADAPTER.md) and Generate in [GENERATE_ADAPTER.md](GENERATE_ADAPTER.md).
 
 ## 1. Product principle
 
@@ -85,9 +85,9 @@ The eventual asset store needs content hashes, deduplication, missing-asset hand
 | --- | --- | --- |
 | Image | Isolated iframe + injected bridge | Static legacy page; no build system; same-origin canvas capture possible |
 | Vector | Isolated iframe + injected bridge | Static page; native SVG output is the cleanest first compositable asset |
-| Generate | Isolated iframe + injected bridge | Static page; consumes host-provided text/image/vector assets |
+| Generate | Isolated iframe + injected bridge | Static page; consumes host-provided text/image/vector/shapes layers; derived page keeps the original rule engine |
 | Typography | Isolated iframe | Static pages; font assets and canvas state are page-local |
-| Shapes | Isolated iframe | React 18/R3F 8 must not share a runtime with React 19; WebGL and global CSS require isolation |
+| Shapes | Isolated iframe + runtime bridge | React 18/R3F 8 must not share a runtime with React 19; WebGL and global CSS require isolation. The bundle is built separately and served at `/tools/shapes/` |
 | BEND | Isolated iframe + dedicated bridge | React 19/Pixi/Mediabunny timeline engine; whole-project source state and temporal rendering |
 
 Do **not** render Shapes as a React subtree of the React 19 host. If a future build adopts one React version everywhere, this decision can be revisited with a compatibility spike, but not by hoisting two React majors into one tree.
@@ -105,20 +105,25 @@ Do **not** render Shapes as a React subtree of the React 19 host. If a future bu
 - Future: make SVG output a first-class vector layer; preserve text as an independent editable source or flatten it knowingly. Fonts are not embedded.
 
 ### Generate
-- Already accepts a host-style `{type:'setup', n, texts, img, svg}` message when embedded by the legacy builder. A Studio adapter can replace that ad-hoc protocol with `ToolAdapterV1`.
-- Output is DOM/CSS and currently has no PNG/HTML composition export. Phase 1 must add a host render capture or negotiate rendered assets; do not claim export parity.
-- Claude mode and Export spec are Claude-host-only and will remain optional/unsupported in the Studio web app.
+- Runs as a derived page over the byte-identical `generator.html`; the bridge is injected into the original classic script so the rule engine, presets and creative controls are not reimplemented.
+- Studio sends a manifest of visible layers on the active artboard plus downscaled rendered thumbnails. Hidden layers are excluded; locked layers are marked and skipped by Apply.
+- The original 100×125 design space is normalized to the actual artboard aspect (`frameHeight = 100 / aspect`). Authored layer aspect ratios are preserved.
+- **Apply layout** updates position/width/height/rotation of real unlocked host layers in one undoable commit; source documents are untouched. **Publish background** creates a separate `generated-layout` raster layer plus a versioned Generate source document.
+- Source state is `application/vnd.studio.generate+json` `1.0.0`. Reopening restores variants/controls without re-applying them; missing host layers are surfaced with a safe regeneration path.
+- Claude mode/spec export remain environment-dependent and keep the original fallback.
 
 ### Typography
-- Two independent static pages need two adapter entry points or one adapter with a document mode.
-- Bundled fonts resolve from `fonts-data.js`; Custom Type still depends on Google Fonts and cdnjs opentype.js. Decide whether to vendor those dependencies for offline/secure runtime.
-- PNG and OTF exports exist. Type Library has no source-state export; Custom Type's motif strokes, image, text and sliders live in page-local `S` and need explicit serialization.
-- Preserve font credits, licence strings and upstream README.
+- Two independent static pages are integrated with two adapter entry points and one shared `ToolSession`/source document mode.
+- Bundled fonts resolve from `fonts-data.js`; Custom Type still depends on Google Fonts and vendored opentype.js.
+- Source state `1.0.0` stores the complete Library/Custom page state, including the sparse distortion field and motif bytes. Reopen waits for the selected font and restores the exact renderer state.
+- Native PNG and OTF exports remain available; font credits and upstream licences are preserved.
 
 ### Shapes
-- It has **no project serialization and no render/export API today**. This is a real gap, not a copied omission: Phase 1 must add a transparent render path (the canvas does not use `preserveDrawingBuffer`) and a serializable scene/document representation without removing existing editing behavior.
-- A dedicated bridge can export rendered frames and source state while keeping R3F 8 in the iframe.
-- Source state includes plain-object document plus session/history semantics; define a versioned Shapes document format before promising source re-entry.
+- The full React 18/R3F editor is built independently (`tools/shapes`) and served from `/tools/shapes/index.html`; the host copies the built bundle into `dist/tools/shapes/`.
+- `tools/shapes/src/studioBridge.ts` implements the scoped adapter, versioned source state and transparent render. The original editor UI and operations remain in the iframe.
+- Source schema `application/vnd.studio.shapes+json` `1.0.0` stores objects, stable IDs, meshes/triangles, transforms, colors, deformations, arrays, strokes, shading/lighting, selection/tool preferences, camera, bounded history and the next serial.
+- Transparent rendering uses a fresh offscreen WebGL render target, not the interactive canvas. Grid/gizmos/selection/draft strokes are excluded; output is an exact-size RGBA PNG with transparent empty regions.
+- Publishing stores the source revision and rendered PNG only after the render validates. Re-entry restores the 3D document, not the PNG; republish preserves host layer ID/transform/order. Shapes → Image and Generate are supported handoffs.
 
 ### BEND
 - Keep the entire timeline/render engine inside BEND. The host layer is a temporal layer with an optional sequence link and a rendered proxy.
@@ -168,7 +173,7 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 - No deployment, public exposure or changes to upstream repositories/Vercel.
 - No claim of feature parity from copying source alone.
 
-## 12. Phase 1 implementation map
+## 12. Phase 1–3 implementation map
 
 | Architecture area | Implemented location |
 | --- | --- |
@@ -183,10 +188,24 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 | Vector capture/update/sanitization | `apps/studio/src/adapters/vector/` |
 | Image editor wrapper, source state, capture and bridge | `apps/studio/src/adapters/image/`, `components/ImageEditor.tsx` |
 | Type Library / Custom Type derived scripts, source state and capture | `apps/studio/src/adapters/typography/`, `components/TypeEditor.tsx` |
+| Shapes independently built runtime | `tools/shapes/`, served at `/tools/shapes/` and copied into `dist/tools/shapes/` by `apps/studio/vite.config.ts` |
+| Shapes source schema + offscreen render | `tools/shapes/src/editor/sourceState.ts`, `renderScene.ts`, `studioBridge.ts` |
+| Shapes host capture/validation | `apps/studio/src/adapters/shapes/`, `components/ShapesEditor.tsx` |
+| Generate derived page + bridge | `apps/studio/src/adapters/generate/generateBridge.js`, `apps/studio/vite.config.ts` |
+| Generate host inputs, background capture and state schema | `apps/studio/src/adapters/generate/`, `components/GenerateEditor.tsx` |
+| Reversible host layout application | `projectStore.applyGeneratedLayout`, `GenerateEditor.tsx` |
 | Raster host rendering + object URLs | `components/CanvasWorkspace.tsx`, `storage/objectUrls.ts` |
 | Cross-tool inputs/provenance | `adapters/session/inputAssets.ts`, `adapters/session/layerFactory.ts`, `SharedLayer.provenance` |
 | Working canvas/layers/inspector | `apps/studio/src/components/` |
 
-**Deviations from the Phase 0 design:** none of consequence. The only contract extension is `ToolSourceStateReference.revision` plus optional content hashes on source/rendered references, needed to make source revisions explicit. Vector currently runs same-origin in development/deployment; the transport already requires exact origins and can move to a dedicated tool origin later.
+**Deviations from the Phase 0 design:** the contract extension remains
+`ToolSourceStateReference.revision` plus optional content hashes on source/rendered
+references. Shapes is built and served as its own bundle rather than injected into a
+static page. Generate's decorative output uses a deterministic Canvas2D rasterizer
+instead of a DOM screenshot because Chromium taints `foreignObject` canvas readback.
+Tools still run same-origin in development/deployment; the transport already requires
+exact origins and can move to a dedicated tool origin later.
 
-**Still absent by design:** final composition export, asset garbage collection, multi-artboard host UI, adapters for Generate/Shapes/BEND, dual-mode Type source in one layer, and dedicated production tool origins.
+**Still absent by design:** final composition export, asset garbage collection,
+multi-artboard host UI, BEND integration, carousel export, persistent host undo,
+generated z-order application, and dedicated production tool origins.

@@ -1,11 +1,11 @@
 # Feature Parity Matrix — Studio 2.0
 
 **Baseline date:** 2026-10-26  
-**Phase 2 status:** Image, Vector and Type (Type Library + Custom Type) are integrated. Shapes, Generate and BEND remain preserved baselines.
+**Phase 3 status:** Image, Vector, Type (Type Library + Custom Type), Shapes and Generate are integrated. BEND remains a preserved baseline for Phase 4.  
 **Baseline commits:** see [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md)  
 **Purpose:** the non-regression contract for future phases. It records what exists, not what is planned.
 
-> **Phase 2 update:** the original editor inventories remain the source-preservation contract. Image source re-entry/full-resolution publish, host raster layers, Image→Vector tracing, Type Library/Custom Type source re-entry, Image→Custom Type, and the shared tool session were added in Phase 2. Automated evidence is in [Phase 2 integration](#phase-2-integration--verified) and [PHASE_2_TEST_REPORT.md](PHASE_2_TEST_REPORT.md). Rows below were upgraded only where a repeatable Phase 2 test actually exercised them.
+> **Phase 3 update:** Shapes now runs as an independently built React 18/Three.js iframe with versioned 3D source state, transparent offscreen rendering, publish/re-entry and Shapes→Image/Generate handoffs. Generate now runs as a derived page over the byte-identical legacy source with real host-layer inputs, aspect-aware layouts, reversible Apply, generated-background publishing and versioned source restoration. Rows below were upgraded only where a repeatable Phase 3 test actually exercised them. Evidence is in [Phase 3 integration](#phase-3-integration--verified) and [PHASE_3_TEST_REPORT.md](PHASE_3_TEST_REPORT.md).
 
 ## Status legend
 
@@ -88,23 +88,23 @@ Entry point: standalone `generator.html`; the embedded version in the legacy she
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| GEN-01 | Post vs carousel, one to three slides; format controls hidden when embedded | `S.fmt`, `S.slides`, `nSl()`, `#fmt`, `#slw` | `S` | DOM/CSS container queries | Live DOM preview | Host owns carousel artboards; generator should receive them via adapter context | S |
-| GEN-02 | Rule-based layout engine with 60-pass overlap/separation and boundary clamping | `rules()` | `S.assets` + `S.ctl` + seed | Deterministic RNG | DOM variant previews | Fast local baseline; preserve algorithm rather than replace with host layout | R (three alternatives rendered) |
-| GEN-03 | Claude-assisted variant generation | `claudeVars()`, `S.mode='claude'`, `claude.use('sample')` | `S.mode`; external result | claude.ai host API | Variant geometry | Not available in a normal browser; keep optional/explicit | E; falls back to rules **S** |
-| GEN-04 | Static curated mode with three fixed presets | `FIXED`, `S.mode='static'` | `S.mode`, variant count still from controls | DOM/CSS | Variant previews | Preserve as deterministic sample mode | S |
-| GEN-05 | Twelve creative controls: style, layout, hierarchy, density, negative space, overlap, colour, background, accents, texture, freedom, variations | `OPT`, `S.ctl`, `#ct` | `S.ctl` | DOM | Variant previews | Host can expose as source-state inspector later; do not flatten to presets only | R (controls rendered), S |
-| GEN-06 | Four layouts plus Auto (mix): grid, centred, dynamic/asymmetrical, layered/overlap | `LAY`, `ruleVars()` | `S.ctl.layout`, seed | CSS | DOM | Must map to carousel slides and safe areas | R (Auto mix generated), S |
-| GEN-07 | Seed, regenerate, variant selection | `#regen`, `S.seed`, `S.sel`, `draw()` | `S` | DOM | Selected variant | Seed is essential for reproducible source state | R (selected variant visible), S (regenerate) |
-| GEN-08 | Asset bin: headline, subhead, 3D sphere, photo, vector, motion ring; enable toggles; add text/image | `S.assets`, `assets()`, `#addT`, `#addI`, `#fi` | `S.assets` | FileReader, data URLs, DOM | DOM composition | Asset deletion/reordering/per-asset slide badges are absent **L** | R (asset UI visible), S (mutations) |
-| GEN-09 | Host setup handshake: replace assets with per-slide text, vector, photo; sync controls | build-patched message listener in embedded generator | `S` + `window._init/_hi` | `postMessage` from parent | Re-rendered previews | Replace wildcard `postMessage`/ad-hoc setup with scoped adapter messaging | R (host setup populated text + SVG; no photo supplied) |
-| GEN-10 | Six backgrounds, four textures, four accent styles | `bgHtml()`, `texHtml()`, `accHtml()` | `S.ctl` | CSS gradients, SVG feTurbulence, CSS animation | DOM | Some effects are CSS-only; host rasterisation must capture them faithfully | S |
-| GEN-11 | Element renderers: head, sub, 3D sphere, image, vector, motion | `elHtml()` | Assets/S | CSS, SVG data URL | DOM | Sphere/motion are CSS approximations, not true 3D/video **L** | S |
-| GEN-12 | Per-slide asset filtering in embedded patched build | build.py generator patch (`slide` filtering) | `S.assets` | postMessage setup | DOM per slide | Preserve patch behavior; standalone `generator.html` is unpatched | R (setup post received; slides varied) |
-| GEN-13 | Export composition spec JSON via claude.ai downloads | `#exp`, `claude.use('downloads')` | Selected variant | claude.ai host API | JSON spec | No normal-browser fallback **E/L** | E |
-| GEN-14 | Image/vector/text asset handoff from shell | `pushGen()` in shell, generator setup listener | Shell `F` → tool `S` | Same-origin iframe messaging | Re-rendered previews | Studio adapter should use contracts rather than legacy setup message | R (vector captured; text/slides rendered) |
-| GEN-15 | PNG/HTML composition export | None | — | — | Only live DOM; no visual export | Host must render/capture or generator needs an export path; do not claim parity | L |
-| GEN-16 | Project persistence and edge-case management | None | `S` only | — | — | No save/load; asset list replaced on setup; no deletion/reorder; no per-asset slide UI | L |
-| GEN-17 | Environment dependency: Google Fonts | page `<link>` | — | Network | Intended typography | Vendor/pin fonts for deterministic offline export | E; page loaded online **R** |
+| GEN-01 | Post vs carousel, one to three slides; format controls hidden when embedded | `S.fmt`, `S.slides`, `nSl()`, `#fmt`, `#slw` | `S` | DOM/CSS container queries | Live DOM preview | Host owns carousel artboards; generator receives the active artboard and keeps carousel previews | **T** (post/carousel 1–3 slide preview browser) |
+| GEN-02 | Rule-based layout engine with 60-pass overlap/separation and boundary clamping | `rules()` | `S.assets` + `S.ctl` + seed | Deterministic RNG | DOM variant previews | Preserved rule engine now runs on real host layers with aspect-aware coordinates | **T** (real layers, controls, seeds, 4:5/1:1/9:16) |
+| GEN-03 | Claude-assisted variant generation | `claudeVars()`, `S.mode='claude'`, `claude.use('sample')` | `S.mode`; external result | claude.ai host API | Variant geometry | Studio keeps the original Claude mode; normal-browser fallback is visible and tested | **E**; fallback **T** (browser) |
+| GEN-04 | Static curated mode with three fixed presets | `FIXED`, `S.mode='static'` | `S.mode`, variant count still from controls | DOM/CSS | Variant previews | Preserved static preset mode | **T** (browser) |
+| GEN-05 | Twelve creative controls: style, layout, hierarchy, density, negative space, overlap, colour, background, accents, texture, freedom, variations | `OPT`, `S.ctl`, `#ct` | `S.ctl` | DOM | Variant previews | All 12 original controls retained; host source state stores them | **T** (control presence/layout change); S (every combination) |
+| GEN-06 | Four layouts plus Auto (mix): grid, centred, dynamic/asymmetrical, layered/overlap | `LAY`, `ruleVars()` | `S.ctl.layout`, seed | CSS | DOM | Four layouts + Auto; active artboard normalized space | **T** (Auto + Grid tested); S (all layout branches) |
+| GEN-07 | Seed, regenerate, variant selection | `#regen`, `S.seed`, `S.sel`, `draw()` | `S` | DOM | Selected variant | Deterministic seed/regenerate; variations restore byte-identically | **T** (browser) |
+| GEN-08 | Asset bin: headline, subhead, 3D sphere, photo, vector, motion ring; enable toggles; add text/image | `S.assets`, `assets()`, `#addT`, `#addI`, `#fi` | `S.assets` | FileReader, data URLs, DOM | DOM composition | Real host assets replace samples; native + Text/+ Image preserved | **T** (host asset bin); L (deletion/reorder) |
+| GEN-09 | Host setup handshake: replace assets with per-slide text, vector, photo; sync controls | build-patched message listener in embedded generator | `S` + `window._init/_hi` | `postMessage` from parent | Re-rendered previews | Scoped adapter delivers active-artboard layers + thumbnails; hidden/locked policy enforced | **T** (browser) |
+| GEN-10 | Six backgrounds, four textures, four accent styles | `bgHtml()`, `texHtml()`, `accHtml()` | `S.ctl` | CSS gradients, SVG feTurbulence, CSS animation | DOM | Backgrounds/accents/textures publish as PNG; editable source retained | **T** (selected treatment PNG + source); S (all combinations) |
+| GEN-11 | Element renderers: head, sub, 3D sphere, image, vector, motion | `elHtml()` | Assets/S | CSS, SVG data URL | DOM | Host layers render as real thumbnails; native renderers preserved | **T** (real layer previews); L (motion is a still) |
+| GEN-12 | Per-slide asset filtering in embedded patched build | build.py generator patch (`slide` filtering) | `S.assets` | postMessage setup | DOM per slide | Carousel slides remain per-slide; standalone source unchanged | **T** (carousel preview) |
+| GEN-13 | Export composition spec JSON via claude.ai downloads | `#exp`, `claude.use('downloads')` | Selected variant | claude.ai host API | JSON spec | Export spec remains Claude-host-only; Studio does not invent an AI backend | **E** |
+| GEN-14 | Image/vector/text asset handoff from shell | `pushGen()` in shell, generator setup listener | Shell `F` → tool `S` | Same-origin iframe messaging | Re-rendered previews | Adapter uses `ToolAdapterV1`; real Image/Vector/Type/Shapes assets arrive | **T** (pipeline) |
+| GEN-15 | PNG/HTML composition export | None | — | — | Only live DOM; no visual export | Generated background/accent/texture PNG publish path added; full composition export still deferred | **T** (background PNG); L (carousel/composition export) |
+| GEN-16 | Project persistence and edge-case management | None | `S` only | — | — | Versioned Generate source, reopen, Apply/undo, missing-layer recovery | **T** (browser reload/reopen/reliability); L (native asset deletion) |
+| GEN-17 | Environment dependency: Google Fonts | page `<link>` | — | Network | Intended typography | Google Fonts remain an environment dependency; Canvas2D background rasterizer is font-independent | **E** |
 
 ---
 
@@ -152,29 +152,29 @@ Entry: `index.html` → `src/main.tsx` → `Studio` with `createEditor()`. React
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| SHP-01 | Add primitives: box, sphere, plane, cone, cylinder, torus, capsule, custom mesh | `Inspector` add buttons; `reduce.ts addObject`; `shapeGeometry.ts` | `ShapeDocument.objects[]`; selection in session | React/R3F/Three, WebGL2, Canvas2D | Live WebGL | Need explicit scene serialization; do not reimplement geometry | R (added Cube), T (add reducer) |
-| SHP-02 | Custom quad mesh starting cube | `reduce.ts` (assign `cubeMesh()`), `mesh.ts` | Document object mesh + active face | Three | Live WebGL | Required for face editing parity | T (helper), S (UI) |
-| SHP-03 | FBX import, merge meshes, fit/centre, name from file, undo | `Inspector` file input; `loadFbx.ts`; `triangles.ts fitTriangles` | Document triangle mesh | FBXLoader, File.arrayBuffer, WebGL | Live 3D object | Materials/UVs/animations/hierarchy discarded **L**; keep explicit | S; fit helper **T** |
+| SHP-01 | Add primitives: box, sphere, plane, cone, cylinder, torus, capsule, custom mesh | `Inspector` add buttons; `reduce.ts addObject`; `shapeGeometry.ts` | `ShapeDocument.objects[]`; selection in session | React/R3F/Three, WebGL2, Canvas2D | Live WebGL | Need explicit scene serialization; do not reimplement geometry | **T** (Cube/Sphere/Torus + transparent publish in Chromium) |
+| SHP-02 | Custom quad mesh starting cube | `reduce.ts` (assign `cubeMesh()`), `mesh.ts` | Document object mesh + active face | Three | Live WebGL | Required for face editing parity | **T** (Custom mesh + loop cut/extrude/inset browser) |
+| SHP-03 | FBX import, merge meshes, fit/centre, name from file, undo | `Inspector` file input; `loadFbx.ts`; `triangles.ts fitTriangles` | Document triangle mesh | FBXLoader, File.arrayBuffer, WebGL | Live 3D object | Materials/UVs/animations/hierarchy discarded **L**; keep explicit | **T** (known ASCII FBX fixture unit + file-input browser); merged-geometry limits remain **L** |
 | SHP-04 | Transform channels/numeric inspector with validation | `Inspector.tsx`; `reduce.ts setChannel` | Document object transform | React, DOM | Live WebGL | Host presentation transform must not overwrite 3D source transform silently | T |
 | SHP-05 | Gizmo move/rotate/scale, axis handles, local frame, pointer gestures | `Viewport.tsx`; `reduce.ts` gizmo math; `model.ts localAxis` | Session `tool`/`draft`; commits to document | R3F, raycasting, pointer capture | Live WebGL | Preserve gizmo interaction inside iframe; bridge only publishes render/state | T (reducer), S (pointer UI) |
 | SHP-06 | Selection, outliner, rename, active face picking | `Studio.tsx`, `Viewport.tsx`, `reduce.ts` | Session selection/activeFace | WebGL raycast, pointer events | Live WebGL | Single selection only **L**; no multi-select/grouping | S; selection semantics **T** |
-| SHP-07 | Face editing: extrude, inset, loop cut (fixed parameters) | `Inspector.tsx`; `mesh.ts`; `reduce.ts modelFace` | Document quad mesh | Three | Live WebGL | No vertex/edge editing; fixed distances; active face may go stale **L** | T (helpers), S (UI) |
-| SHP-08 | Deformations: twist, taper, noise | `Inspector.tsx`; `deform.ts applyDeform` | Document deform object; render-time | Three geometry, normals | Live WebGL | Render-time, not baked; no bend/lattice/axis/weights | S; setter/undo **T** |
-| SHP-09 | Arrays: line, radial, scatter; count ≤20; gap/radius/seed/jitter | `Inspector.tsx`; `Viewport.tsx` array group; `reduce.ts` | Document array rule | Three, deterministic noise | Visual instances only | Instances are not independent objects/exports; no instancing performance path | T (rule state), S (visuals) |
+| SHP-07 | Face editing: extrude, inset, loop cut (fixed parameters) | `Inspector.tsx`; `mesh.ts`; `reduce.ts modelFace` | Document quad mesh | Three | Live WebGL | No vertex/edge editing; fixed distances; active face may go stale **L** | **T** (browser loop cut, extrude, inset) |
+| SHP-08 | Deformations: twist, taper, noise | `Inspector.tsx`; `deform.ts applyDeform` | Document deform object; render-time | Three geometry, normals | Live WebGL | Render-time, not baked; no bend/lattice/axis/weights | **T** (browser twist commit + source/undo tests) |
+| SHP-09 | Arrays: line, radial, scatter; count ≤20; gap/radius/seed/jitter | `Inspector.tsx`; `Viewport.tsx` array group; `reduce.ts` | Document array rule | Three, deterministic noise | Visual instances only | Instances are not independent objects/exports; no instancing performance path | **T** (array rule/visual state serialized in browser) |
 | SHP-10 | Remix per-instance colour/scale | `Inspector.tsx`; `Viewport.tsx`; `reduce.ts` | Document remix seed | Deterministic RNG | Visual only | Preserve deterministic look | T (state), S |
 | SHP-11 | Stroke repeats along drawn ground-plane path | `Inspector.tsx` draw mode; `Viewport.tsx` stroke sampling/resampling | Document stroke points + session draft | Pointer events, Three | Visual clones | Max 40 clones; replaces previous stroke; no point editing | T (state), S (workflow) |
 | SHP-12 | Duplicate, delete, rename, flip, mirror | `reduce.ts`, `Inspector.tsx`, `Studio.tsx` | Document objects + history | React | Live WebGL | Mirror clears array/stroke/remix **L**; duplicate deep-clones | T |
 | SHP-13 | Shading: Toon, Flat, Ink; global mode | `Inspector.tsx`; `Viewport.tsx` materials, shell outline | Session `shade`, `inkColor` | Three materials, CanvasTexture | Live WebGL | Global not per-object; preserve exact look; transparent render needs alpha clearing | S |
 | SHP-14 | Per-object colour swatches/picker | `Inspector.tsx`; `reduce.ts setColor` | Document colour | Three | Live WebGL | No alpha/gradients/textures; ink ignores colour **L** | T |
 | SHP-15 | Wireframe/selection edges, gizmo toggle, three lighting presets | `Inspector.tsx`; `Viewport.tsx` | Session flags; fixed light presets | Three lights, EdgesGeometry | Live WebGL | No shadows/PBR/environment; “wireframe” only selected edges **L** | S |
-| SHP-16 | Camera orbit/pan/zoom, frame-driven rig, resize | `Viewport.tsx SceneInput` | Session camera rig (not store) | R3F, pointer/wheel | View only | No focus-selected/reset/ortho/pinch; camera not undoable | S |
+| SHP-16 | Camera orbit/pan/zoom, frame-driven rig, resize | `Viewport.tsx SceneInput` | Session camera rig (not store) | R3F, pointer/wheel | View only | No focus-selected/reset/ortho/pinch; camera not undoable | **T** (camera serialize/restore/validation); S (orbit/pan pointer input) |
 | SHP-17 | Undo/redo, keyboard shortcuts | `Studio.tsx`, `reduce.ts`, history in model | Undo/redo stacks | Keyboard | State | Active face not restored; no history limit/persistence | T |
-| SHP-18 | Inspector tabs Object/Material/Modifiers, resizable panels, responsive overlays | `Inspector.tsx`, `Studio.tsx`, `index.css` | UI-local state | React, CSS | — | Iframe isolation means host styling won't collide; preserve internal UI | S |
-| SHP-19 | Project save/load, autosave, JSON/GLTF/OBJ export | None | — | — | None | Critical gap: Phase 1 must add source serialization; do not claim source re-entry exists | L |
-| SHP-20 | Render/export (PNG/transparent still/video) | None; canvas lacks `preserveDrawingBuffer` | — | — | Live WebGL only | Must add a controlled transparent render path; host can then publish shapes layer | L |
+| SHP-18 | Inspector tabs Object/Material/Modifiers, resizable panels, responsive overlays | `Inspector.tsx`, `Studio.tsx`, `index.css` | UI-local state | React, CSS | — | Iframe isolation means host styling won't collide; preserve internal UI | **R** (desktop + 900×700 screenshots) |
+| SHP-19 | Project save/load, autosave, JSON/GLTF/OBJ export | None | — | — | None | Studio now adds versioned serialization/re-entry; standalone Shapes still has no project save/load | **T** (Studio round-trip); L (standalone) |
+| SHP-20 | Render/export (PNG/transparent still/video) | None; canvas lacks `preserveDrawingBuffer` | — | — | Live WebGL only | Offscreen RGBA render target; exact-size transparent PNG verified in Chromium | **T** (dimensions, alpha, transparent corners, no selection pixels) |
 | SHP-21 | Booleans / positive-negative form | `solid.ts cutSolid`, `ShapeForm`; dead/absent UI | Document form flag only | three-bvh-csg | None | CSG is unused dead code and form has no UI/effect; preserve but do not present as working **L** | T (form flag), L (booleans) |
-| SHP-22 | Tests | `src/editor/{reduce,mesh,triangles}.test.ts` | Reducer/helpers | Vitest node | — | No UI/WebGL/browser tests; 18 tests passed in Phase 0 | T |
-| SHP-23 | React/runtime isolation | `package.json` React 18.3 / R3F 8 | Separate tree | WebGL2, ResizeObserver, Pointer Events | — | Load in isolated iframe; never mount under React 19 host without a version-alignment spike | R |
+| SHP-22 | Tests | `src/editor/{reduce,mesh,triangles}.test.ts` | Reducer/helpers | Vitest node | — | 23 unit tests now include source-state and FBX fixture; browser acceptance covers UI/WebGL | **T** |
+| SHP-23 | React/runtime isolation | `package.json` React 18.3 / R3F 8 | Separate tree | WebGL2, ResizeObserver, Pointer Events | — | Independently bundled, isolated iframe; standalone route also loads | **T** (Chromium) |
 
 **Shapes gaps that must not be mistaken for adapter work already existing:** no serialization, no render/export, no project persistence, no measurements/search/groups/visibility, no multi-select, and CSG is dead code.
 
@@ -227,23 +227,25 @@ Entry: `src/main.tsx` → `src/app/App.tsx` (`/`, `/studio`, `/studio/edit`, `/i
 
 ## 7. Cross-cutting shared gaps
 
-| Gap | Impact after Phase 2 | Follow-up |
+| Gap | Impact after Phase 3 | Follow-up |
 | --- | --- | --- |
-| Image, Vector and Type implement `ToolAdapterV1` | Generate/Shapes/BEND still need adapters; the shared session, transport and project/asset engine are reusable | Phase 3+ adapters |
-| Image/Vector/Type have full source serialization/re-entry; Generate/Shapes lack shared project serialization; BEND has its own schema/package | Source re-entry must be added per remaining tool without deleting existing state | Remaining tool adapters |
-| Shapes has no export/render API | Transparent layer output and final composition require a new render path | Shapes adapter |
-| Legacy shell handoff is direct DOM access and low resolution for Image | Studio replaces it with scoped full-resolution export; legacy shell remains preserved but not used for Studio composition | Keep legacy path out of Studio |
-| Generate has no visual export, only DOM and Claude-host spec export | Cannot publish a composition asset yet | Generate adapter/host capture |
-| Typography/Generate rely on Google Fonts; Custom Type uses a vendored opentype.js in the derived adapter | Offline/secure iframe determinism still depends on font availability | Vendor/font strategy |
+| Image, Vector, Type, Shapes and Generate implement `ToolAdapterV1` | BEND still needs its dedicated adapter; the shared session, transport and project/asset engine are reused | Phase 4 adapter |
+| Image/Vector/Type/Shapes/Generate have versioned source serialization/re-entry; BEND has its own schema/package | Source re-entry works for five categories without deleting existing state | BEND adapter |
+| Shapes now has a transparent render/export API | Real RGBA 3D layers publish at exact artboard dimensions; final composition export is still deferred | Host compositor |
+| Legacy shell handoff is direct DOM access and low resolution for Image | Studio uses scoped full-resolution exports; legacy shell remains preserved but not used for Studio composition | Keep legacy path out of Studio |
+| Generate now has a background/accents/texture PNG publish path | Visually complete generated treatments publish as independent raster layers with editable source; carousel/full composition export remains deferred | Carousel/composition export |
+| Typography/Generate rely on Google Fonts; Custom Type uses a vendored opentype.js | Offline/secure iframe determinism still depends on font availability; Generate's Canvas2D background renderer is font-independent | Vendor/font strategy |
 | No upstream licence grants for Legacy, Shapes, Typography | Private use only until permission is obtained | Project owner |
-| Old source/rendered revisions are never deleted | Safe undo/history, but IndexedDB grows over time; Image source/photo/mask data increases size | Reference-aware GC |
+| Old source/rendered revisions are never deleted | Safe undo/history, but IndexedDB grows over time | Reference-aware GC |
 | Host has no final composition export | Single-artboard editing works; all-layer export is still deferred | Host compositor phase |
 | Tools run same-origin in current deployment | Exact-origin transport is ready, but production isolation still needs a dedicated tool origin | Deployment topology |
-| No host UI for multiple artboards | Store/contract support artboards; only the first/active artboard is exposed | Host UI phase |
+| No host UI for multiple artboards | Store/contract support artboards; only the first/active artboard is exposed; Generate carousel previews target one host artboard | Host UI phase |
 | Host undo is not persisted | Source/rendered/project data survive reload; host undo history is session-only | Project history persistence |
 | Type modes have independent in-session drafts but only the active mode is durable per layer | A Type layer cannot retain both Library and Custom source variants after reload | Future dual-mode layer design |
 | Image accepts three artboard aspects only | Other aspects fail explicitly rather than stretching/cropping | Future renderer mapping |
 | Raster/source assets lack a reference-aware GC | Orphaned assets from cancelled/failed captures remain safe but consume space | GC phase |
+| Generate z-order is stored but not applied | Host stacking order is preserved on Apply; some generated overlaps rely on source ordering | Optional ordering phase |
+| Generated backgrounds are raster treatments | Background/accents/texture appearance is preserved as editable-source + raster, not reconstructed as individual vector layers | Future decorative-object editor |
 
 ## 8. How to use this matrix
 
@@ -318,3 +320,33 @@ Legend references below are automated evidence from `npm test` (unit/component) 
 | INT-48 | Source integrity for Image/Vector/Typography originals | SHA-256 guards + empty `git diff` | **T** (3 unit tests) |
 | INT-49 | Desktop + narrower layouts without host overflow or hidden essential controls | responsive host session/iframe layout | **T** (layout browser at 1024×768 and 900×700) |
 | INT-50 | Final multi-layer composition export | Not implemented | L |
+
+## 11. Phase 3 integration — verified
+
+Legend references below are automated evidence from `npm test` / `npm run test:browser`
+(Chromium 1440×900, plus 900×700 compact sessions) and the retained Shapes
+build/unit commands. Full command output and screenshots are in
+[PHASE_3_TEST_REPORT.md](PHASE_3_TEST_REPORT.md).
+
+| # | Integrated capability | Source / implementation | Verification |
+| --- | --- | --- | --- |
+| INT-51 | Independently bundled React 18/R3F Shapes app served under `/tools/shapes/`; production build copies JS/CSS/chunks/fonts | `tools/shapes/vite.config.ts`, `apps/studio/vite.config.ts`, root scripts/CI | **T** (build + standalone + isolated iframe Chromium) |
+| INT-52 | Scoped Shapes adapter with capability/limitation reporting, context, dirty events, close | `tools/shapes/src/studioBridge.ts` | **T** (browser sessions) |
+| INT-53 | Complete Shapes source schema `1.0.0`: objects/IDs, meshes/triangles, transforms/colors, deformations, arrays, strokes, shading/lighting, selection/tool, camera, bounded history, next serial | `tools/shapes/src/editor/sourceState.ts`, `store.ts` | **T** (4 unit + browser round-trip/republish) |
+| INT-54 | Host+bridge validation of finite values, identities, geometry limits, camera and version before applying | `adapters/shapes/shapesSourceState.ts`, bridge `restoreSourceState` | **T** (4 host unit + browser unsupported-version test) |
+| INT-55 | Transparent Shapes render via offscreen RGBA render target, 2× downsample, exact artboard dimensions, valid alpha/empty pixels, no grid/gizmo/selection/draft | `tools/shapes/src/editor/renderScene.ts` | **T** (1080×1350 PNG; alpha/corners/no blue selection pixels) |
+| INT-56 | Render failure/empty scene leaves previous layer/source revision untouched | capture transaction + bridge errors | **T** (browser failure test) |
+| INT-57 | Shapes publish/reopen/republish; same layer ID, host transform/order/opacity preserved; native undo/redo after restore | `ShapesEditor.tsx`, `captureShapesArtwork.ts`, `toolSession.tsx` | **T** (browser smoke + unit) |
+| INT-58 | Shapes primitives, custom mesh, loop cut/extrude/inset, deformation, arrays, duplication, colors, camera, FBX fixture | preserved UI + host serialization | **T** (browser geometry/FBX; pointer gizmo/stroke remain S) |
+| INT-59 | Shapes → Image derivative with provenance; original 3D source unchanged | `InspectorPanel` + `App.startHandoff` + `loadRasterInputForLayer` | **T** (pipeline browser) |
+| INT-60 | Generate derived page keeps byte-identical source plus original rule engine, presets, 12 controls, carousel, seed/regenerate and Claude fallback | `generateBridge.js`, `apps/studio/vite.config.ts` | **T** (controls browser; Claude is E) |
+| INT-61 | Generate receives real active-artboard Image/Vector/Type/Shapes layers with stable host IDs and thumbnails; hidden excluded; locked marked | `loadGenerateInputs.ts`, bridge `assets/input` | **T** (real-layer + hidden/locked browser) |
+| INT-62 | Aspect-aware 100-wide normalized layout for 4:5, 1:1, 9:16; authored asset aspect preserved | bridge `frameHeight` + `adaptPlacementsToArtboard` | **T** (ratios and frame heights browser) |
+| INT-63 | Apply layout as one undoable host action; position/size/rotation only; source documents unchanged; locked/hidden skipped | `projectStore.applyGeneratedLayout`, `GenerateEditor.tsx` | **T** (browser + 11 store unit tests) |
+| INT-64 | Generate source schema `1.0.0`; restore controls/seed/variations/selected/host mapping/background settings; no silent host apply | `generateSourceState.ts`, bridge | **T** (reload/reopen variations equality) |
+| INT-65 | Missing/stale source layers warning + regenerate from current layers; no silent ID remap | bridge banner + host validation | **T** (browser reliability) |
+| INT-66 | Generated background/accents/texture PNG at exact artboard size; independent bottom layer; editable Generate source | `captureGenerateArtwork.ts`, bridge Canvas2D renderer | **T** (1080×1350 PNG + source + reorder/reopen) |
+| INT-67 | Mixed Image + Vector + Type + Shapes composition with Generate arrangement; reload restores all six layers and all five source editors | host layer stack + sessions | **T** (pipeline browser) |
+| INT-68 | Phase 2 native PNG/ZIP/GIF/SVG/OTF exports and Image/Vector/Type workflows remain intact | preserved sources + adapters | **T** (retained Phase 2 browser suite) |
+| INT-69 | Standalone legacy Generate and Shapes still load without Studio boot | preserved source + independent bundle | **T** (Chromium smoke) |
+| INT-70 | Final multi-layer/carousel composition export and Generate z-order application | Not implemented in this phase | L |

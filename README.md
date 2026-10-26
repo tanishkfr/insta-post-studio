@@ -2,11 +2,11 @@
 
 **One project. One canvas. One layer stack. All original creative capabilities preserved.**
 
-Studio 2.0 is a unified Instagram creative toolset built around preserved standalone editors. Phase 0 imported and pinned six original capabilities. Phase 1 made Vector the first fully integrated tool. **Phase 2 adds the complete Image editor, host raster layers, Image → Vector tracing, both Typography modes, and Image → Custom Type.**
+Studio 2.0 is a unified Instagram creative toolset built around preserved standalone editors. Phase 0 imported and pinned six original capabilities. Phase 1 made Vector the first fully integrated tool. **Phase 2 added the complete Image editor, host raster layers, Image → Vector tracing, both Typography modes, and Image → Custom Type. Phase 3 adds the complete preserved Shapes 3D editor with versioned source state and transparent rendering, plus Generate as the composition assistant over real Studio layers.**
 
-Generate, Shapes and BEND remain preserved baselines and are marked **Soon** in the host.
+BEND remains a preserved baseline for Phase 4 and is marked **Soon** in the host.
 
-## What works in Phase 2
+## What works in Phase 3
 
 - One persistent Studio project with 4:5, 1:1 and 9:16 formats.
 - Local-first IndexedDB project and binary asset storage.
@@ -21,12 +21,21 @@ Generate, Shapes and BEND remain preserved baselines and are marked **Soon** in 
 - Image → Vector tracing through the preserved importer, recorded as a derivative with provenance.
 - Type Library with exact font identity, controls and internal distortion-field recovery.
 - Custom Type with editable strokes, motif image bytes, placement/layering, letterform/pattern controls, PNG and OTF exports.
-- Image → Custom Type motif handoff.
-- Type mode switching that keeps both in-session drafts.
-- Image/Vector/Type layers remain separate; host transform, order, visibility and revisions are authoritative.
+- Image → Custom Type motif handoff; Type mode switching keeps both in-session drafts.
+- Complete preserved Shapes editor in an isolated React 18/Three.js bundle:
+  - primitives, custom/FBX meshes, transforms, face tools, deformation, arrays, mirror/duplicate, strokes, materials/lighting, outliner/inspector and native undo/redo;
+  - versioned 3D source document including camera and bounded history;
+  - exact-size transparent RGBA render through an offscreen render target;
+  - Edit in Shapes source re-entry and republish that preserve host layer identity;
+  - Continue in Image for a processed derivative.
+- Generate composition assistant over real Image/Vector/Type/Shapes layers:
+  - preserved rule engine, layouts, presets, 12 creative controls, seeds, carousel and original asset bin;
+  - aspect-aware 4:5/1:1/9:16 coordinates and authored asset aspects;
+  - Apply layout as one reversible host action without modifying source documents;
+  - generated background/accents/texture published as an independent, reopenable layer.
 - Native specialized export controls remain available inside each preserved editor.
 
-No final multi-layer composition export exists yet.
+No final multi-layer/carousel composition export exists yet.
 
 ## Quick start
 
@@ -34,14 +43,14 @@ Requirements: Node.js 20.19+ and npm 10+.
 
 ```bash
 npm install
-npm run dev          # Studio host at http://localhost:5173
+npm run dev          # Studio host at http://localhost:5173 (also builds the Shapes bundle)
 ```
 
 Verify:
 
 ```bash
-npm run verify       # contracts typecheck + host build + 47 unit/component tests
-npm run test:browser # 34 Chromium acceptance tests
+npm run verify       # contracts typecheck + host/Shapes build + 56 unit/component tests
+npm run test:browser # 48 Chromium acceptance tests
 ```
 
 The imported tools have independent dependency trees. Install/build them separately:
@@ -58,14 +67,14 @@ insta-post-studio/
 ├─ apps/studio/          React 19 + TypeScript + Vite host
 │  ├─ src/state/         authoritative project store + autosave
 │  ├─ src/storage/       IndexedDB project/asset repositories
-│  ├─ src/adapters/      secure iframe transport, shared session, Image/Vector/Type adapters
+│  ├─ src/adapters/      secure iframe transport, shared session, Image/Vector/Type/Shapes/Generate adapters
 │  ├─ src/components/    canvas, layers, inspector, tool sessions
 │  ├─ public/vendor/     vendored JSZip/opentype.js for derived adapter pages
 │  └─ tests/browser/     Playwright acceptance + fake cross-origin adapter
 ├─ packages/contracts/   shared project/layer/adapter/messaging types
 ├─ tools/
 │  ├─ legacy/            preserved Image, Vector and Generate sources
-│  ├─ shapes/            preserved React 18 + Three.js editor
+│  ├─ shapes/            independently built React 18 + Three.js editor + Studio adapter
 │  ├─ typography/        preserved static Type Library + Custom Type
 │  └─ bend/              preserved React 19 video editor (Phase 8.1.1 baseline)
 ├─ docs/                 reports, adapters, feature matrix, architecture, evidence
@@ -82,19 +91,22 @@ insta-post-studio/
 | Image | Insta-post `janya.html` | `tools/legacy/image/janya.html` | **Yes — Phase 2** |
 | Vector | Insta-post `arnav.html` | `tools/legacy/vector/arnav.html` | **Yes — Phase 1/2** |
 | Type | Online-Type-Tool `fonts.html` / `custom.html` | `tools/typography/` | **Yes — Phase 2** |
-| Generate | Insta-post `generator.html` | `tools/legacy/generate/generator.html` | Preserved; later phase |
-| Shapes | `tools/shapes` | `tools/shapes/index.html` | Preserved; later phase |
-| BEND | `tools/bend` | `tools/bend/index.html` | Preserved; later phase |
+| Generate | Insta-post `generator.html` | `tools/legacy/generate/generator.html` | **Yes — Phase 3** (derived page; source byte-identical) |
+| Shapes | `tools/shapes` | `tools/shapes/index.html` | **Yes — Phase 3** (upstream pinned; adapter code added) |
+| BEND | `tools/bend` | `tools/bend/index.html` | Preserved — Phase 4 |
 
-Original source files are not edited. Studio uses Vite-generated derived adapter pages and same-scope bridge injection. SHA-256 guards fail if a preserved source changes.
+Legacy Image/Vector/Generate pages remain byte-identical and are served through Vite-generated derived adapter pages. Shapes is the one imported app intentionally extended in Phase 3; its upstream commit remains pinned and the original editor UI/operations are preserved. SHA-256 guards continue to protect the byte-identical legacy sources.
 
 ## Documentation
 
 - [Integration architecture](docs/INTEGRATION_ARCHITECTURE.md)
 - [Image adapter](docs/IMAGE_ADAPTER.md)
 - [Typography adapter](docs/TYPOGRAPHY_ADAPTER.md)
-- [Phase 2 report](docs/PHASE_2_REPORT.md)
-- [Phase 2 test report](docs/PHASE_2_TEST_REPORT.md)
+- [Shapes adapter](docs/SHAPES_ADAPTER.md)
+- [Generate adapter](docs/GENERATE_ADAPTER.md)
+- [Phase 3 report](docs/PHASE_3_REPORT.md)
+- [Phase 3 test report](docs/PHASE_3_TEST_REPORT.md)
+- [Phase 2 report](docs/PHASE_2_REPORT.md) / [test report](docs/PHASE_2_TEST_REPORT.md)
 - [Feature parity matrix](docs/FEATURE_PARITY_MATRIX.md)
 - [Phase 1 report](docs/PHASE_1_REPORT.md) / [Vector adapter](docs/VECTOR_ADAPTER.md)
 

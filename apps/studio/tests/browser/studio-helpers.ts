@@ -94,6 +94,52 @@ export async function switchTypeMode(
   await waitForTypeReady(page, mode);
 }
 
+export async function openShapes(page: Page): Promise<void> {
+  await page.getByTestId("tool-shapes").click();
+  await waitForShapesReady(page);
+}
+
+export async function waitForShapesReady(page: Page): Promise<void> {
+  await expect(page.getByTestId("shapes-editor")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Publish transparent Shapes|Update Shapes layer/ }),
+  ).toBeEnabled({ timeout: 45_000 });
+  await expect(page.getByText("Opening preserved Shapes editor…")).toHaveCount(0);
+  const frame = page.frameLocator('iframe[title="Shapes editor"]');
+  await expect(frame.locator("#studioShapesBridgeReady")).toHaveCount(1, {
+    timeout: 45_000,
+  });
+  await expect(frame.getByRole("button", { name: "Add Cube" })).toBeVisible({
+    timeout: 45_000,
+  });
+}
+
+export function shapesFrame(page: Page): FrameLocator {
+  return page.frameLocator('iframe[title="Shapes editor"]');
+}
+
+export async function openGenerate(page: Page): Promise<void> {
+  await page.getByTestId("tool-generate").click();
+  await waitForGenerateReady(page);
+}
+
+export async function waitForGenerateReady(page: Page): Promise<void> {
+  await expect(page.getByTestId("generate-editor")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Publish background layer|Update background layer/ }),
+  ).toBeEnabled({ timeout: 45_000 });
+  await expect(page.getByText("Opening preserved Generate editor…")).toHaveCount(0);
+  const frame = page.frameLocator('iframe[title="Generate composition assistant"]');
+  await expect(frame.locator("#studioGenerateBridgeReady")).toHaveCount(1, {
+    timeout: 45_000,
+  });
+  await expect(frame.locator(".var").first()).toBeVisible({ timeout: 45_000 });
+}
+
+export function generateFrame(page: Page): FrameLocator {
+  return page.frameLocator('iframe[title="Generate composition assistant"]');
+}
+
 export async function setRange(
   frame: FrameLocator,
   selector: string,
