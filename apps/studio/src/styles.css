@@ -1912,3 +1912,156 @@ select:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================ phase 2: shared tools ============================ */
+
+.artboard-canvas {
+  isolation: isolate;
+}
+
+.raster-artwork {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.canvas-empty-actions,
+.empty-layer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.canvas-empty-actions .button,
+.empty-layer-actions .button {
+  flex: 1 1 auto;
+}
+
+.type-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--white);
+}
+
+.type-mode-switch button {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 560;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.type-mode-switch button.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.type-mode-switch button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tool-session-note {
+  flex: 0 0 auto;
+  padding: 7px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #f7faf8;
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.tool-session-note strong {
+  color: var(--ink-soft);
+  font-weight: 580;
+}
+
+.handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.handoff-actions .handoff-heading {
+  width: 100%;
+  color: var(--faint);
+  font-size: 7.5px;
+  font-weight: 610;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.handoff-actions .button {
+  flex: 1 1 46%;
+}
+
+.handoff-note {
+  width: 100%;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.handoff-banner {
+  bottom: 46px;
+}
+
+.input-warning {
+  background: #fff9ed;
+  border-color: #ecd9b5;
+  color: #6f5424;
+}
+
+@media (max-width: 1180px) {
+  .tool-session-bar {
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 7px 12px;
+  }
+
+  .tool-session-bar .session-context {
+    order: 8;
+    width: 100%;
+  }
+
+  .tool-session-bar .session-dirty {
+    margin-left: auto;
+  }
+
+  .tool-session-addon {
+    order: 5;
+  }
+}
+
+@media (max-width: 900px) {
+  .tool-session-title {
+    padding-left: 8px;
+  }
+
+  .tool-session-title > div > span:last-child {
+    max-width: 160px;
+  }
+
+  .tool-session-note {
+    padding: 6px 10px;
+  }
+
+  .type-mode-switch {
+    order: 6;
+  }
+}

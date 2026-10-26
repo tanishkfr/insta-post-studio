@@ -208,4 +208,89 @@ describe("project store", () => {
     expect(store.getState().project.assets).toHaveLength(1);
     expect(store.getState().past.length).toBe(storeStateBefore + 1);
   });
+
+  it("derives tool version from source state and replaces namespaced mode tags", () => {
+    const store = createProjectStore(project);
+    const layer = makeLayer(project, "Type artwork");
+    layer.kind = "typography";
+    layer.sourceTool = "typography";
+    layer.metadata.tags = ["typography", "type-mode:library", "custom"];
+    store.getState().addLayer(layer);
+    const sourceState = {
+      id: "source_type",
+      tool: "typography" as const,
+      toolStateVersion: "1.0.0",
+      mimeType: "application/vnd.studio.typography+json",
+      storage: {
+        backend: "indexeddb" as const,
+        database: "studio-assets",
+        objectStore: "source-states",
+        key: "source_type",
+      },
+      updatedAt: "2026-10-26T00:00:00.000Z",
+      revision: 2,
+    };
+    store.getState().applyLayerArtwork({
+      layerId: layer.id,
+      sourceState,
+      rendered: {
+        kind: "image",
+        mimeType: "image/png",
+        assetId: "asset_type",
+      },
+      renderedAsset: {
+        id: "asset_type",
+        kind: "rendered-image",
+        name: "type.png",
+        mimeType: "image/png",
+        storage: {
+          backend: "indexeddb",
+          database: "studio-assets",
+          objectStore: "assets",
+          key: "asset_type",
+        },
+        createdAt: "2026-10-26T00:00:00.000Z",
+        sourceTool: "typography",
+      },
+      sourceAssets: [
+        {
+          id: "asset_photo",
+          kind: "source-image",
+          name: "photo.png",
+          mimeType: "image/png",
+          storage: {
+            backend: "indexeddb",
+            database: "studio-assets",
+            objectStore: "assets",
+            key: "asset_photo",
+          },
+          createdAt: "2026-10-26T00:00:00.000Z",
+          sourceTool: "image",
+        },
+      ],
+      tags: ["typography", "phase-2", "type-mode:custom"],
+    });
+    const updated = store.getState().project.layers.find((item) => item.id === layer.id)!;
+    expect(updated.metadata.toolVersion).toBe("typography@1.0.0");
+    expect(updated.metadata.tags).toContain("type-mode:custom");
+    expect(updated.metadata.tags).not.toContain("type-mode:library");
+    expect(updated.metadata.tags).toContain("custom");
+    expect(store.getState().project.assets.map((asset) => asset.id)).toEqual(
+      expect.arrayContaining(["asset_type", "asset_photo"]),
+    );
+  });
+
+  it("rolls back a failed publish commit without leaving a duplicate layer", () => {
+    const store = createProjectStore(project);
+    store.getState().addLayer(makeLayer(project, "Existing"));
+    const before = store.getState().project;
+    const beforePast = store.getState().past.length;
+    store.getState().addLayer(makeLayer(store.getState().project, "Pending"));
+    expect(store.getState().project.layers).toHaveLength(2);
+    store.getState().rollbackLastCommit();
+    expect(store.getState().project).toEqual(before);
+    expect(store.getState().project.layers).toHaveLength(1);
+    expect(store.getState().past).toHaveLength(beforePast);
+    expect(store.getState().future).toHaveLength(0);
+  });
 });

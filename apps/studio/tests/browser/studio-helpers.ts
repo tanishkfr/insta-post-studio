@@ -36,6 +36,162 @@ export function vectorFrame(page: Page): FrameLocator {
   return page.frameLocator('iframe[title="Vector editor"]');
 }
 
+export async function openImage(page: Page): Promise<void> {
+  await page.getByTestId("tool-image").click();
+  await waitForImageReady(page);
+}
+
+export async function waitForImageReady(page: Page): Promise<void> {
+  await expect(page.getByTestId("image-editor")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Add to composition|Update layer/ }),
+  ).toBeEnabled({ timeout: 40_000 });
+  await expect(page.getByText("Opening preserved Image editor…")).toHaveCount(0);
+  await expect(
+    page.frameLocator('iframe[title="Image editor"]').locator("#studioImageBridgeReady"),
+  ).toHaveCount(1);
+}
+
+export function imageFrame(page: Page): FrameLocator {
+  return page.frameLocator('iframe[title="Image editor"]');
+}
+
+export async function openType(page: Page): Promise<void> {
+  await page.getByTestId("tool-typography").click();
+  await waitForTypeReady(page);
+}
+
+export async function waitForTypeReady(
+  page: Page,
+  mode: "library" | "custom" = "library",
+): Promise<void> {
+  await expect(page.getByTestId("type-editor")).toBeVisible();
+  const buttonName = /Add to composition|Update layer/;
+  await expect(page.getByRole("button", { name: buttonName })).toBeEnabled({
+    timeout: 60_000,
+  });
+  const title =
+    mode === "library" ? "Type Library editor" : "Custom Type editor";
+  await expect(page.frameLocator(`iframe[title="${title}"]`).locator("body")).toBeVisible({
+    timeout: 60_000,
+  });
+}
+
+export function typeFrame(
+  page: Page,
+  mode: "library" | "custom" = "library",
+): FrameLocator {
+  return page.frameLocator(
+    `iframe[title="${mode === "library" ? "Type Library editor" : "Custom Type editor"}"]`,
+  );
+}
+
+export async function switchTypeMode(
+  page: Page,
+  mode: "library" | "custom",
+): Promise<void> {
+  await page.getByTestId(`type-mode-${mode}`).click();
+  await waitForTypeReady(page, mode);
+}
+
+export async function setRange(
+  frame: FrameLocator,
+  selector: string,
+  value: number | string,
+): Promise<void> {
+  await frame.locator(selector).evaluate((element, next) => {
+    const input = element as HTMLInputElement;
+    input.value = String(next);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
+export async function publishActiveTool(page: Page): Promise<void> {
+  const button = page.getByRole("button", {
+    name: /Add to composition|Update layer/,
+  });
+  await expect(button).toBeEnabled({ timeout: 60_000 });
+  await button.click();
+  await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByTestId("save-state")).toContainText("Saved locally", {
+    timeout: 30_000,
+  });
+}
+
+export async function readAssetRecords(page: Page): Promise<
+  Array<{
+    id: string;
+    kind: string;
+    name: string;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    byteLength: number;
+    contentHash: string;
+    bytesBase64: string;
+  }>
+> {
+  return page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("studio-assets", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (!database.objectStoreNames.contains("assets")) {
+      database.close();
+      return [];
+    }
+    const records = await new Promise<Array<Record<string, unknown>>>(
+      (resolve, reject) => {
+        const transaction = database.transaction("assets", "readonly");
+        const request = transaction.objectStore("assets").getAll();
+        request.onsuccess = () => resolve(request.result as Array<Record<string, unknown>>);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    database.close();
+    return records.map((record) => {
+      const bytes = record.bytes as Uint8Array;
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 0x8000) {
+        binary += String.fromCharCode.apply(
+          null,
+          Array.from(bytes.subarray(index, index + 0x8000)),
+        );
+      }
+      return {
+        id: String(record.id),
+        kind: String(record.kind),
+        name: String(record.name),
+        mimeType: String(record.mimeType),
+        width: record.width as number | undefined,
+        height: record.height as number | undefined,
+        byteLength: bytes.byteLength,
+        contentHash: String(record.contentHash),
+        bytesBase64: btoa(binary),
+      };
+    });
+  });
+}
+
+export async function layerByName(
+  page: Page,
+  name: string,
+): Promise<{ id: string; kind: string; sourceTool: string } | null> {
+  const project = await readNewestProject(page);
+  if (!project) return null;
+  const layers = (project.project.layers ?? []) as Array<Record<string, unknown>>;
+  const found = layers.find((layer) => layer.name === name);
+  return found
+    ? {
+        id: String(found.id),
+        kind: String(found.kind),
+        sourceTool: String(found.sourceTool),
+      }
+    : null;
+}
+
 export async function setVectorSeed(frame: FrameLocator, seed: number): Promise<void> {
   const input = frame.locator("#f_seed");
   await input.fill(String(seed));

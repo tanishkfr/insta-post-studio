@@ -24,6 +24,10 @@ export interface LayerArtworkUpdate {
   sourceState: ToolSourceStateReference;
   rendered: RenderedAssetReference;
   renderedAsset: AssetReference;
+  /** Additional binary inputs that the source document references (for example an Image source photo). */
+  sourceAssets?: AssetReference[];
+  /** Metadata tags replaced when a paint-mode tool changes its mode (for example Type Library → Custom). */
+  tags?: string[];
 }
 
 export interface StudioProjectState {
@@ -60,6 +64,8 @@ export interface StudioProjectActions {
   moveLayer(layerId: LayerId, direction: "up" | "down"): void;
   undo(): void;
   redo(): void;
+  /** Transactional rollback used when a publish commit cannot be durably saved. */
+  rollbackLastCommit(): void;
 }
 
 export type StudioProjectStore = StudioProjectState & StudioProjectActions;
@@ -312,12 +318,28 @@ export function createProjectStore(
       applyLayerArtwork(update) {
         commit((project) => {
           const layer = ensureExistingLayer(project, update.layerId);
-          const assets = project.assets.some((asset) => asset.id === update.renderedAsset.id)
-            ? project.assets
-            : [...project.assets, update.renderedAsset];
+          const assetMap = new Map(project.assets.map((asset) => [asset.id, asset]));
+          assetMap.set(update.renderedAsset.id, update.renderedAsset);
+          for (const asset of update.sourceAssets ?? []) assetMap.set(asset.id, asset);
+          const tags = update.tags
+            ? (() => {
+                // Namespaced tags (for example `type-mode:library`) replace the
+                // previous value with the same prefix; ordinary tags accumulate.
+                const incomingPrefixes = new Set(
+                  update.tags.map((tag) =>
+                    tag.includes(":") ? `${tag.split(":")[0]}:` : null,
+                  ),
+                );
+                const retained = (layer.metadata.tags ?? []).filter(
+                  (tag) =>
+                    !(tag.includes(":") && incomingPrefixes.has(`${tag.split(":")[0]}:`)),
+                );
+                return Array.from(new Set([...retained, ...update.tags]));
+              })()
+            : layer.metadata.tags;
           return {
             ...project,
-            assets,
+            assets: Array.from(assetMap.values()),
             layers: project.layers.map((candidate) =>
               candidate.id === layer.id
                 ? {
@@ -327,7 +349,8 @@ export function createProjectStore(
                     metadata: {
                       ...layer.metadata,
                       updatedAt: nowIso(),
-                      toolVersion: `vector@${update.sourceState.toolStateVersion}`,
+                      toolVersion: `${update.sourceState.tool}@${update.sourceState.toolStateVersion}`,
+                      tags,
                     },
                   }
                 : candidate,
@@ -448,6 +471,27 @@ export function createProjectStore(
           )
             ? state.activeArtboardId
             : next.artboards[0]?.id ?? "",
+        });
+      },
+
+      rollbackLastCommit() {
+        const state = get();
+        const previous = state.past[state.past.length - 1];
+        if (!previous) return;
+        set({
+          project: previous,
+          past: state.past.slice(0, -1),
+          future: [],
+          selectedLayerId:
+            state.selectedLayerId &&
+            previous.layers.some((layer) => layer.id === state.selectedLayerId)
+              ? state.selectedLayerId
+              : null,
+          activeArtboardId: previous.artboards.some(
+            (artboard) => artboard.id === state.activeArtboardId,
+          )
+            ? state.activeArtboardId
+            : previous.artboards[0]?.id ?? "",
         });
       },
     };

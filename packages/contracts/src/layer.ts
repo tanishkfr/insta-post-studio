@@ -72,6 +72,17 @@ export interface LayerMetadata {
 }
 
 /**
+ * Optional cross-tool lineage. A derivative layer keeps its own source state
+ * while recording which existing host layer/asset was used as input.
+ */
+export interface LayerProvenance {
+  relation: "derived-from";
+  sourceLayerId: LayerId;
+  sourceAssetId?: string;
+  createdAt: IsoDateTime;
+}
+
+/**
  * The host's authoritative layer record. Specialized editable documents remain
  * in the source tool and are addressed through `sourceState`.
  */
@@ -93,6 +104,7 @@ export interface SharedLayer {
   mask: LayerMaskReference | null;
   clipToArtboard: boolean;
   temporal?: TemporalMetadata;
+  provenance?: LayerProvenance;
   metadata: LayerMetadata;
 }
 

@@ -5,6 +5,25 @@ import { downloadRenderedAsset } from "../studio/renderedAssets";
 
 interface InspectorProps {
   onEditLayer: (layerId: string) => void;
+  onContinueInVector: (layerId: string) => void;
+  onUseAsTypePattern: (layerId: string) => void;
+  onUseAsImageInput: (layerId: string) => void;
+}
+
+function sourceLabel(layer: SharedLayer): string {
+  if (layer.sourceTool === "image") return "Image editor";
+  if (layer.sourceTool === "typography") return "Type editor";
+  return "Vector editor";
+}
+
+function editLabel(layer: SharedLayer): string {
+  if (layer.sourceTool === "image") return "Edit in Image";
+  if (layer.sourceTool === "typography") return "Edit in Type";
+  return "Edit in Vector";
+}
+
+function downloadLabel(layer: SharedLayer): string {
+  return layer.rendered?.kind === "svg" ? "Download SVG" : "Download PNG";
 }
 
 function NumberField({
@@ -164,7 +183,12 @@ function FormatDetails({ project }: { project: StudioProject }) {
   );
 }
 
-export function InspectorPanel({ onEditLayer }: InspectorProps) {
+export function InspectorPanel({
+  onEditLayer,
+  onContinueInVector,
+  onUseAsTypePattern,
+  onUseAsImageInput,
+}: InspectorProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -215,7 +239,7 @@ export function InspectorPanel({ onEditLayer }: InspectorProps) {
             </span>
             <div>
               <span>Source</span>
-              <strong>Vector editor</strong>
+              <strong>{sourceLabel(layer)}</strong>
             </div>
             <span className="source-revision">
               rev {layer.sourceState?.revision ?? "—"}
@@ -329,9 +353,13 @@ export function InspectorPanel({ onEditLayer }: InspectorProps) {
               className="button primary"
               onClick={() => onEditLayer(layer.id)}
               disabled={!layer.sourceState}
-              data-testid="inspector-edit-vector"
+              data-testid={
+                layer.sourceTool === "vector"
+                  ? "inspector-edit-vector"
+                  : "inspector-edit-layer"
+              }
             >
-              Edit in Vector
+              {editLabel(layer)}
             </button>
             <button
               type="button"
@@ -340,17 +368,21 @@ export function InspectorPanel({ onEditLayer }: InspectorProps) {
               onClick={() => {
                 if (!layer.rendered?.assetId) return;
                 setDownloadError(null);
+                const extension =
+                  layer.rendered.kind === "svg" ? "svg" : "png";
                 void downloadRenderedAsset(
                   layer.rendered.assetId,
-                  `${layer.name.replace(/[^\w.-]+/g, "-").toLowerCase()}.svg`,
+                  `${layer.name.replace(/[^\w.-]+/g, "-").toLowerCase()}.${extension}`,
                 ).catch((error: unknown) => {
                   setDownloadError(
-                    error instanceof Error ? error.message : "Could not download SVG.",
+                    error instanceof Error
+                      ? error.message
+                      : `Could not download ${extension.toUpperCase()}.`,
                   );
                 });
               }}
             >
-              Download SVG
+              {downloadLabel(layer)}
             </button>
           </div>
           {downloadError ? (
@@ -358,9 +390,44 @@ export function InspectorPanel({ onEditLayer }: InspectorProps) {
               {downloadError}
             </p>
           ) : null}
+
+          {layer.sourceTool === "image" && layer.rendered?.kind === "image" ? (
+            <div className="handoff-actions">
+              <span className="handoff-heading">Continue in…</span>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => onContinueInVector(layer.id)}
+                data-testid="continue-in-vector"
+              >
+                Continue in Vector
+              </button>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => onUseAsTypePattern(layer.id)}
+                data-testid="use-as-type-pattern"
+              >
+                Use as Type Pattern
+              </button>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => onUseAsImageInput(layer.id)}
+                data-testid="use-as-image-input"
+              >
+                Use as Image Input
+              </button>
+              <p className="handoff-note">
+                Vector traces the raster into editable contour lines. Custom Type uses
+                it as a pattern motif. The original Image layer stays unchanged.
+              </p>
+            </div>
+          ) : null}
+
           <p className="inspector-note">
-            Host transform is separate from Vector's internal document and is preserved
-            when artwork is republished.
+            Host transform and stacking order are separate from {sourceLabel(layer)}'s
+            internal document and are preserved when artwork is republished.
           </p>
         </div>
       )}

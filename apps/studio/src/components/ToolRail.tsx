@@ -1,18 +1,20 @@
 import type { SharedLayer } from "@studio/contracts";
-import { toolNav } from "../project/defaultProject";
+import { toolNav, type NavToolId } from "../project/defaultProject";
+
+type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
 
 interface ToolRailProps {
   layerCount: number;
-  activeView: "canvas" | "vector";
+  activeView: "canvas";
   onCanvas: () => void;
-  onOpenVector: () => void;
+  onOpenTool: (tool: LiveTool) => void;
 }
 
 export function ToolRail({
   layerCount,
   activeView,
   onCanvas,
-  onOpenVector,
+  onOpenTool,
 }: ToolRailProps) {
   return (
     <aside className="toolrail" aria-label="Tool navigation">
@@ -45,10 +47,16 @@ export function ToolRail({
               key={tool.id}
               type="button"
               className={`tool-nav-item${isLive ? " is-live" : " is-locked"}`}
-              onClick={isLive ? onOpenVector : undefined}
+              onClick={
+                isLive ? () => onOpenTool(tool.id as LiveTool) : undefined
+              }
               disabled={!isLive}
               data-testid={`tool-${tool.id}`}
-              title={isLive ? "Open Vector editor" : `${tool.label} integration arrives in a later phase`}
+              title={
+                isLive
+                  ? `Open ${tool.label} editor`
+                  : `${tool.label} integration arrives in a later phase`
+              }
             >
               <span className="tool-index">{tool.index}</span>
               <span className="tool-copy">
@@ -66,7 +74,7 @@ export function ToolRail({
       <div className="rail-footer">
         <div className="rail-status">
           <span className="status-dot" aria-hidden="true" />
-          <span>Vector is integrated</span>
+          <span>Image · Vector · Type integrated</span>
         </div>
         <p>One shared project · local-first storage</p>
       </div>
@@ -75,5 +83,8 @@ export function ToolRail({
 }
 
 export function layerIcon(layer: SharedLayer): string {
-  return layer.kind === "vector" ? "◈" : "▧";
+  if (layer.kind === "vector") return "◈";
+  if (layer.kind === "typography") return "T";
+  if (layer.kind === "image") return "▧";
+  return "▧";
 }

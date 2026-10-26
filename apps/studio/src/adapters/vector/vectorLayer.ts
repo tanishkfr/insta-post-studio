@@ -1,4 +1,4 @@
-import type { SharedLayer, StudioProject } from "@studio/contracts";
+import type { LayerProvenance, SharedLayer, StudioProject } from "@studio/contracts";
 import { createIdentityTransform } from "@studio/contracts";
 import { createId, nowIso } from "../../lib/ids";
 import type { CaptureVectorResult } from "./captureVectorArtwork";
@@ -6,8 +6,13 @@ import type { CaptureVectorResult } from "./captureVectorArtwork";
 export interface CreateVectorLayerOptions {
   project: StudioProject;
   artboardId: string;
-  capture: CaptureVectorResult;
+  capture: Pick<
+    CaptureVectorResult,
+    "sourceState" | "rendered" | "suggestedName"
+  >;
   name?: string;
+  provenance?: LayerProvenance;
+  tags?: string[];
 }
 
 /**
@@ -51,11 +56,12 @@ export function createVectorLayer(options: CreateVectorLayerOptions): SharedLaye
     blendMode: "normal",
     mask: null,
     clipToArtboard: true,
+    provenance: options.provenance,
     metadata: {
       createdAt: timestamp,
       updatedAt: timestamp,
       toolVersion: "vector@1.0.0",
-      tags: ["vector", "phase-1"],
+      tags: options.tags ?? ["vector", "phase-1"],
     },
   };
 }

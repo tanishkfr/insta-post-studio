@@ -1,11 +1,20 @@
 import type { SharedLayer } from "@studio/contracts";
 import { useEffect, useRef, useState } from "react";
 import { studioStore, useStudioStore } from "../state/projectStore";
+import type { NavToolId } from "../project/defaultProject";
 import { layerIcon } from "./ToolRail";
 
+type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
+
 interface LayersPanelProps {
-  onOpenVector: () => void;
+  onOpenTool: (tool: LiveTool) => void;
   onEditLayer: (layerId: string) => void;
+}
+
+function toolLabel(layer: SharedLayer): string {
+  if (layer.sourceTool === "image") return "Image";
+  if (layer.sourceTool === "typography") return "Type";
+  return "Vector";
 }
 
 function LayerName({
@@ -83,7 +92,7 @@ function LayerName({
   );
 }
 
-export function LayersPanel({ onOpenVector, onEditLayer }: LayersPanelProps) {
+export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -117,10 +126,30 @@ export function LayersPanel({ onOpenVector, onEditLayer }: LayersPanelProps) {
             ◈
           </span>
           <strong>No layers yet</strong>
-          <p>Open Vector to create artwork and add it to this composition.</p>
-          <button type="button" className="button primary small" onClick={onOpenVector}>
-            Open Vector
-          </button>
+          <p>Open any integrated editor to create your first shared layer.</p>
+          <div className="empty-layer-actions">
+            <button
+              type="button"
+              className="button primary small"
+              onClick={() => onOpenTool("image")}
+            >
+              Open Image
+            </button>
+            <button
+              type="button"
+              className="button small"
+              onClick={() => onOpenTool("vector")}
+            >
+              Open Vector
+            </button>
+            <button
+              type="button"
+              className="button small"
+              onClick={() => onOpenTool("typography")}
+            >
+              Open Type
+            </button>
+          </div>
         </div>
       ) : (
         <ul className="layer-list" aria-label="Project layers">
@@ -208,10 +237,10 @@ export function LayersPanel({ onOpenVector, onEditLayer }: LayersPanelProps) {
           className="button small"
           onClick={() => {
             if (selectedLayer) onEditLayer(selectedLayer.id);
-            else onOpenVector();
+            else onOpenTool("image");
           }}
         >
-          {selectedLayer ? "Edit in Vector" : "Create with Vector"}
+          {selectedLayer ? `Edit in ${toolLabel(selectedLayer)}` : "Create artwork"}
         </button>
         <button
           type="button"

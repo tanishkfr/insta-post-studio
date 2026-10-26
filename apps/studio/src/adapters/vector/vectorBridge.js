@@ -194,21 +194,25 @@
       return;
     }
 
-    try {
-      const result = dispatch(message.method, message.params || {});
-      reply(okResponse(message.requestId, message.method, result));
-    } catch (error) {
-      const structured = structuredError(error);
-      reply(
-        errorResponse(
-          message.requestId,
-          message.method,
-          structured.code,
-          structured.message,
-          structured.retryable,
-        ),
-      );
-    }
+    Promise.resolve()
+      .then(function () {
+        return dispatch(message.method, message.params || {});
+      })
+      .then(function (result) {
+        reply(okResponse(message.requestId, message.method, result));
+      })
+      .catch(function (error) {
+        const structured = structuredError(error);
+        reply(
+          errorResponse(
+            message.requestId,
+            message.method,
+            structured.code,
+            structured.message,
+            structured.retryable,
+          ),
+        );
+      });
   }
 
   function structuredError(error) {
@@ -265,15 +269,8 @@
           activeArtboardId: params && params.activeArtboard ? params.activeArtboard.id : "",
         };
       }
-      case "assets/input": {
-        return (Array.isArray(params) ? params : []).map(function (asset) {
-          return {
-            inputLayerId: asset.layerId,
-            accepted: false,
-            message: "Vector does not consume external assets in Phase 1.",
-          };
-        });
-      }
+      case "assets/input":
+        return receiveInputAssets(params);
       case "state/restore":
         return restoreSourceState(params);
       case "state/serialize":
@@ -298,6 +295,59 @@
       capabilities: capabilities,
       warnings: [],
     };
+  }
+
+  async function receiveInputAssets(assets) {
+    const receipts = [];
+    for (const input of Array.isArray(assets) ? assets : []) {
+      const mimeType = input && input.asset ? input.asset.mimeType : "";
+      if (
+        !input ||
+        !input.bytes ||
+        ["image/png", "image/jpeg", "image/webp"].indexOf(mimeType) === -1
+      ) {
+        receipts.push({
+          inputLayerId: input && input.layerId,
+          accepted: false,
+          message:
+            "Vector image tracing accepts PNG, JPEG or WebP rasters. This asset was not imported.",
+        });
+        continue;
+      }
+      const before = res && res.items ? res.items.length : 0;
+      try {
+        const copy = new Uint8Array(input.bytes.byteLength);
+        copy.set(input.bytes);
+        const file = new File(
+          [copy.buffer],
+          (input.asset && input.asset.name) || "studio-image.png",
+          { type: mimeType },
+        );
+        await impFile(file);
+      } catch (error) {
+        receipts.push({
+          inputLayerId: input.layerId,
+          accepted: false,
+          message: "The raster input could not be imported by the preserved Vector importer.",
+        });
+        continue;
+      }
+      const after = res && res.items ? res.items.length : 0;
+      receipts.push({
+        inputLayerId: input.layerId,
+        accepted: after > before,
+        message:
+          after > before
+            ? "Raster traced into " +
+              String(after - before) +
+              " editable contour lines. This is a conversion, not a live image link."
+            : "The raster produced no editable contour lines. Try higher-contrast artwork.",
+      });
+      if (after > before) {
+        postEvent({ type: "dirty", dirty: true });
+      }
+    }
+    return receipts;
   }
 
   function restoreSourceState(payload) {

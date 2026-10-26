@@ -1,6 +1,6 @@
 import { expect, test } from "./studio-test";
 
-test("Studio shell exposes an empty persisted canvas and live Vector entry", async ({
+test("Studio shell exposes an empty persisted canvas and Image/Vector/Type entries", async ({
   page,
 }) => {
   await page.goto("/");
@@ -16,7 +16,9 @@ test("Studio shell exposes an empty persisted canvas and live Vector entry", asy
     "instagram-square",
   );
   await expect(page.getByTestId("tool-vector")).toBeEnabled();
-  await expect(page.getByTestId("tool-image")).toBeDisabled();
+  await expect(page.getByTestId("tool-image")).toBeEnabled();
+  await expect(page.getByTestId("tool-typography")).toBeEnabled();
+  await expect(page.getByTestId("tool-shapes")).toBeDisabled();
   await expect(page.getByText("No layers yet")).toBeVisible();
   await expect
     .poll(() =>

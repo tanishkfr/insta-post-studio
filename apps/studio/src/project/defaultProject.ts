@@ -176,7 +176,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Image",
     discipline: "Raster & filters",
     sourcePath: "tools/legacy/image/janya.html",
-    status: "preserved",
+    status: "live",
   },
   {
     id: "vector",
@@ -192,7 +192,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Type",
     discipline: "Fonts & forms",
     sourcePath: "tools/typography/",
-    status: "preserved",
+    status: "live",
   },
   {
     id: "shapes",

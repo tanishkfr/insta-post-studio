@@ -86,7 +86,7 @@ describe("Studio shell components", () => {
         saveError={null}
         canUndo
         canRedo={false}
-        editingVector={false}
+        editingTool={null}
         onSave={() => undefined}
         onUndo={() => undefined}
         onRedo={() => undefined}
@@ -113,25 +113,26 @@ describe("Studio shell components", () => {
     expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
   });
 
-  it("exposes Vector as live while preserving disabled future tools", () => {
+  it("exposes Image, Vector and Type as live while preserving future tools", () => {
     render(
       <ToolRail
         layerCount={1}
         activeView="canvas"
         onCanvas={() => undefined}
-        onOpenVector={() => undefined}
+        onOpenTool={() => undefined}
       />,
     );
     expect(screen.getByRole("button", { name: /Vector/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /Image/ })).toBeDisabled();
-    expect(screen.getByText("Live")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Image/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Type/ })).toBeEnabled();
+    expect(screen.getAllByText("Live")).toHaveLength(3);
     expect(screen.getByText("1 layer")).toBeInTheDocument();
   });
 
   it("lists, hides and locks real project layers", () => {
     render(
       <LayersPanel
-        onOpenVector={() => undefined}
+        onOpenTool={() => undefined}
         onEditLayer={() => undefined}
       />,
     );
@@ -149,7 +150,14 @@ describe("Studio shell components", () => {
   });
 
   it("edits Vector layer metadata and host transforms from the inspector", () => {
-    render(<InspectorPanel onEditLayer={() => undefined} />);
+    render(
+      <InspectorPanel
+        onEditLayer={() => undefined}
+        onContinueInVector={() => undefined}
+        onUseAsTypePattern={() => undefined}
+        onUseAsImageInput={() => undefined}
+      />,
+    );
     expect(screen.getByRole("heading", { name: "Inspector" })).toBeInTheDocument();
     expect(screen.getByText("Vector editor")).toBeInTheDocument();
     expect(screen.getByText("rev 1")).toBeInTheDocument();

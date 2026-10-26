@@ -9,7 +9,7 @@ interface TopbarProps {
   saveError: string | null;
   canUndo: boolean;
   canRedo: boolean;
-  editingVector: boolean;
+  editingTool: string | null;
   onSave: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -99,7 +99,7 @@ export function Topbar({
   saveError,
   canUndo,
   canRedo,
-  editingVector,
+  editingTool,
   onSave,
   onUndo,
   onRedo,
@@ -108,7 +108,7 @@ export function Topbar({
   onNewProject,
 }: TopbarProps) {
   return (
-    <header className={`topbar${editingVector ? " is-editing" : ""}`}>
+    <header className={`topbar${editingTool ? " is-editing" : ""}`}>
       <div className="brand">
         <StudioMark />
         <div className="brand-wordmark">
@@ -135,7 +135,7 @@ export function Topbar({
           {saveLabel(saveStatus)}
         </span>
 
-        {!editingVector ? (
+        {!editingTool ? (
           <div className="history-controls" aria-label="Project history">
             <button
               type="button"
@@ -160,7 +160,7 @@ export function Topbar({
           </div>
         ) : null}
 
-        {!editingVector ? (
+        {!editingTool ? (
           <label className="format-select-wrap">
             <span>Format</span>
             <select
@@ -181,7 +181,7 @@ export function Topbar({
           </span>
         )}
 
-        {!editingVector ? (
+        {!editingTool ? (
           <>
             <button
               type="button"

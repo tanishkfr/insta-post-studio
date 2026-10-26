@@ -1,16 +1,24 @@
-import type { StudioProject } from "@studio/contracts";
+import type { LayerProvenance, StudioProject, SourceToolId } from "@studio/contracts";
 import { useEffect, useState } from "react";
-import type { CaptureVectorResult } from "./adapters/vector/captureVectorArtwork";
+import { createRasterLayer } from "./adapters/session/layerFactory";
+import type { ToolSessionCapture } from "./adapters/session/toolSession";
+import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
+import { typographyModeFromLayer, type TypographyMode } from "./adapters/typography/typographySourceState";
 import { createVectorLayer } from "./adapters/vector/vectorLayer";
 import { CanvasWorkspace } from "./components/CanvasWorkspace";
+import { ImageEditor } from "./components/ImageEditor";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { LayersPanel } from "./components/LayersPanel";
 import { ToolRail } from "./components/ToolRail";
 import { Topbar } from "./components/Topbar";
+import { TypeEditor } from "./components/TypeEditor";
 import { VectorEditor } from "./components/VectorEditor";
+import { nowIso } from "./lib/ids";
 import { FORMAT_PRESETS } from "./project/defaultProject";
 import { studioStore, useStudioStore } from "./state/projectStore";
 import { useProjectPersistence } from "./state/useProjectPersistence";
+
+type EditableTool = "image" | "vector" | "typography";
 
 function LoadingShell() {
   return (
@@ -20,9 +28,13 @@ function LoadingShell() {
       </div>
       <span className="eyebrow">Studio 2.0</span>
       <strong>Opening local project</strong>
-      <p>Restoring the document and Vector source references from IndexedDB.</p>
+      <p>Restoring the document, layers and Image / Vector / Type source references from IndexedDB.</p>
     </div>
   );
+}
+
+function isEditableTool(tool: SourceToolId | "canvas"): tool is EditableTool {
+  return tool === "image" || tool === "vector" || tool === "typography";
 }
 
 export default function App() {
@@ -34,18 +46,24 @@ export default function App() {
   const canRedo = useStudioStore((state) => state.future.length > 0);
   const persistence = useProjectPersistence(studioStore);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [inputLayerId, setInputLayerId] = useState<string | null>(null);
+  const [typeMode, setTypeMode] = useState<TypographyMode>("library");
+  const [handoffError, setHandoffError] = useState<string | null>(null);
 
-  const editingVector = activeTool === "vector";
+  const editingTool = isEditableTool(activeTool) ? activeTool : null;
   const activeArtboard =
     project.artboards.find((artboard) => artboard.id === activeArtboardId) ??
     project.artboards[0];
   const editingLayer = editingLayerId
     ? project.layers.find((layer) => layer.id === editingLayerId) ?? null
     : null;
+  const inputLayer = inputLayerId
+    ? project.layers.find((layer) => layer.id === inputLayerId) ?? null
+    : null;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (editingVector) return;
+      if (editingTool) return;
       const target = event.target as HTMLElement | null;
       if (
         target &&
@@ -62,63 +80,138 @@ export default function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editingVector]);
+  }, [editingTool]);
 
-  function openNewVector() {
+  function resetEditingState() {
     setEditingLayerId(null);
-    studioStore.getState().selectLayer(null);
-    studioStore.getState().setActiveTool("vector");
+    setInputLayerId(null);
+    setHandoffError(null);
+    studioStore.getState().setActiveTool("canvas");
   }
 
-  function openExistingVector(layerId: string) {
+  function openNewTool(tool: EditableTool) {
+    setEditingLayerId(null);
+    setInputLayerId(null);
+    setHandoffError(null);
+    setTypeMode("library");
+    studioStore.getState().selectLayer(null);
+    studioStore.getState().setActiveTool(tool);
+  }
+
+  function openExistingTool(layerId: string) {
     const layer = studioStore.getState().project.layers.find(
       (candidate) => candidate.id === layerId,
     );
-    if (!layer?.sourceState) return;
+    if (!layer?.sourceState || !isEditableTool(layer.sourceTool)) {
+      setHandoffError("This layer does not have a supported editable source document.");
+      return;
+    }
     setEditingLayerId(layerId);
+    setInputLayerId(null);
+    setHandoffError(null);
+    setTypeMode(typographyModeFromLayer(layer));
     studioStore.getState().selectLayer(layerId);
-    studioStore.getState().setActiveTool("vector");
+    studioStore.getState().setActiveTool(layer.sourceTool);
   }
 
-  function closeVector() {
-    studioStore.getState().setActiveTool("canvas");
+  async function startHandoff(layerId: string, target: EditableTool) {
+    const state = studioStore.getState();
+    const layer = state.project.layers.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    setHandoffError(null);
+    try {
+      await loadRasterInputForLayer(
+        state.project,
+        layerId,
+        target === "vector" ? "rendered-input" : "reference",
+      );
+    } catch (error) {
+      setHandoffError(
+        error instanceof Error
+          ? error.message
+          : "That layer cannot be used as a raster input.",
+      );
+      return;
+    }
     setEditingLayerId(null);
+    setInputLayerId(layerId);
+    setTypeMode(target === "typography" ? "custom" : "library");
+    state.selectLayer(layerId);
+    state.setActiveTool(target);
   }
 
-  async function handlePublish(capture: CaptureVectorResult) {
+  function useAsImageInput(layerId: string) {
+    void startHandoff(layerId, "image");
+  }
+
+  function provenanceForNewLayer(): LayerProvenance | undefined {
+    const source = inputLayer;
+    if (!source) return undefined;
+    return {
+      relation: "derived-from",
+      sourceLayerId: source.id,
+      sourceAssetId: source.rendered?.assetId,
+      createdAt: nowIso(),
+    };
+  }
+
+  async function handlePublish(capture: ToolSessionCapture) {
     const state = studioStore.getState();
     const artboard = state.project.artboards.find(
       (candidate) => candidate.id === state.activeArtboardId,
     );
     if (!artboard) throw new Error("The active artboard no longer exists.");
-    if (editingLayerId) {
-      if (!state.project.layers.some((layer) => layer.id === editingLayerId)) {
-        throw new Error("The original layer no longer exists.");
-      }
-      state.applyLayerArtwork({
-        layerId: editingLayerId,
-        sourceState: capture.sourceState,
-        rendered: capture.rendered,
-        renderedAsset: capture.renderedAsset,
-      });
-    } else {
-      const layer = createVectorLayer({
-        project: state.project,
-        artboardId: artboard.id,
-        capture,
-      });
-      state.addLayer(layer, [capture.renderedAsset]);
-    }
-
+    const tool = capture.sourceState.tool;
     try {
+      if (editingLayerId) {
+        if (!state.project.layers.some((layer) => layer.id === editingLayerId)) {
+          throw new Error("The original layer no longer exists.");
+        }
+        state.applyLayerArtwork({
+          layerId: editingLayerId,
+          sourceState: capture.sourceState,
+          rendered: capture.rendered,
+          renderedAsset: capture.renderedAsset,
+          sourceAssets: capture.sourceAssets,
+          tags: capture.tags,
+        });
+      } else if (tool === "vector") {
+        const layer = createVectorLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          provenance: provenanceForNewLayer(),
+          tags: capture.tags,
+        });
+        state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+      } else if (tool === "image" || tool === "typography") {
+        const layer = createRasterLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          kind: tool === "image" ? "image" : "typography",
+          sourceTool: tool,
+          toolVersion: `${tool}@${capture.sourceState.toolStateVersion}`,
+          provenance: provenanceForNewLayer(),
+          tags: capture.tags,
+        });
+        state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+      } else {
+        throw new Error(`No Studio layer factory exists for ${String(tool)}.`);
+      }
+
       await persistence.saveNow();
     } catch (error) {
+      // The commit was in-memory only. Roll it back so a failed durable write
+      // cannot leave a phantom/duplicate layer or replace an older source ref.
+      studioStore.getState().rollbackLastCommit();
       throw new Error(
-        `Artwork is captured in this session, but the project could not be saved. ${
+        `Artwork is captured in this session, but the project could not be saved. The previous durable layer was preserved. ${
           error instanceof Error ? error.message : ""
         }`.trim(),
       );
     }
+    setInputLayerId(null);
   }
 
   if (!persistence.hydrated) {
@@ -126,7 +219,9 @@ export default function App() {
   }
 
   return (
-    <div className={`studio-shell${editingVector ? " is-vector-editing" : ""}`}>
+    <div
+      className={`studio-shell${editingTool ? " is-vector-editing is-tool-editing" : ""}`}
+    >
       <Topbar
         project={project}
         formats={FORMAT_PRESETS}
@@ -134,7 +229,7 @@ export default function App() {
         saveError={persistence.error}
         canUndo={canUndo}
         canRedo={canRedo}
-        editingVector={editingVector}
+        editingTool={editingTool}
         onSave={() => {
           void persistence.saveNow().catch(() => undefined);
         }}
@@ -145,22 +240,41 @@ export default function App() {
         onNewProject={() => {
           void persistence
             .newProject()
-            .then(() => {
-              setEditingLayerId(null);
-              studioStore.getState().setActiveTool("canvas");
-            })
+            .then(() => resetEditingState())
             .catch(() => undefined);
         }}
       />
 
-      {editingVector && activeArtboard ? (
+      {editingTool === "vector" && activeArtboard ? (
         <VectorEditor
-          key={`${editingLayerId ?? "new"}-${project.id}`}
+          key={`vector-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
           project={project}
           artboard={activeArtboard}
           layer={editingLayer}
+          inputLayerId={inputLayerId}
           onPublish={handlePublish}
-          onClose={closeVector}
+          onClose={resetEditingState}
+        />
+      ) : editingTool === "image" && activeArtboard ? (
+        <ImageEditor
+          key={`image-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          inputLayerId={inputLayerId}
+          onPublish={handlePublish}
+          onClose={resetEditingState}
+        />
+      ) : editingTool === "typography" && activeArtboard ? (
+        <TypeEditor
+          key={`type-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          initialMode={typeMode}
+          inputLayerId={inputLayerId}
+          onPublish={handlePublish}
+          onClose={resetEditingState}
         />
       ) : (
         <>
@@ -168,17 +282,22 @@ export default function App() {
             layerCount={project.layers.length}
             activeView="canvas"
             onCanvas={() => studioStore.getState().setActiveTool("canvas")}
-            onOpenVector={openNewVector}
+            onOpenTool={openNewTool}
           />
 
-          <CanvasWorkspace onOpenVector={openNewVector} />
+          <CanvasWorkspace onOpenTool={openNewTool} />
 
           <aside className="sidepanel" aria-label="Layers and inspector">
             <LayersPanel
-              onOpenVector={openNewVector}
-              onEditLayer={openExistingVector}
+              onOpenTool={openNewTool}
+              onEditLayer={openExistingTool}
             />
-            <InspectorPanel onEditLayer={openExistingVector} />
+            <InspectorPanel
+              onEditLayer={openExistingTool}
+              onContinueInVector={(layerId) => void startHandoff(layerId, "vector")}
+              onUseAsTypePattern={(layerId) => void startHandoff(layerId, "typography")}
+              onUseAsImageInput={useAsImageInput}
+            />
           </aside>
 
           <footer className="statusbar">
@@ -187,7 +306,7 @@ export default function App() {
               <span>{persistence.error ? "Local save needs attention" : "Local-first project"}</span>
             </div>
             <div className="status-center">
-              <span>Vector integration</span>
+              <span>Image · Vector · Type integration</span>
               <span className="status-divider" />
               <span>
                 {project.format.label} · {project.format.width} × {project.format.height}
@@ -201,6 +320,20 @@ export default function App() {
           </footer>
         </>
       )}
+
+      {handoffError ? (
+        <div className="storage-banner handoff-banner" role="alert">
+          <strong>Could not start handoff</strong>
+          <span>{handoffError}</span>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => setHandoffError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {persistence.error ? (
         <div className="storage-banner" role="alert">

@@ -9,10 +9,14 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { studioStore, useStudioStore } from "../state/projectStore";
+import { assetRepository, objectUrls } from "../storage/instances";
 import { loadRenderedSvg } from "../studio/renderedAssets";
+import type { NavToolId } from "../project/defaultProject";
+
+type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
 
 interface CanvasWorkspaceProps {
-  onOpenVector: () => void;
+  onOpenTool: (tool: LiveTool) => void;
 }
 
 interface DragState {
@@ -78,6 +82,63 @@ function useRenderedSvg(assetId: string | undefined): {
   };
 }
 
+function useRenderedRaster(assetId: string | undefined): {
+  url: string | null;
+  error: string | null;
+  loading: boolean;
+} {
+  const [result, setResult] = useState<{
+    assetId: string | undefined;
+    url: string | null;
+    error: string | null;
+    loading: boolean;
+  }>({ assetId, url: null, error: null, loading: Boolean(assetId) });
+
+  useEffect(() => {
+    if (!assetId) {
+      setResult({ assetId, url: null, error: "No rendered asset.", loading: false });
+      return;
+    }
+    let cancelled = false;
+    let acquired = false;
+    setResult({ assetId, url: null, error: null, loading: true });
+    void assetRepository
+      .getAsset(assetId)
+      .then(({ reference, bytes }) => {
+        if (cancelled) return;
+        const copy = new Uint8Array(bytes.byteLength);
+        copy.set(bytes);
+        const blob = new Blob([copy.buffer], { type: reference.mimeType });
+        const url = objectUrls.acquire(assetId, blob);
+        acquired = true;
+        setResult({ assetId, url, error: null, loading: false });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setResult({
+            assetId,
+            url: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "The rendered raster could not be loaded.",
+            loading: false,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (acquired) objectUrls.release(assetId);
+    };
+  }, [assetId]);
+
+  return {
+    url: result.assetId === assetId ? result.url : null,
+    error: result.assetId === assetId ? result.error : null,
+    loading: result.assetId === assetId ? result.loading : Boolean(assetId),
+  };
+}
+
 function formatRatio(artboard: Artboard): string {
   const ratio = artboard.width / artboard.height;
   if (Math.abs(ratio - 1) < 0.001) return "1:1";
@@ -109,7 +170,11 @@ function LayerView({
   onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>, layer: SharedLayer) => void;
 }) {
-  const rendered = useRenderedSvg(layer.rendered?.assetId);
+  const isSvg = layer.rendered?.kind === "svg";
+  const rendered = useRenderedSvg(isSvg ? layer.rendered?.assetId : undefined);
+  const raster = useRenderedRaster(
+    layer.rendered?.kind === "image" ? layer.rendered.assetId : undefined,
+  );
   const transform = preview ?? layer.transform;
   const moving = drag?.layerId === layer.id;
   const displayWidth = Math.max(1, transform.width * Math.abs(transform.scaleX || 1));
@@ -122,18 +187,26 @@ function LayerView({
     transform: `rotate(${transform.rotationDegrees}deg) scale(${transform.flipHorizontal ? -1 : 1}, ${transform.flipVertical ? -1 : 1})`,
     transformOrigin: `${transform.anchorX * 100}% ${transform.anchorY * 100}%`,
     opacity: layer.opacity,
+    mixBlendMode:
+      layer.blendMode === "normal"
+        ? undefined
+        : (layer.blendMode as CSSProperties["mixBlendMode"]),
     display: layer.visible ? undefined : "none",
   } as const;
 
+  const artworkError = isSvg ? rendered.error : raster.error;
+  const loading = isSvg ? rendered.loading : raster.loading;
+
   return (
     <div
-      className={`canvas-layer${selected ? " is-selected" : ""}${layer.locked ? " is-locked" : ""}${moving ? " is-dragging" : ""}`}
+      className={`canvas-layer layer-kind-${layer.kind}${selected ? " is-selected" : ""}${layer.locked ? " is-locked" : ""}${moving ? " is-dragging" : ""}`}
       style={style}
       data-testid="canvas-layer"
       data-layer-id={layer.id}
       data-layer-name={layer.name}
+      data-layer-kind={layer.kind}
       role="group"
-      aria-label={`${layer.name} vector layer`}
+      aria-label={`${layer.name} ${layer.kind} layer`}
       tabIndex={0}
       onPointerDown={(event) => onPointerDown(event, layer)}
       onPointerMove={onPointerMove}
@@ -146,12 +219,14 @@ function LayerView({
       }}
     >
       <div className="layer-artwork" aria-hidden="true">
-        {rendered.svg ? (
+        {isSvg && rendered.svg ? (
           <div
             className="vector-svg"
             dangerouslySetInnerHTML={{ __html: rendered.svg }}
           />
-        ) : rendered.loading ? (
+        ) : !isSvg && raster.url ? (
+          <img className="raster-artwork" src={raster.url} alt="" draggable={false} />
+        ) : loading ? (
           <span className="layer-asset-state">Loading artwork…</span>
         ) : (
           <span className="layer-asset-state error" role="img" aria-label="Artwork unavailable">
@@ -171,16 +246,16 @@ function LayerView({
           ) : null}
         </>
       ) : null}
-      {rendered.error ? (
+      {artworkError ? (
         <span className="layer-error" role="status">
-          {rendered.error}
+          {artworkError}
         </span>
       ) : null}
     </div>
   );
 }
 
-export function CanvasWorkspace({ onOpenVector }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -368,12 +443,32 @@ export function CanvasWorkspace({ onOpenVector }: CanvasWorkspaceProps) {
               <span className="canvas-empty-index">01 / Empty canvas</span>
               <h2>Make your first layer.</h2>
               <p>
-                The Vector editor is fully preserved and ready. Generate paths, then
-                publish them as editable studio artwork.
+                Start with a photo treatment, vector artwork or typography. Every tool
+                publishes into this same composition and keeps its editable source.
               </p>
-              <button type="button" className="button primary" onClick={onOpenVector}>
-                Open Vector
-              </button>
+              <div className="canvas-empty-actions">
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() => onOpenTool("image")}
+                >
+                  Open Image
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onOpenTool("vector")}
+                >
+                  Open Vector
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onOpenTool("typography")}
+                >
+                  Open Type
+                </button>
+              </div>
             </div>
           ) : null}
 

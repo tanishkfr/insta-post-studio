@@ -3,6 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/browser",
   fullyParallel: false,
+  // The preserved Image/Type renderers do synchronous full-resolution work.
+  // Two workers keep the suite deterministic without starving those frames.
+  workers: 2,
+  timeout: 120_000,
   retries: 0,
   reporter: "list",
   use: {

@@ -13,6 +13,13 @@ export const test = base.extend<{ consoleGuard: void }>({
       });
       page.on("console", (message) => {
         if (message.type() === "error") {
+          const allowed = test
+            .info()
+            .annotations.filter((annotation) => annotation.type === "allow-console-error")
+            .map((annotation) => annotation.description ?? "");
+          if (allowed.some((fragment) => fragment && message.text().includes(fragment))) {
+            return;
+          }
           errors.push(`console.error: ${message.text()}`);
         }
       });
