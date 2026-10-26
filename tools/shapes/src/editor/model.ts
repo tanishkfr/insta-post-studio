@@ -44,6 +44,14 @@ export type Transform = {
   scale: Vec3
 }
 
+/** Orbit-rig camera state. This is view state, but it is part of the saved 3D document. */
+export type CameraState = {
+  theta: number
+  phi: number
+  radius: number
+  target: Vec3
+}
+
 export type StrokePoint = { x: number; z: number }
 
 export type StrokePath = { points: StrokePoint[]; spacing: number }
@@ -158,6 +166,7 @@ export type State = {
   strokeDraft: StrokePoint[] | null
   light: LightPreset
   activeFace: number | null
+  camera: CameraState
   pointer: PointerLock
   draft: Transform | null
   past: Edit[]
@@ -177,6 +186,7 @@ export type Snapshot = {
   strokeDraft: StrokePoint[] | null
   light: LightPreset
   activeFace: number | null
+  camera: CameraState
   pointer: PointerLock
   draft: Transform | null
   canUndo: boolean
@@ -187,6 +197,13 @@ export type Editor = {
   dispatch(intent: Intent): void
   snapshot(): Snapshot
   subscribe(listener: () => void): () => void
+  /** Serializes the complete versioned Shapes source document. */
+  serializeSource(): string
+  /** Validates and restores a source document without touching the current one on failure. */
+  restoreSource(content: string): void
+  getCamera(): CameraState
+  /** View updates intentionally do not fan out React notifications. */
+  setCamera(camera: CameraState): void
 }
 
 export type ProjectedMesh = {
@@ -247,6 +264,15 @@ export function identityTransform(): Transform {
     position: vec3(0, 0, 0),
     rotation: vec3(0, 0, 0),
     scale: vec3(1, 1, 1),
+  }
+}
+
+export function defaultCameraState(): CameraState {
+  return {
+    theta: 0.72,
+    phi: 1.08,
+    radius: 9,
+    target: vec3(0.4, 0.2, 0.4),
   }
 }
 
@@ -463,6 +489,7 @@ export function initialState(): State {
     strokeDraft: null,
     light: 'studio',
     activeFace: null,
+    camera: defaultCameraState(),
     pointer: { owner: 'idle' },
     draft: null,
     past: [],
@@ -484,6 +511,7 @@ export function toSnapshot(state: State): Snapshot {
     strokeDraft: state.strokeDraft,
     light: state.light,
     activeFace: state.activeFace,
+    camera: state.camera,
     pointer: state.pointer,
     draft: state.draft,
     canUndo: state.past.length > 0,
