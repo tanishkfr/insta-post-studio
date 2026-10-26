@@ -1,0 +1,85 @@
+name: BEND CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'release/**'
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: Preview deployment URL (HTTPS, protected previews need the bypass secret).
+        required: false
+        type: string
+
+concurrency:
+  group: bend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, unit tests, build, local browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox
+      - run: npm run test:browser
+      - name: Upload local browser report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bend-local-browser-report
+          path: |
+            output/playwright/report
+            test-results
+          retention-days: 7
+
+  deployed-smoke:
+    name: Deployed preview smoke (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.deployment_url != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BEND_DEPLOY_URL: ${{ inputs.deployment_url }}
+      BEND_VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      BEND_SOURCE_DIGEST: ${{ github.sha }}
+      BEND_BUNDLED_CHROMIUM: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Require automation bypass for protected Vercel previews
+        run: |
+          if [ -z "${BEND_VERCEL_BYPASS}" ]; then
+            echo "::error::VERCEL_AUTOMATION_BYPASS_SECRET is required for the protected preview project."
+            exit 1
+          fi
+      - run: pwsh -File tests/fixtures/generate-phase7-fixtures.ps1
+      - run: npx playwright test -c playwright.deployed.config.ts --project=chrome --project=firefox --project=webkit --grep @smoke
+      - name: Upload deployed evidence on failure (no traces)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bend-deployed-smoke-failure
+          path: |
+            output/evidence/phase7-0
+            output/playwright
+          retention-days: 7

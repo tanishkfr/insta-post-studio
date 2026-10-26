@@ -1,0 +1,59 @@
+:root {
+  color-scheme: light;
+  --surface-primary: #ffffff;
+  --surface-workspace: #f3f7f6;
+  --surface-elevated: #ffffff;
+  --surface-hover: #eaf1ef;
+  --surface-muted: #f0f3f2;
+  --surface-canvas: #edf3f2;
+  --text-primary: #193438;
+  --text-secondary: #526c6e;
+  --text-tertiary: #526c6e;
+  --accent: #236f72;
+  --accent-soft: #dcefeb;
+  --border-subtle: #dee7e5;
+  --border-strong: #b7ccca;
+  --focus-ring: #236f72;
+  --danger: #b34f5c;
+  --success: #2f735d;
+  --warning: #986c28;
+  --shadow-soft: 0 14px 38px rgba(25, 52, 56, 0.09);
+  --shadow-popover: 0 18px 42px rgba(25, 52, 56, 0.14);
+  --white-08: rgba(25, 52, 56, 0.08);
+  --white-14: rgba(25, 52, 56, 0.14);
+  --white-24: rgba(25, 52, 56, 0.24);
+  --font-display: "Instrument Sans Variable", "Instrument Sans", "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-ui: "Instrument Sans Variable", "Instrument Sans", "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-duration-immediate: 120ms;
+  --motion-duration-quick: 200ms;
+  --motion-duration-standard: 280ms;
+  --motion-ease-responsive: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Compatibility aliases for existing feature surfaces. */
+  --ink: var(--surface-primary);
+  --paper: var(--text-primary);
+  --signal: var(--accent);
+  --panel: var(--surface-workspace);
+  --deep: var(--surface-workspace);
+  --muted: var(--text-secondary);
+  --border: var(--border-subtle);
+  --error: var(--danger);
+  --accent-tint: var(--accent-soft);
+  --canvas-surface: var(--surface-canvas);
+}
+

@@ -1,0 +1,41 @@
+name: Studio CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    name: Host build and contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install host dependencies
+        run: npm ci
+
+      - name: Typecheck shared contracts
+        run: npm run contracts:typecheck
+
+      - name: Build Studio host
+        run: npm run build
+
+      - name: Run host unit tests
+        run: npm test

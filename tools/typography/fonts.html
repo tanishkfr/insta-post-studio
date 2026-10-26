@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Type library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-wrap"><div class="brand">type library.</div></div>
+    <a class="home-link" href="index.html">Type tool</a>
+    <div class="actions">
+      <span class="status" id="status" role="status" aria-live="polite"></span>
+      <button class="btn primary" id="export-png">Export PNG</button>
+    </div>
+  </header>
+
+  <main class="fonts-stage">
+    <!-- Font list -->
+    <nav class="fontlist" aria-label="Fonts">
+      <a class="font-row custom" href="custom.html">
+        <span class="font-name">Custom type<span class="font-meta">Fill letters with your own drawn pattern</span></span>
+        <span class="font-go">Open</span>
+      </a>
+      <div id="font-groups"></div>
+    </nav>
+
+    <!-- Preview -->
+    <section class="workspace type-workspace" aria-label="Preview">
+      <div class="text-entry">
+        <label for="text">Text</label>
+        <textarea id="text" rows="2" spellcheck="false">Custom type</textarea>
+      </div>
+      <div class="preview-wrap" id="preview-wrap">
+        <canvas id="preview" aria-label="Text preview"></canvas>
+        <div class="empty" id="notice" hidden>
+          <p id="notice-text"></p>
+        </div>
+      </div>
+      <p class="credit" id="credit"></p>
+    </section>
+
+    <!-- Inspector -->
+    <aside class="inspector">
+      <p class="help">The teal part of a slider's track is the recommended range. Past it, in the tan parts, you can keep going, but letters may get hard to read.</p>
+      <h2>Type</h2>
+      <div class="row"><div class="row-head"><label for="size">Size</label><output id="size-out"></output></div>
+        <input type="range" id="size" min="24" max="400" step="1" value="160"></div>
+      <div class="row"><div class="row-head"><label for="tracking">Letter spacing</label><output id="tracking-out"></output></div>
+        <input type="range" id="tracking" min="-10" max="40" step="0.5" value="0"></div>
+      <div class="row"><div class="row-head"><label for="weight">Weight</label><output id="weight-out"></output></div>
+        <input type="range" id="weight" min="100" max="900" step="10" value="400">
+        <p class="help">400 is the font as drawn. Lighter and heavier weights are shaped from it.</p></div>
+      <div class="row inline"><label for="ink">Ink color</label><input type="color" id="ink" value="#193438"></div>
+
+      <h2>Distort edges</h2>
+      <p class="help">Drag across the letters to push their edges. Set strength to 0 to turn it off.</p>
+      <div class="row"><div class="row-head"><label for="strength">Strength</label><output id="strength-out"></output></div>
+        <input type="range" id="strength" min="0" max="100" step="1" value="0"></div>
+      <div class="row"><div class="row-head"><label for="brush">Brush size</label><output id="brush-out"></output></div>
+        <input type="range" id="brush" min="30" max="300" step="1" value="120"></div>
+      <div class="btn-group"><button class="btn secondary" id="reset-distort">Reset distortion</button></div>
+    </aside>
+  </main>
+
+  <script src="sliders.js"></script>
+  <script src="fonts-data.js"></script>
+  <script src="fonts.js"></script>
+</body>
+</html>

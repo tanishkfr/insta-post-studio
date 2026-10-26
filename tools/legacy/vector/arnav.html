@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow — generative vector studio</title>
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Source+Sans+3:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+:root{--color-background:#FFFFFF;--color-workspace:#F3F7F6;--color-workspace-alt:#EDF3F2;--color-hover:#EAF1EF;--color-selected:#DCEFEB;--color-accent:#236F72;--color-accent-pressed:#19595C;--color-accent-on:#FFFFFF;--color-text:#193438;--color-text-muted:#526C6E;--color-text-disabled:#728486;--color-border:#DEE7E5;--color-control-border:#A7BFC0;--color-focus:#236F72;--color-danger:#A63036;
+--font-ui:'Instrument Sans','Inter',system-ui,sans-serif;--radius-small:6px;--radius-control:8px;--radius-panel:10px;--radius-overlay:12px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--motion-quick:120ms;--motion-context:220ms;--motion-spatial:300ms;--ease:cubic-bezier(.2,0,0,1)}
+@media(prefers-reduced-motion:reduce){:root{--motion-quick:0ms;--motion-context:0ms;--motion-spatial:0ms}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--color-background);color:var(--color-text);font:400 14px/1.45 var(--font-ui);font-variant-numeric:tabular-nums;color-scheme:light}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,24vw,344px);grid-template-rows:56px minmax(0,1fr);height:100vh;height:100dvh}
+header{position:relative;z-index:40;grid-column:1/-1;display:flex;align-items:center;gap:var(--space-3);padding:0 var(--space-4);border-bottom:1px solid var(--color-border);background:var(--color-background)}
+.brand{display:flex;align-items:baseline;gap:var(--space-2)}.brand span{color:var(--color-text-muted);font-weight:500}
+h1{margin:0;font-size:20px;line-height:1.25;font-weight:600;letter-spacing:-.015em}
+.sp{flex:1}.acts,.grp{display:flex;gap:var(--space-2);align-items:center}.grp{gap:var(--space-1)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);height:32px;padding:0 var(--space-3);border:1px solid var(--color-control-border);background:transparent;border-radius:var(--radius-control);font-size:13px;line-height:1.3;font-weight:500;cursor:pointer;transition:background var(--motion-quick),color var(--motion-quick),border-color var(--motion-quick);white-space:nowrap}
+.acts .btn{height:36px}.btn.ico{width:32px;padding:0}
+.btn:hover:not(:disabled){background:var(--color-hover)}.btn:active:not(:disabled){background:var(--color-selected)}
+.btn:disabled{color:var(--color-text-disabled);border-color:var(--color-border);cursor:default}
+.btn.on{background:var(--color-selected);border-color:var(--color-selected);font-weight:600}
+.btn.fill{background:var(--color-accent);border-color:var(--color-accent);color:#fff;height:36px}.btn.fill:hover:not(:disabled),.btn.fill:active:not(:disabled){background:var(--color-accent-pressed);border-color:var(--color-accent-pressed)}
+.btn.fill.dng{background:var(--color-danger);border-color:var(--color-danger)}.btn.fill.dng:hover:not(:disabled){background:#8A272C;border-color:#8A272C}
+.btn.danger{color:var(--color-danger);border-color:var(--color-danger)}.btn.danger:disabled{color:var(--color-text-disabled);border-color:var(--color-border)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+details.menu{position:relative}details.menu>summary{list-style:none;display:inline-flex;align-items:center;padding:0 var(--space-3);font-size:13px;font-weight:500;line-height:1.3;gap:var(--space-2)}details.menu>summary::-webkit-details-marker{display:none}
+.pop{position:absolute;right:0;top:calc(100% + var(--space-1));z-index:20;background:var(--color-background);border:1px solid var(--color-border);border-radius:var(--radius-overlay);padding:var(--space-1);display:flex;flex-direction:column;gap:var(--space-1);min-width:160px;box-shadow:0 8px 24px -12px rgba(25,52,56,.3);animation:popin var(--motion-quick) var(--ease)}
+.menu.closing .pop{opacity:0;transform:translateY(-4px);transition:opacity var(--motion-quick),transform var(--motion-quick)}
+@keyframes popin{from{opacity:0;transform:translateY(-4px)}}
+.pop .btn{border-color:transparent;justify-content:flex-start}
+main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--color-workspace)}
+.tb{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border);background:var(--color-background)}
+.div{width:1px;height:20px;background:var(--color-border)}#tSnap{min-width:64px}#inspBtn,.ah,.scrim{display:none}
+.cap{font-size:12px;line-height:1.4;color:var(--color-text-muted)}
+#wrap{flex:1;min-height:0;overflow:auto;display:flex;padding:var(--space-5)}
+#stage{margin:auto;line-height:0}
+#stage svg{display:block;outline:1px solid var(--color-border);touch-action:none;user-select:none;-webkit-user-select:none}
+aside{border-left:1px solid var(--color-border);background:var(--color-background);overflow:auto;min-height:0}
+.ph{margin:0;font-size:15px;line-height:1.35;font-weight:600}
+.seg{position:relative;display:flex;gap:var(--space-1);padding:var(--space-1);background:var(--color-workspace-alt);border-radius:var(--radius-control);margin:var(--space-3) var(--space-4) 0}
+.seg .btn{flex:1;border:0;border-radius:var(--radius-small)}.seg .btn.on{background:var(--color-selected)}
+.presets{display:flex;flex-wrap:wrap;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border)}
+.sw{width:24px;height:16px;border-radius:var(--radius-small);box-shadow:inset 0 0 0 1px var(--color-border);flex:none}
+.note{margin:var(--space-3) var(--space-4) 0;padding:var(--space-3);background:var(--color-workspace);border-radius:var(--radius-panel);display:flex;flex-direction:column;gap:var(--space-2);align-items:flex-start}
+#ctl>details{border-bottom:1px solid var(--color-border)}
+details>summary{list-style:none;cursor:pointer}
+#ctl summary{padding:var(--space-3) var(--space-4);font-size:15px;line-height:1.35;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'';width:7px;height:7px;border-right:1.5px solid var(--color-text-muted);border-bottom:1.5px solid var(--color-text-muted);transform:rotate(45deg);transition:transform var(--motion-quick)}
+details[open]>summary::after{transform:rotate(-135deg)}
+.sec{padding:0 var(--space-4) var(--space-3)}
+.row{display:grid;grid-template-columns:104px 1fr 48px;align-items:center;gap:var(--space-2);margin:var(--space-2) 0;font-size:13px}
+.row label{font-weight:500}.row.wide{grid-template-columns:104px 1fr}.row.frozen{opacity:.45;pointer-events:none}
+.val{font-size:12px;text-align:right;color:var(--color-text-muted)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(var(--color-accent),var(--color-accent)) 0/var(--p,0%) 100% no-repeat,var(--color-control-border)}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--color-control-border)}input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:var(--color-accent)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--color-accent);border:2px solid #fff;box-shadow:0 0 0 1px var(--color-accent);margin-top:-6px}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--color-accent);border:2px solid #fff;box-shadow:0 0 0 1px var(--color-accent)}
+input[type=text],input[type=number],select,textarea{width:100%;height:32px;padding:0 var(--space-2);background:var(--color-background);border:1px solid var(--color-control-border);border-radius:var(--radius-control);font-size:13px}
+textarea{height:auto;min-height:96px;padding:var(--space-2);resize:vertical}
+select{cursor:pointer}
+.colr{display:flex;gap:var(--space-2);align-items:center;grid-column:2/4}
+.colr input[type=color]{width:32px;height:32px;padding:2px;flex:none;border:1px solid var(--color-control-border);border-radius:var(--radius-control);background:var(--color-background);cursor:pointer}
+input[type=checkbox]{accent-color:var(--color-accent);width:16px;height:16px;margin:0}
+.seed{display:flex;gap:var(--space-2);grid-column:2/4}
+.blk{padding:var(--space-3) var(--space-4);border:0;border-bottom:1px solid var(--color-border);margin:0;min-width:0}
+.blk h2{margin:0 0 var(--space-2);font-size:15px;line-height:1.35;font-weight:600}
+.blk p{margin:0 0 var(--space-2)}.btns{display:flex;flex-wrap:wrap;gap:var(--space-2)}.btns.mt{margin-top:var(--space-3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.fld{display:flex;flex-direction:column;gap:var(--space-1);font-size:12px;color:var(--color-text-muted)}
+.chk{display:flex;align-items:center;gap:var(--space-2);font-size:13px;font-weight:500;margin-top:var(--space-2)}
+fieldset:disabled{opacity:.5}
+.toast{position:fixed;left:50%;bottom:var(--space-5);z-index:50;transform:translate(-50%,8px);padding:var(--space-2) var(--space-4);background:var(--color-background);border:1px solid var(--color-border);border-radius:var(--radius-panel);box-shadow:0 8px 24px -12px rgba(25,52,56,.3);font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity var(--motion-quick),transform var(--motion-quick)}.toast{display:flex;align-items:center;gap:var(--space-3)}.toast.act{pointer-events:auto}.toast.show{opacity:1;transform:translate(-50%,0)}
+dialog{width:min(420px,calc(100% - 32px));padding:var(--space-5);border:1px solid var(--color-border);border-radius:var(--radius-overlay);background:var(--color-background);color:var(--color-text);box-shadow:0 8px 24px -12px rgba(25,52,56,.3);opacity:0;transform:scale(.98);transition:opacity var(--motion-context),transform var(--motion-context),overlay var(--motion-context) allow-discrete,display var(--motion-context) allow-discrete}
+dialog[open]{opacity:1;transform:none}@starting-style{dialog[open]{opacity:0;transform:scale(.98)}}
+dialog::backdrop{background:rgba(25,52,56,0);transition:background var(--motion-context),overlay var(--motion-context) allow-discrete,display var(--motion-context) allow-discrete}
+dialog[open]::backdrop{background:rgba(25,52,56,.32)}@starting-style{dialog[open]::backdrop{background:rgba(25,52,56,0)}}
+dialog h2{margin:0 0 var(--space-2);font-size:20px;line-height:1.25;font-weight:600;letter-spacing:-.015em}dialog p{margin:0 0 var(--space-3)}
+#dE{min-height:20px;margin:var(--space-2) 0 0;color:var(--color-danger);font-size:12px;line-height:1.4}
+.dact{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3)}
+@media(max-width:1023px){
+.app{grid-template-columns:minmax(0,1fr)}
+aside{position:fixed;z-index:31;top:56px;right:0;bottom:0;width:min(344px,100%);transform:translateX(100%);visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px);transition:transform var(--motion-spatial) var(--ease),visibility 0s linear var(--motion-spatial)}
+.app.insp aside{transform:none;visibility:visible;transition:transform var(--motion-spatial) var(--ease),visibility 0s}
+.scrim{display:block;position:fixed;inset:56px 0 0 0;z-index:30;background:rgba(25,52,56,.24);opacity:0;pointer-events:none;transition:opacity var(--motion-context)}
+.app.insp .scrim{opacity:1;pointer-events:auto}
+#inspBtn{display:inline-flex}.ah{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border)}}
+@media(max-width:767px){aside{top:auto;left:0;width:100%;height:min(72dvh,calc(100dvh - 56px));border-left:0;border-top:1px solid var(--color-border);border-radius:var(--radius-overlay) var(--radius-overlay) 0 0;transform:translateY(100%)}.brand>span{display:none}}
+@media(pointer:coarse){.btn,.acts .btn,.btn.ico{height:44px}.btn.ico{width:44px}.btn.fill{height:44px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand"><span>Studio</span><span aria-hidden="true">/</span><h1>Flow</h1></div>
+  <div class="sp"></div>
+  <div class="acts">
+    <button class="btn" id="rand">Randomise shape</button>
+    <details class="menu"><summary class="btn">More</summary><div class="pop">
+      <button class="btn" id="cs">Copy SVG</button><button class="btn" id="png">Export PNG</button><button class="btn" id="cj">Copy JSON</button><button class="btn" id="lj">Load JSON</button></div></details>
+    <button class="btn fill" id="svg">Export SVG</button>
+  </div>
+</header>
+<main>
+  <div class="tb" role="toolbar" aria-label="Canvas tools">
+    <div class="grp"><button class="btn" id="imp" title="Import an SVG, PNG or JPG to edit">Import</button></div><i class="div"></i>
+    <div class="grp"><button class="btn" id="tUndo">Undo</button><button class="btn" id="tRedo">Redo</button></div><i class="div"></i>
+    <div class="grp"><button class="btn" id="tCopy">Copy</button><button class="btn" id="tArea" title="Copy only the part inside the selected area">Copy area</button><button class="btn" id="tCut">Cut</button><button class="btn" id="tPaste">Paste</button><button class="btn" id="tDup">Duplicate</button><button class="btn danger" id="tDel">Delete</button><button class="btn danger" id="tClear" title="Remove every line and the title text">Clear canvas</button></div><i class="div"></i>
+    <div class="grp"><button class="btn" id="tAll">Select all</button><button class="btn on" id="tSnap" aria-pressed="true">Snap</button></div>
+    <span class="sp"></span><span class="cap" id="meta"></span>
+    <div class="grp"><button class="btn ico" id="zOut" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><button class="btn" id="zFit">Fit</button><button class="btn ico" id="zIn" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></div>
+    <button class="btn" id="inspBtn" aria-controls="insp" aria-expanded="false">Inspector</button>
+  </div>
+  <div id="wrap"><div id="stage"></div></div>
+</main>
+<aside id="insp" aria-label="Inspector"><div class="ah"><h2 class="ph">Inspector</h2><button class="btn" id="inspX">Close</button></div>
+  <div class="seg" role="tablist"><button class="btn on" role="tab" aria-selected="true" data-tab="gen">Generate</button><button class="btn" role="tab" aria-selected="false" data-tab="edit">Edit</button></div>
+  <div id="genPane">
+    <div class="note" id="bk" hidden><span class="cap">You are editing lines by hand. Line colour, field and mode settings are paused.</span><button class="btn" id="unbake">Back to generated</button></div>
+    <div class="seg" id="modes"></div>
+    <div class="presets" id="presets"></div>
+    <div class="presets" id="palettes"></div>
+    <div id="ctl"></div>
+  </div>
+  <div id="editPane" hidden></div>
+</aside>
+<div class="scrim" id="scrim"></div>
+</div>
+<input type="file" id="impF" accept=".svg,image/svg+xml,image/png,image/jpeg" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="dlg" aria-labelledby="dT" aria-describedby="dB"><form id="dF" method="dialog"><h2 id="dT"></h2><p id="dB"></p><div id="dX"></div><p id="dE" role="alert"></p><div class="dact"><button class="btn" id="dC" type="button"></button><button class="btn fill" id="dOk" type="submit"></button></div></form></dialog>
+
+<script>
+/* ==========================================================================
+   FlowEngine — pure generator, no DOM. Integration surface for the host app:
+     FlowEngine.defaults            full parameter object
+     FlowEngine.reg                 plugin registries: mode / field / palette / preset
+     FlowEngine.register(kind,def)  add a plugin (before the last line of this file, or call FlowStudio.rebuild())
+       'mode'    {id,label,params:[...],defaults:{},generate(p,C,items,R)}  push items {d,fill,w,t,u,v}
+       'field'   {id,label,params,defaults,make(p,C)->(x,y,ch)=>number (about +-.5)}
+       'palette' {id,label,values:{bg,ink,ink2,accent}}
+       'preset'  {id,label,values:{any params}}
+     Plugins receive C.field (active field), C.kit (rng,fbm,noise2,poly,pt,mixc) and C.W,H,x0,x1,y0,y1.
+     Param descriptors come from FlowEngine.param.num/chk/sel — the UI builds itself from them.
+     NEW REFERENCE = register a mode and/or field, then a palette + preset that reproduces it.
+     FlowEngine.generate(params) -> { svg, items, W, H }
+   `items` is the renderer-agnostic list of primitives (path d, fill/stroke,
+   weight, colour, accent flag). params.ov = { [itemIndex]: {c, w, h} } holds
+   per-line overrides (colour, weight offset, hidden).
+   ========================================================================== */
+const FlowEngine=(()=>{
+const SIZES={poster:[1000,1414],square:[1000,1000],phone:[1000,2166],story:[1000,1778],wide:[1600,1000]};
+const DEF={mode:'s',field:'fbm',size:'poster',margin:38,topInset:250,clip:1,seed:7,
+ bg:'#ECE4E0',ink:'#A33714',ink2:'#E08A5B',accent:'#FFFFFF',grad:'none',lineOp:1,fade:0,
+ nth:0,accentW:2.2,accentOp:1,glow:0,
+ scale:1.1,octaves:3,warp:70,angle:0,waveAmp:45,waveFreq:2.2,waveFall:.9,vs:3.2,vx:.72,vy:.55,vr:.16,twist:1.2,peak:1,tilt:1,
+ rows:62,samples:140,tmin:.05,tmax:.92,curve:1.3,flip:0,tvar:.25,
+ count:1600,step:3,len:120,wmin:.5,wmax:1,sep:3,
+ levels:42,res:110,cw:1,
+ showText:1,title1:'ABOUT',title2:'FLOW',body:'Flow is a state of complete immersion in an activity, where time seems to disappear. When you are in flow, your focus is sharp, and tasks feel effortless. Many artists and athletes experience flow when they are deeply engaged in their work. Achieving flow requires a balance between challenge and skill. People who experience flow often report higher levels of happiness and productivity.',
+ titleSize:88,bodySize:16,bodyX:.49,textY:150,tcol:'#A33714',bcol:'#A33714',ov:{}};
+const PRESETS={
+ 'Terracotta':{},
+ 'Hatch':{mode:'l',size:'square',margin:0,topInset:0,bg:'#FFFFFF',ink:'#000000',grad:'none',angle:90,scale:1.6,twist:1.3,vs:0,count:2200,step:3,len:140,wmin:.5,wmax:1,sep:3.4,showText:0,seed:21},
+ 'Topo night':{mode:'c',size:'phone',margin:0,topInset:0,bg:'#05050A',ink:'#F2C9B5',ink2:'#27C3D4',accent:'#FFFFFF',grad:'position',nth:6,accentW:2.4,glow:3,scale:1.3,peak:1.4,vx:.18,vy:.12,vr:.22,tilt:1.1,angle:70,levels:50,res:120,cw:.8,fade:.6,showText:0,seed:12},
+ 'Op red':{mode:'s',size:'phone',margin:0,topInset:0,bg:'#FFF9EC',ink:'#FF3B30',grad:'none',rows:40,tmin:.52,tmax:.52,curve:1,tvar:.15,warp:160,scale:.9,octaves:2,waveAmp:0,vs:4.5,vx:.5,vy:.5,vr:.3,angle:90,showText:0,seed:3,samples:160}
+};
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+function noise2(seed){const r=rng(seed),p=[...Array(256).keys()];for(let i=255;i>0;i--){const j=r()*(i+1)|0;[p[i],p[j]]=[p[j],p[i]]}const P=[...p,...p];
+ const g=(h,x,y)=>{const a=h&7,u=a<4?x:y,v=a<4?y:x;return(a&1?-u:u)+(a&2?-2*v:2*v)};
+ const f=t=>t*t*t*(t*(t*6-15)+10),l=(a,b,t)=>a+t*(b-a);
+ return(x,y)=>{const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=f(x),v=f(y),A=P[X]+Y,B=P[X+1]+Y;
+  return l(l(g(P[A],x,y),g(P[B],x-1,y),u),l(g(P[A+1],x,y-1),g(P[B+1],x-1,y-1),u),v)*.5}}
+const fbm=(n,x,y,o)=>{let s=0,a=1,f=1,t=0;for(let i=0;i<o;i++){s+=a*n(x*f,y*f);t+=a;a*=.5;f*=2}return s/t};
+const hx=h=>{h=h.replace('#','');if(h.length==3)h=[...h].map(c=>c+c).join('');return[0,2,4].map(i=>parseInt(h.substr(i,2),16))};
+const mixc=(a,b,t)=>{const A=hx(a),B=hx(b);return'#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')};
+const pt=(x,y)=>x.toFixed(1)+' '+y.toFixed(1);
+const poly=a=>'M'+a.map(q=>pt(q[0],q[1])).join('L');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const wrap=(t,n)=>{const L=[];let c='';for(const x of t.split(/\s+/)){if((c+' '+x).trim().length>n){L.push(c);c=x}else c=(c+' '+x).trim()}if(c)L.push(c);return L};
+
+/* Ribbons: filled bands whose centre-lines are pushed through a warp field (noise + wave + vortex) */
+function stripes(p,C,items,R){
+ const s=p.scale/1000,{W,H}=C,cx=W/2,cy=H/2,an=p.angle*Math.PI/180,ca=Math.cos(an),sa=Math.sin(an),N=p.rows;
+ const wf=(x,y)=>{let dx=p.warp*C.field(x*s,y*s,0),dy=p.warp*C.field(x*s,y*s,1);
+  const yn=Math.min(1,Math.max(0,(y-C.y0)/(C.y1-C.y0)));
+  dy+=p.waveAmp*Math.sin(x/1000*p.waveFreq*6.283+p.seed*.1)*(1-p.waveFall*yn);x+=dx;y+=dy;
+  if(p.vs){const vx=p.vx*W,vy=p.vy*H,rx=x-vx,ry=y-vy,q=p.vr*W,t=p.vs*Math.exp(-(rx*rx+ry*ry)/(q*q)),c=Math.cos(t),n=Math.sin(t);x=vx+rx*c-ry*n;y=vy+rx*n+ry*c}
+  if(an){const rx=x-cx,ry=y-cy;x=cx+rx*ca-ry*sa;y=cy+rx*sa+ry*ca}return[x,y]};
+ const ext=an?Math.ceil(N*.3):0,sp=(C.y1-C.y0)/(N-1),D=Math.max(W,H)*.75;
+ const xa=an?cx-D:C.x0,xb=an?cx+D:C.x1,M=Math.min(420,Math.round(p.samples*(xb-xa)/W));
+ for(let k=-ext;k<N+ext;k++){
+  const t=Math.min(1,Math.max(0,k/(N-1))),prof=Math.pow(p.flip?1-t:t,p.curve),yc=C.y0+k*sp,base=p.tmin+(p.tmax-p.tmin)*prof,A=[],B=[];
+  for(let i=0;i<=M;i++){const x=xa+(xb-xa)*i/M;let th=base*(1+p.tvar*2*C.field(x*s*1.3,yc*s*1.3,2));th=Math.min(.97,Math.max(.02,th));const h=th*sp/2;A.push(wf(x,yc-h));B.push(wf(x,yc+h))}
+  items.push({d:poly(A.concat(B.reverse()))+'Z',fill:1,t,u:Math.min(1,Math.max(0,wf(cx,yc)[1]/H)),v:R()})}}
+
+/* Streamlines: seeded particles traced along an angle field, with optional even spacing */
+function streams(p,C,items,R){
+ const s=p.scale/1000,{W,H}=C,an=p.angle*Math.PI/180,gs=p.sep,gw=gs?Math.ceil(W/gs)+1:0,gh=gs?Math.ceil(H/gs)+1:0,occ=gs?new Int32Array(gw*gh):null;
+ const cell=(x,y)=>gs?((y/gs|0)*gw+(x/gs|0)):0,q=p.vr*W;
+ const fa=(x,y)=>{let a=an+p.twist*Math.PI*C.field(x*s,y*s,0);if(p.vs){const rx=x-p.vx*W,ry=y-p.vy*H;a+=p.vs*.5*Math.exp(-(rx*rx+ry*ry)/(q*q))}return a};
+ for(let n=0;n<p.count;n++){
+  const sx=C.x0+R()*(C.x1-C.x0),sy=C.y0+R()*(C.y1-C.y0),id=n+1;if(occ&&occ[cell(sx,sy)])continue;
+  const walk=dir=>{const o=[];let x=sx,y=sy;for(let i=0;i<p.len/2;i++){const a=fa(x,y);x+=Math.cos(a)*p.step*dir;y+=Math.sin(a)*p.step*dir;
+   if(x<C.x0||x>=C.x1||y<C.y0||y>=C.y1)break;if(occ){const c=cell(x,y);if(occ[c]&&occ[c]!==id)break;occ[c]=id}o.push([x,y])}return o};
+  if(occ)occ[cell(sx,sy)]=id;const pts=walk(-1).reverse().concat([[sx,sy]],walk(1));if(pts.length<4)continue;
+  items.push({d:poly(pts),fill:0,w:p.wmin+R()*(p.wmax-p.wmin),t:n/p.count,u:sy/H,v:R()})}}
+
+/* Contours: marching squares over a noise height-field with a peak and a tilt */
+function contours(p,C,items,R){
+ const cols=p.res,rw=C.x1-C.x0,rh=C.y1-C.y0,rows=Math.max(8,Math.round(cols*rh/rw)),cw=rw/cols,ch=rh/rows,s=p.scale/1000,
+  an=p.angle*Math.PI/180,ca=Math.cos(an),sa=Math.sin(an),vx=p.vx*C.W,vy=p.vy*C.H,vr=p.vr*C.W,V=[],K=cols+1;let mn=1e9,mx=-1e9;
+ for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++){const x=C.x0+i*cw,y=C.y0+j*ch,dx=x-vx,dy=y-vy;
+  const v=C.field(x*s,y*s,0)+p.peak*Math.exp(-(dx*dx+dy*dy)/(vr*vr))+p.tilt*(x*ca+y*sa)/1000;V.push(v);mn=Math.min(mn,v);mx=Math.max(mx,v)}
+ const T=[0,[3,2],[2,1],[3,1],[0,1],[[0,3],[2,1]],[0,2],[0,3],[0,3],[0,2],[[0,1],[3,2]],[0,1],[3,1],[2,1],[3,2],0];
+ for(let k=1;k<=p.levels;k++){const lv=mn+(mx-mn)*k/(p.levels+1);let d='',sy=0,n=0;
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+   const a=V[j*K+i],b=V[j*K+i+1],c=V[(j+1)*K+i+1],e=V[(j+1)*K+i],id=(a>lv?8:0)|(b>lv?4:0)|(c>lv?2:0)|(e>lv?1:0),tt=T[id];if(!tt)continue;
+   const X=C.x0+i*cw,Y=C.y0+j*ch,E=q=>q==0?[X+cw*(lv-a)/(b-a),Y]:q==1?[X+cw,Y+ch*(lv-b)/(c-b)]:q==2?[X+cw*(lv-e)/(c-e),Y+ch]:[X,Y+ch*(lv-a)/(e-a)];
+   (Array.isArray(tt[0])?tt:[tt]).forEach(([q1,q2])=>{const A=E(q1),B=E(q2);d+='M'+pt(A[0],A[1])+'L'+pt(B[0],B[1]);sy+=A[1];n++})}
+  if(d)items.push({d,fill:0,w:p.cw,t:k/p.levels,u:n?sy/n/C.H:0,v:R()})}}
+
+function generate(P){
+ const p={...DEF,...P},[W,H]=SIZES[p.size]||SIZES.poster,m=p.margin,top=Math.min(p.topInset,H-2*m-60);
+ const C={W,H,x0:m,x1:W-m,y0:m+top,y1:H-m,n1:noise2(p.seed),n2:noise2(p.seed+77)},R=rng(p.seed+5),items=[];
+ if(p.baked)items.push(...p.baked);else{C.kit=KIT;C.field=(REG.field[p.field]||REG.field.fbm).make(p,C);(REG.mode[p.mode]||REG.mode.s).generate(p,C,items,R)}
+ if(!p.baked)items.forEach((it,i)=>{it.acc=p.nth>0&&i%p.nth===0;const g=p.grad=='index'?it.t:p.grad=='position'?it.u:p.grad=='random'?it.v:0,o=p.ov[i]||{};
+  it.col=o.c||(it.acc?p.accent:mixc(p.ink,p.ink2,g));it.op=o.o!=null?o.o:(it.acc?p.accentOp:Math.max(0,p.lineOp*(1-p.fade*it.v)));
+  it.sw=it.fill?(o.w>0?o.w:0):Math.max(.1,it.w*(it.acc?p.accentW:1)+(o.w||0));it.h=!!o.h;it.tf=[1,0,0,1,0,0]});
+ const clips={},cid=k=>clips[k]||(clips[k]='kp'+Object.keys(clips).length);
+ const el=(it,i)=>{if(it.h)return'';const tf=it.tf&&it.tf.some((n,j)=>n!==[1,0,0,1,0,0][j])?` transform="matrix(${it.tf.map(n=>+n.toFixed(4)).join(' ')})"`:'',cl=it.clip?` clip-path="url(#${cid(it.clip)})"`:'',
+  base=`<path data-i="${i}" d="${it.d}"${tf}${cl} opacity="${(+it.op).toFixed(2)}"`;
+  return it.fill?base+` fill="${it.col}"`+(it.sw>0?` stroke="${it.col}" stroke-width="${it.sw}" stroke-linejoin="round"`:'')+'/>':base+` fill="none" stroke="${it.col}" stroke-width="${(+it.sw).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`};
+ let a='',b='';items.forEach((it,i)=>{const t=el(it,i);it.acc?b+=t:a+=t});
+ const clipDefs=Object.entries(clips).map(([k,id])=>`<clipPath id="${id}"><path d="${k}"/></clipPath>`).join('');
+ let txt='';if(p.showText){const S=p.titleSize,tx=m+6,by=p.bodySize,bx=W*p.bodyX,lines=wrap(p.body,Math.floor((W-bx-m)/(by*.5)));
+  txt=`<g font-family="'Source Sans 3','Source Sans Pro',sans-serif"><text x="${tx}" y="${p.textY}" font-size="${S}" font-weight="300" fill="${p.tcol}">${esc(p.title1)}</text>`+
+   `<text x="${tx+S*.68}" y="${p.textY+S}" font-size="${S*1.28}" font-weight="700" fill="${p.tcol}">${esc(p.title2)}</text>`+
+   `<text font-size="${by}" font-style="italic" font-weight="300" fill="${p.bcol}">${lines.map((l,i)=>`<tspan x="${bx}" y="${p.textY+S*.33+i*by*1.35}">${esc(l)}</tspan>`).join('')}</text></g>`}
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><defs>${clipDefs}<clipPath id="clp"><rect x="${C.x0}" y="${C.y0}" width="${C.x1-C.x0}" height="${C.y1-C.y0}"/></clipPath>`+
+  (p.glow>0?`<filter id="gl" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><feGaussianBlur stdDeviation="${p.glow}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`:'')+
+  `</defs><rect width="${W}" height="${H}" fill="${p.bg}"/><g${p.clip?' clip-path="url(#clp)"':''}><g>${a}</g><g${p.glow>0?' filter="url(#gl)"':''}>${b}</g></g>${txt}</svg>`;
+ return{svg,items,W,H}}
+const REG={mode:{},field:{},palette:{},preset:{}},KIT={rng,fbm,noise2,poly,pt,mixc,wrap,esc};
+const reg=(kind,d)=>{REG[kind][d.id]=d;if(d.defaults)Object.assign(DEF,d.defaults);return d};
+const num=(k,l,min,max,st)=>({k,l,t:'r',min,max,st}),chk=(k,l)=>({k,l,t:'chk'}),sel=(k,l,o)=>({k,l,t:'sel',o}),vortex=()=>num('vs','Vortex twist',-8,8,.1);
+/* built-in modes (from the reference artworks) */
+reg('mode',{id:'s',label:'Ribbons',generate:stripes,params:[num('rows','Rows',8,220,1),num('samples','Smoothness',40,300,5),num('tmin','Thickness start',.01,.99,.01),num('tmax','Thickness end',.01,.99,.01),num('curve','Thickness curve',.3,3,.05),chk('flip','Flip direction'),num('tvar','Thickness wobble',0,1,.01),num('warp','Warp',0,300,1),num('waveAmp','Wave height',0,200,1),num('waveFreq','Wave count',0,8,.1),num('waveFall','Wave fade-out',0,1,.01),vortex()]});
+reg('mode',{id:'l',label:'Streamlines',generate:streams,params:[num('count','Seeds',100,3000,50),num('step','Step',1,8,.5),num('len','Max length',10,400,5),num('wmin','Min weight',.1,4,.05),num('wmax','Max weight',.1,6,.05),num('sep','Spacing',0,12,.1),num('twist','Direction twist',0,4,.05),vortex()]});
+reg('mode',{id:'c',label:'Contours',generate:contours,params:[num('levels','Levels',6,120,1),num('res','Resolution',40,200,1),num('cw','Line weight',.2,6,.05),num('peak','Peak height',-2,2,.05),num('tilt','Tilt',0,3,.05)]});
+/* fields: scalar functions every mode samples through C.field(x,y,channel) */
+const nz=(p,C,ch,x,y)=>fbm(ch&1?C.n2:C.n1,x+(ch&1?9.1:0)+(ch>>1)*40,y+(ch&1?3.7:0),p.octaves);
+reg('field',{id:'fbm',label:'Soft noise',make:(p,C)=>(x,y,ch=0)=>nz(p,C,ch,x,y)});
+reg('field',{id:'ridged',label:'Ridged noise',make:(p,C)=>(x,y,ch=0)=>(.25-Math.abs(nz(p,C,ch,x,y)))*2});
+reg('field',{id:'sine',label:'Sine interference',params:[{...num('waves','Wave count',1,12,1),rnd:1}],defaults:{waves:4},make:(p,C)=>{const r=rng(p.seed+3),ph=[r()*6.28,r()*6.28,r()*6.28],k=p.waves*4;return(x,y,ch=0)=>(Math.sin(x*k+ph[0]+ch)+Math.sin(y*k*.85+ph[1]-ch)+Math.sin((x+y)*k*.65+ph[2]))/6}});
+/* palettes + presets reproduce the references */
+[['Terracotta','#ECE4E0','#A33714','#E08A5B','#FFFFFF'],['Mono','#FFFFFF','#000000','#777777','#000000'],['Aurora','#05050A','#F2C9B5','#27C3D4','#FFFFFF'],['Signal red','#FFF9EC','#FF3B30','#FF8A80','#FF3B30']].forEach(([l,bg,ink,ink2,accent])=>reg('palette',{id:l,label:l,values:{bg,ink,ink2,accent}}));
+Object.entries(PRESETS).forEach(([l,values])=>reg('preset',{id:l,label:l,values}));
+const bake=P=>generate({...P,baked:null}).items.map(o=>({d:o.d,fill:o.fill,col:o.col,sw:o.sw,op:o.op,acc:o.acc,tf:o.tf,h:!!o.h}));
+return{defaults:DEF,reg:REG,register:reg,param:{num,chk,sel},kit:KIT,generate,bake}})();
+
+/* ==========================================================================
+   UI — schema-driven; add a parameter by adding one line to SCHEMA
+   Modes: s = ribbons, l = streamlines, c = contours (omit = all)
+   ========================================================================== */
+const R=(k,l,min,max,st,m)=>({k,l,t:'r',min,max,st,m}),Co=(k,l,m)=>({k,l,t:'col',m}),Ck=(k,l,m)=>({k,l,t:'chk',m}),Tx=(k,l,m)=>({k,l,t:'txt',m}),Se=(k,l,o,m)=>({k,l,t:'sel',o,m});
+const vis=m=>!m||(typeof m=='function'?m(P):[].concat(m).includes(P.mode));
+let SCHEMA=[];
+/* Sections are generated from the registries: mode sections and field params appear automatically for new plugins */
+function schema(){const rg=FlowEngine.reg,F=Object.values(rg.field);
+ const out=[['Canvas',[Se('size','Format',{poster:'Poster 1:1.41',square:'Square',phone:'Phone 9:19.5',story:'Story 9:16',wide:'Wide 16:10'}),R('margin','Margin',0,150,1),R('topInset','Top space',0,700,1),Ck('clip','Clip to margin'),{k:'seed',l:'Seed',t:'seed'}]],
+ ['Colour',[Co('bg','Background'),Co('ink','Line colour'),Co('ink2','Gradient end'),Co('accent','Accent lines'),Se('grad','Colour shift',{none:'None (solid)',index:'By line order',position:'By height',random:'Random per line'}),R('lineOp','Line opacity',0,1,.01),R('fade','Random fade',0,1,.01)]],
+ ['Accent lines',[R('nth','Every nth line',0,30,1),R('accentW','Accent weight',1,8,.1,q=>q.mode!='s'),R('accentOp','Accent opacity',0,1,.01),R('glow','Glow',0,20,.5)]],
+ ['Field',[Se('field','Field type',Object.fromEntries(F.map(f=>[f.id,f.label]))),R('scale','Scale',.2,6,.05),R('octaves','Detail',1,6,1),R('angle','Angle',-180,180,1),R('vx','Focus x',0,1,.01),R('vy','Focus y',0,1,.01),R('vr','Focus radius',.03,.8,.01),
+  ...F.flatMap(f=>(f.params||[]).map(c=>({...c,m:q=>q.field==f.id})))]]];
+ Object.values(rg.mode).forEach(m=>out.push([m.label,(m.params||[]).map(c=>({...c,m:c.m||(q=>q.mode==m.id)})),m.id]));
+ out.push(['Type',[Ck('showText','Show text'),Tx('title1','Title light'),Tx('title2','Title bold'),Tx('body','Body'),R('titleSize','Title size',30,200,1),R('bodySize','Body size',8,40,.5),R('bodyX','Body x',.1,.9,.01),R('textY','Title y',40,600,1),Co('tcol','Title colour'),Co('bcol','Body colour')]]);
+ return out}
+const MODES={s:'Ribbons',l:'Streamlines',c:'Contours'},HEX=/^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+const $=s=>document.querySelector(s),norm=h=>{h=h.replace('#','');if(h.length==3)h=[...h].map(c=>c+c).join('');return'#'+h.toLowerCase()};
+let P={...FlowEngine.defaults,ov:{}},sel=null,res=null,raf,rowsEl={},sync=[];
+
+function mkColor(onChange){const w=document.createElement('div');w.className='colr';
+ w.innerHTML='<input type="color"><input type="text" maxlength="7" spellcheck="false" aria-label="Hex colour">';const [c,t]=w.children;
+ c.oninput=()=>{t.value=c.value;onChange(c.value)};
+ t.oninput=()=>{let v=t.value.trim();if(v&&v[0]!=='#')v='#'+v;if(HEX.test(v)){c.value=norm(v);onChange(v)}};
+ return{el:w,set:v=>{c.value=norm(v);t.value=v}}}
+function set(k,v){P[k]=v;draw()}
+function build(){const root=$('#ctl');root.innerHTML='';rowsEl={};sync=[];SCHEMA=schema();
+ SCHEMA.forEach(([name,list,mid],si)=>{const d=document.createElement('details');d.open=si<4||!!mid;if(mid)d.dataset.mode=mid;d.innerHTML=`<summary>${name}</summary>`;const sec=document.createElement('div');sec.className='sec';d.appendChild(sec);
+  list.forEach(c=>{const row=document.createElement('div');row.className='row'+(c.t=='txt'?' wide':'');const lab=document.createElement('label');lab.textContent=c.l;row.appendChild(lab);let upd;
+   if(c.t=='r'){const i=document.createElement('input');i.type='range';i.min=c.min;i.max=c.max;i.step=c.st;const v=document.createElement('span');v.className='val';i.oninput=()=>{v.textContent=i.value;set(c.k,+i.value)};row.append(i,v);upd=()=>{i.value=P[c.k];v.textContent=P[c.k]}}
+   else if(c.t=='col'){const m=mkColor(v=>set(c.k,v));row.appendChild(m.el);upd=()=>m.set(P[c.k])}
+   else if(c.t=='chk'){const i=document.createElement('input');i.type='checkbox';i.onchange=()=>set(c.k,i.checked?1:0);row.appendChild(i);upd=()=>i.checked=!!P[c.k]}
+   else if(c.t=='sel'){const i=document.createElement('select');i.innerHTML=Object.entries(c.o).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');i.onchange=()=>set(c.k,i.value);row.appendChild(i);i.style.gridColumn='2/4';upd=()=>i.value=P[c.k]}
+   else if(c.t=='txt'){const i=c.k=='body'?document.createElement('textarea'):document.createElement('input');if(i.tagName=='INPUT')i.type='text';i.oninput=()=>set(c.k,i.value);row.appendChild(i);upd=()=>i.value=P[c.k]}
+   else if(c.t=='seed'){const s=document.createElement('div');s.className='seed';s.innerHTML='<input type="number" min="0" max="99999"><button class="btn" type="button">Dice</button>';const [i,b]=s.children;i.oninput=()=>set('seed',+i.value||0);b.onclick=()=>{set('seed',Math.floor(Math.random()*99999));upd()};row.appendChild(s);upd=()=>i.value=P.seed}
+   const ii=row.querySelector('input:not([type=color]):not([aria-label]),select,textarea');if(ii){ii.id='f_'+c.k;lab.htmlFor=ii.id}row.querySelectorAll('.colr input').forEach(x=>x.setAttribute('aria-label',c.l+(x.type=='color'?' picker':' hex')));sec.appendChild(row);rowsEl[name+c.k]={row,m:c.m,k:c.k};sync.push(upd)});root.appendChild(d)});
+ $('#modes').innerHTML=Object.values(FlowEngine.reg.mode).map(m=>`<button class="btn" data-m="${m.id}">${m.label}</button>`).join('');
+ $('#modes').onclick=e=>{const b=e.target.closest('[data-m]');if(b)guard().then(g=>{if(g){P.mode=b.dataset.m;P.baked=null;clearSel();refresh()}})};
+ $('#presets').innerHTML=Object.keys(FlowEngine.reg.preset).map(k=>`<button class="btn">${k}</button>`).join('');
+ $('#presets').onclick=e=>{const b=e.target.closest('.btn');if(b)guard().then(g=>{if(g){P={...FlowEngine.defaults,...FlowEngine.reg.preset[b.textContent].values,ov:{}};clearSel();refresh()}})}}
+function refresh(){sync.forEach(f=>f());for(const k in rowsEl){const{row,m}=rowsEl[k];row.hidden=!vis(m)}
+ document.querySelectorAll('details[data-mode]').forEach(d=>d.hidden=d.dataset.mode!=P.mode);document.querySelectorAll('#modes .btn').forEach(b=>{b.classList.toggle('on',b.dataset.m==P.mode);b.setAttribute('aria-pressed',b.dataset.m==P.mode)});draw()}
+
+/* ==========================================================================
+   Manual editing. Generated art stays live until the first manual action (or
+   "Make editable"), which bakes it into P.baked: an array of immutable line
+   objects {d,fill,col,sw,op,acc,tf,h,clip?,cp?}. Every edit replaces objects,
+   so undo/redo is just swapping array references.
+   ========================================================================== */
+const LIVE=new Set(['size','margin','topInset','clip','bg','glow','showText','title1','title2','body','titleSize','bodySize','bodyX','textY','tcol','bcol']);
+let SEL=new Set(),HIST=[],REDO=[],OV0=null,LASTRECT=null,CLIP=null,pasteN=0,ZOOM=1,SNAP=true,G=null,curTab='gen',pkey='';
+const mul=(M,T)=>[M[0]*T[0]+M[2]*T[1],M[1]*T[0]+M[3]*T[1],M[0]*T[2]+M[2]*T[3],M[1]*T[2]+M[3]*T[3],M[0]*T[4]+M[2]*T[5]+M[4],M[1]*T[4]+M[3]*T[5]+M[5]];
+const ap=(T,x,y)=>[T[0]*x+T[2]*y+T[4],T[1]*x+T[3]*y+T[5]];
+const inv=T=>{const d=T[0]*T[3]-T[1]*T[2]||1e-9;return[T[3]/d,-T[1]/d,-T[2]/d,T[0]/d,(T[2]*T[5]-T[3]*T[4])/d,(T[1]*T[4]-T[0]*T[5])/d]};
+const rotM=(a,cx,cy)=>{const c=Math.cos(a),s=Math.sin(a);return[c,s,-s,c,cx-c*cx+s*cy,cy-s*cx-c*cy]};
+const GEO=new WeakMap();
+function geo(o){let g=GEO.get(o);if(!g){const subs=o.d.split('M').filter(Boolean).map(q=>q.replace('Z','').split('L').map(p=>p.trim().split(' ').map(Number))),pts=o.cp||subs.flat();
+ let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const q of pts){x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])}g={subs,pts,bb:[x0,y0,x1,y1]};GEO.set(o,g)}return g}
+function ob(o){const g=geo(o),t=o.tf;if(t[0]==1&&!t[1]&&!t[2]&&t[3]==1&&!t[4]&&!t[5])return g.bb;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+ for(const q of g.pts){const[x,y]=ap(t,q[0],q[1]);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}return[x0,y0,x1,y1]}
+function selBox(){let b=null;SEL.forEach(i=>{const o=res.items[i];if(!o||o.h)return;const q=ob(o);b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:[...q]});return b}
+const pip=(pl,x,y)=>{let c=false;for(let i=0,j=pl.length-1;i<pl.length;j=i++){const a=pl[i],b=pl[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c};
+const dseg=(x,y,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;let t=l?((x-a[0])*dx+(y-a[1])*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(x-a[0]-t*dx,y-a[1]-t*dy)};
+function hit(x,y,tol){const it=res.items;for(let i=it.length-1;i>=0;i--){const o=it[i];if(o.h)continue;const b=ob(o);if(x<b[0]-tol||x>b[2]+tol||y<b[1]-tol||y>b[3]+tol)continue;
+ const g=geo(o),[lx,ly]=ap(inv(o.tf),x,y),lt=tol/(Math.sqrt(Math.abs(o.tf[0]*o.tf[3]-o.tf[1]*o.tf[2]))||1);
+ if(o.fill){if(pip(g.subs[0],lx,ly))return i}else for(const s of g.subs)for(let k=1;k<s.length;k++)if(dseg(lx,ly,s[k-1],s[k])<lt)return i}return -1}
+const inRect=(o,r)=>{const b=ob(o);if(b[2]<r[0]||b[0]>r[2]||b[3]<r[1]||b[1]>r[3])return false;for(const s of geo(o).subs)for(const q of s){const[x,y]=ap(o.tf,q[0],q[1]);if(x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3])return true}return false};
+const pt=e=>{const q=new DOMPoint(e.clientX,e.clientY).matrixTransform($('#stage svg').getScreenCTM().inverse());return[q.x,q.y]};
+const kpx=()=>$('#stage svg').getBoundingClientRect().width/res.W||1;
+
+function drawNow(){res=FlowEngine.generate(P);$('#stage').innerHTML=res.svg;fit();overlay();
+ for(const k in rowsEl){const r=rowsEl[k];r.row.classList.toggle('frozen',!!P.baked&&!LIVE.has(r.k));r.row.inert=!!P.baked&&!LIVE.has(r.k)}
+ $('#bk').hidden=!P.baked;$('#meta').textContent=`${res.items.length} lines, ${res.W} × ${res.H}, seed ${P.seed}`;tb();panel();paintR()}
+function draw(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawNow)}
+function fit(){const svg=$('#stage svg'),w=$('#wrap');if(!svg)return;const s=Math.max(.05,Math.min((w.clientWidth-40)/res.W,(w.clientHeight-40)/res.H))*ZOOM;svg.style.width=res.W*s+'px';svg.style.height=res.H*s+'px'}
+addEventListener('resize',()=>{if(res){fit();overlay()}});
+$('#zIn').onclick=()=>{ZOOM=Math.min(5,ZOOM*1.25);fit();overlay()};$('#zOut').onclick=()=>{ZOOM=Math.max(.25,ZOOM/1.25);fit();overlay()};$('#zFit').onclick=()=>{ZOOM=1;fit();overlay()};
+$('#tSnap').onclick=e=>{SNAP=!SNAP;e.currentTarget.classList.toggle('on',SNAP);e.currentTarget.setAttribute('aria-pressed',SNAP)};
+function tab(n){curTab=n;$('#genPane').hidden=n!='gen';$('#editPane').hidden=n!='edit';document.querySelectorAll('[data-tab]').forEach(b=>{const on=b.dataset.tab==n;b.classList.toggle('on',on);b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1});$('#insp').scrollTop=0}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+
+/* history */
+let tt;function toast(m,act){const t=$('#toast');t.textContent=m;t.classList.toggle('act',!!act);if(act){const b=document.createElement('button');b.className='btn';b.textContent=act[0];b.onclick=()=>{act[1]();t.classList.remove('show')};t.append(b)}t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),act?7000:2400)}
+const pf=i=>i.style.setProperty('--p',((i.value-i.min)/((i.max-i.min)||1)*100)+'%'),paintR=()=>document.querySelectorAll('input[type=range]').forEach(pf);
+document.addEventListener('input',e=>{if(e.target.type=='range')pf(e.target)});
+const DLG=$('#dlg');
+function ask(o){return new Promise(res=>{$('#dT').textContent=o.title;$('#dB').textContent=o.body||'';$('#dE').textContent='';
+ $('#dX').innerHTML=o.field?`<label class="fld" for="dIn">${o.field}<textarea id="dIn" spellcheck="false"></textarea></label>`:'';
+ const inp=$('#dIn'),ok=$('#dOk');ok.textContent=o.ok;ok.className='btn fill'+(o.danger?' dng':'');$('#dC').textContent=o.cancel||'Cancel';
+ $('#dF').onsubmit=e=>{e.preventDefault();const v=inp?inp.value.trim():'',m=inp&&o.check?o.check(v):'';if(m){$('#dE').textContent=m;inp.focus();return}DLG.close('ok');res({ok:true,value:v})};
+ $('#dC').onclick=()=>DLG.close('cancel');DLG.onclose=()=>res({ok:false});DLG.showModal();(inp||$('#dC')).focus()})}
+let PREV=null;
+const restore=()=>{const q=PREV;if(!q)return;P=q.P;HIST=q.HIST;REDO=q.REDO;OV0=q.OV0;SEL=new Set();LASTRECT=null;pkey='';refresh()};
+const guard=()=>{if(P.baked&&HIST.length){PREV={P:{...P},HIST,REDO,OV0};toast('Manual edits cleared.',['Undo',restore])}return Promise.resolve(true)};
+function clearSel(){SEL=new Set();LASTRECT=null;HIST=[];REDO=[];OV0=null;pkey=''}
+function ensureBaked(){if(P.baked)return;OV0=P.ov;HIST.push(null);REDO=[];P.baked=FlowEngine.bake(P);P.ov={};drawNow()}
+function commit(nb){HIST.push(P.baked);if(HIST.length>100)HIST.shift();REDO=[];P.baked=nb;drawNow()}
+function jump(from,to){if(!from.length)return;to.push(P.baked);P.baked=from.pop();if(P.baked===null&&OV0)P.ov=OV0;SEL=new Set([...SEL].filter(i=>!P.baked||i<P.baked.length));drawNow();selChanged()}
+const undo=()=>jump(HIST,REDO),redo=()=>jump(REDO,HIST);
+function selChanged(){overlay();tb();panel();paintR()}
+function xform(M){if(!SEL.size)return;ensureBaked();commit(P.baked.map((o,i)=>SEL.has(i)?{...o,tf:mul(M,o.tf)}:o))}
+
+/* clipboard */
+const strip=o=>({d:o.d,fill:o.fill,col:o.col,sw:o.sw,op:o.op,acc:o.acc,tf:[...o.tf],h:!!o.h,...(o.clip?{clip:o.clip,cp:o.cp}:{})});
+function clipTo(o,r){const iv=inv(o.tf),cp=[[r[0],r[1]],[r[2],r[1]],[r[2],r[3]],[r[0],r[3]]].map(q=>ap(iv,q[0],q[1]));return{...o,cp,clip:'M'+cp.map(q=>q[0].toFixed(1)+' '+q[1].toFixed(1)).join('L')+'Z'}}
+function copySel(area){if(!SEL.size)return;CLIP=[...SEL].map(i=>{const o=strip(res.items[i]);return area&&LASTRECT&&!o.clip?clipTo(o,LASTRECT):o});pasteN=0;tb()}
+function addObjs(list,dx,dy){ensureBaked();const base=P.baked.length;commit(P.baked.concat(list.map(o=>({...o,tf:mul([1,0,0,1,dx,dy],o.tf)}))));SEL=new Set(list.map((_,j)=>base+j));selChanged()}
+const pasteClip=()=>{if(CLIP){pasteN++;addObjs(CLIP,20*pasteN,20*pasteN)}};
+const dup=()=>{if(SEL.size)addObjs([...SEL].map(i=>strip(res.items[i])),20,20)};
+function del(){if(!SEL.size)return;ensureBaked();commit(P.baked.filter((o,i)=>!SEL.has(i)));SEL=new Set();selChanged()}
+const selAll=()=>{SEL=new Set(res.items.map((o,i)=>i).filter(i=>!res.items[i].h));selChanged()};
+function order(front){ensureBaked();const keep=P.baked.filter((o,i)=>!SEL.has(i)),mv=P.baked.filter((o,i)=>SEL.has(i));commit(front?keep.concat(mv):mv.concat(keep));SEL=new Set(mv.map((_,j)=>front?keep.length+j:j));selChanged()}
+[['tUndo',undo],['tRedo',redo],['tCopy',()=>copySel(false)],['tArea',()=>copySel(true)],['tCut',()=>{copySel(false);del()}],['tPaste',pasteClip],['tDup',dup],['tDel',del],['tAll',selAll]].forEach(([id,f])=>$('#'+id).onclick=f);
+function tb(){const has=SEL.size>0;[['tUndo',HIST.length>0],['tRedo',REDO.length>0],['tCopy',has],['tArea',has&&!!LASTRECT],['tCut',has],['tPaste',!!CLIP],['tDup',has],['tDel',has]].forEach(([id,on])=>$('#'+id).disabled=!on)}
+
+/* canvas overlay: editor-only, never part of the exported SVG */
+function overlay(){const svg=$('#stage svg');if(!svg||!res)return;svg.querySelector('#ovl')?.remove();const k=kpx(),NS='http://www.w3.org/2000/svg',g=document.createElementNS(NS,'g'),A=getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim()||'#236F72',sw=1.5/k,moving=G&&G.moved&&G.mode!='marq';g.id='ovl';
+ const add=(t,a)=>{const e=document.createElementNS(NS,t);for(const n in a)e.setAttribute(n,a[n]);g.appendChild(e);return e};
+ if(LASTRECT){const r=LASTRECT;add('rect',{x:r[0],y:r[1],width:r[2]-r[0],height:r[3]-r[1],fill:'rgba(35,111,114,.08)',stroke:A,'stroke-width':sw,'stroke-dasharray':`${5/k} ${4/k}`,'pointer-events':'none'})}
+ if(!moving&&SEL.size&&SEL.size<=30)SEL.forEach(i=>{const o=res.items[i];if(o&&!o.h)add('path',{d:o.d,transform:`matrix(${o.tf.join(' ')})`,fill:'none',stroke:A,'stroke-width':sw*1.4,'stroke-dasharray':`${6/k} ${4/k}`,'pointer-events':'none'})});
+ const b=moving?G.box:selBox();
+ if(SEL.size&&b){let cs=[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]]];if(moving&&G.M)cs=cs.map(q=>ap(G.M,q[0],q[1]));
+  add('polygon',{points:cs.map(q=>q.join(',')).join(' '),fill:'none',stroke:A,'stroke-width':sw,'pointer-events':'none'});
+  if(!moving){const hs=9/k;[['nw',0],['ne',1],['se',2],['sw',3]].forEach(([n,j])=>add('rect',{x:cs[j][0]-hs/2,y:cs[j][1]-hs/2,width:hs,height:hs,fill:'#fff',stroke:A,'stroke-width':sw,'data-h':n,style:`cursor:${n=='nw'||n=='se'?'nwse':'nesw'}-resize`}));
+   const cx=(b[0]+b[2])/2,up=b[1]-22/k>6/k,ry=up?b[1]-22/k:b[1]+22/k;add('line',{x1:cx,y1:b[1],x2:cx,y2:ry,stroke:A,'stroke-width':sw,'pointer-events':'none'});add('circle',{cx,cy:ry,r:5.5/k,fill:'#fff',stroke:A,'stroke-width':sw,'data-h':'rot',style:'cursor:grab'})}}
+ if(G&&G.gd)G.gd.forEach(([ax,v])=>add('line',ax=='x'?{x1:v,x2:v,y1:0,y2:res.H}:{y1:v,y2:v,x1:0,x2:res.W},{stroke:A,'stroke-width':sw,'pointer-events':'none'}));
+ svg.appendChild(g)}
+
+/* pointer gestures */
+function snapMove(b,dx,dy,k){const W=res.W,H=res.H,t=8/k,gd=[],f=(vs,tg,d,ax)=>{let best=null;for(const v of vs)for(const T of tg){const df=T-(v+d);if(Math.abs(df)<t&&(!best||Math.abs(df)<Math.abs(best[0])))best=[df,T]}if(best){gd.push([ax,best[1]]);return d+best[0]}return d};
+ dx=f([b[0],(b[0]+b[2])/2,b[2]],[0,W/2,W],dx,'x');dy=f([b[1],(b[1]+b[3])/2,b[3]],[0,H/2,H],dy,'y');return[dx,dy,gd]}
+$('#stage').addEventListener('pointerdown',e=>{if(e.button!==0||!res)return;e.preventDefault();const p=pt(e),k=kpx(),h=e.target.closest('[data-h]');G={p0:p,k,moved:false,sh:e.shiftKey};
+ if(h){G.mode=h.dataset.h=='rot'?'rot':'scale';G.h=h.dataset.h;return}
+ const i=hit(p[0],p[1],5/k);
+ if(i>=0){if(e.shiftKey)SEL.has(i)?SEL.delete(i):SEL.add(i);else if(!SEL.has(i))SEL=new Set([i]);G.mode='move';selChanged();if(curTab!='edit')tab('edit');return}
+ const b=selBox();if(b&&!e.shiftKey&&p[0]>=b[0]&&p[0]<=b[2]&&p[1]>=b[1]&&p[1]<=b[3]){G.mode='move';return}
+ G.mode='marq';if(!e.shiftKey){SEL=new Set();LASTRECT=null;selChanged()}});
+addEventListener('pointermove',e=>{if(!G)return;const p=pt(e),dx=p[0]-G.p0[0],dy=p[1]-G.p0[1];
+ if(!G.moved){if(Math.hypot(dx,dy)*G.k<3)return;G.moved=true;
+  if(G.mode!='marq'){if(!SEL.size){G=null;return}ensureBaked();G.box=selBox();G.ids=[...SEL];G.tf0=G.ids.map(i=>P.baked[i].tf);G.els=G.ids.map(i=>document.querySelector(`#stage [data-i="${i}"]`))}}
+ if(G.mode=='marq'){LASTRECT=[Math.min(G.p0[0],p[0]),Math.min(G.p0[1],p[1]),Math.max(G.p0[0],p[0]),Math.max(G.p0[1],p[1])];overlay();return}
+ const b=G.box,c=[(b[0]+b[2])/2,(b[1]+b[3])/2];let M;
+ if(G.mode=='move'){let mx=dx,my=dy;G.gd=[];if(SNAP)[mx,my,G.gd]=snapMove(b,dx,dy,G.k);M=[1,0,0,1,mx,my]}
+ else if(G.mode=='rot'){let a=Math.atan2(p[1]-c[1],p[0]-c[0])-Math.atan2(G.p0[1]-c[1],G.p0[0]-c[0]);if(e.shiftKey)a=Math.round(a/(Math.PI/12))*Math.PI/12;M=rotM(a,c[0],c[1])}
+ else{const hx=G.h.includes('e'),hy=G.h.includes('s'),cx=hx?b[2]:b[0],cy=hy?b[3]:b[1],px=hx?b[0]:b[2],py=hy?b[1]:b[3],qx=cx+dx,qy=cy+dy;let sx=(qx-px)/(cx-px||1),sy=(qy-py)/(cy-py||1);
+  if(!e.shiftKey){sx=sy=Math.max(.01,((qx-px)*(cx-px)+(qy-py)*(cy-py))/(((cx-px)**2+(cy-py)**2)||1))}M=[sx,0,0,sy,px*(1-sx),py*(1-sy)]}
+ G.M=M;G.ids.forEach((i,j)=>{const el=G.els[j];if(el)el.setAttribute('transform','matrix('+mul(M,G.tf0[j]).join(' ')+')')});overlay()});
+const gEnd=()=>{if(!G)return;const g=G;G=null;
+ if(g.mode=='marq'){if(g.moved){const hits=[];res.items.forEach((o,i)=>{if(!o.h&&inRect(o,LASTRECT))hits.push(i)});SEL=new Set([...(g.sh?SEL:[]),...hits])}else if(!g.sh){SEL=new Set();LASTRECT=null}selChanged();if(SEL.size&&curTab!='edit')tab('edit');return}
+ if(g.moved&&g.M)commit(P.baked.map((o,i)=>SEL.has(i)?{...o,tf:mul(g.M,o.tf)}:o));selChanged()};
+addEventListener('pointerup',gEnd);addEventListener('pointercancel',gEnd);
+addEventListener('keydown',e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||!res||DLG.open)return;const m=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();
+ if(m&&k=='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(m&&k=='y'){e.preventDefault();redo()}
+ else if(m&&k=='c')copySel(false);else if(m&&k=='x'){copySel(false);del()}else if(m&&k=='v')pasteClip();
+ else if(m&&k=='d'){e.preventDefault();dup()}else if(m&&k=='a'){e.preventDefault();selAll()}
+ else if(k=='delete'||k=='backspace'){e.preventDefault();del()}else if(k=='escape'){SEL=new Set();LASTRECT=null;selChanged()}
+ else if(k.startsWith('arrow')&&SEL.size){e.preventDefault();const s=e.shiftKey?10:1;xform([1,0,0,1,k=='arrowleft'?-s:k=='arrowright'?s:0,k=='arrowup'?-s:k=='arrowdown'?s:0])}});
+
+/* Edit inspector */
+function setProp(k,v,final){const ids=[...SEL];if(!ids.length)return;
+ if(!P.baked){ids.forEach(i=>{const o=P.ov[i]=P.ov[i]||{};if(k=='col')o.c=v;if(k=='sw')o.w=v;if(k=='op')o.o=v;if(k=='h')o.h=v});draw();return}
+ if(!final){ids.forEach(i=>{const el=document.querySelector(`#stage [data-i="${i}"]`);if(!el)return;if(k=='col')el.setAttribute(res.items[i].fill?'fill':'stroke',v);if(k=='sw')el.setAttribute('stroke-width',v);if(k=='op')el.setAttribute('opacity',v)});return}
+ commit(P.baked.map((o,i)=>SEL.has(i)?{...o,[k]:v}:o))}
+function panel(force){const key=[!!P.baked,[...SEL].join(','),HIST.length,REDO.length,res.items.length].join('|');if(key===pkey&&!force)return;pkey=key;
+ const E=$('#editPane'),n=SEL.size,i0=n?[...SEL][0]:-1,f=n?res.items[i0]:null,o0=P.ov[i0]||{},bk=!!P.baked,b=n?selBox():null,r=v=>b?Math.round(v):'';
+ E.innerHTML=`<div class="blk"><h2>${bk?'Editable lines':'Generated art'}</h2><p class="cap">${bk?`${res.items.length} lines are now yours to edit. Generator settings are paused.`:'Click a line to restyle it. Moving, rotating or copying turns the art into editable lines.'}</p>
+  <div class="btns">${bk?'<button class="btn" id="eUn">Back to generated</button>':'<button class="btn" id="eBk">Make editable</button>'}</div></div>
+  <fieldset class="blk" ${n?'':'disabled'}><h2>${n?`${n} ${n>1?'lines':'line'} selected`:'Nothing selected'}</h2>${n?'':'<p class="cap">Click a line, or drag across empty canvas to select an area.</p>'}
+  <div class="row wide"><label>Colour</label><span id="eCol"></span></div>
+  <div class="row"><label>${bk?'Weight':'Weight offset'}</label><input type="range" id="eWt" min="${bk?.1:-3}" max="12" step=".1" value="${f?(bk?f.sw:(o0.w||0)):0}"><span class="val" id="eWv">${f?(bk?(+f.sw).toFixed(1):(o0.w||0)):''}</span></div>
+  <div class="row"><label>Opacity</label><input type="range" id="eOp" min="0" max="1" step=".01" value="${f?f.op:1}"><span class="val" id="eOv">${f?(+f.op).toFixed(2):''}</span></div>
+  <label class="chk"><input type="checkbox" id="eHd" ${f&&f.h?'checked':''}> Hide</label></fieldset>
+  <fieldset class="blk" ${n?'':'disabled'}><h2>Transform</h2>
+  <div class="grid2"><label class="fld">X<input type="number" id="eX" value="${b?r(b[0]):''}"></label><label class="fld">Y<input type="number" id="eY" value="${b?r(b[1]):''}"></label>
+  <label class="fld">Width<input type="number" id="eWd" value="${b?r(b[2]-b[0]):''}"></label><label class="fld">Height<input type="number" id="eHt" value="${b?r(b[3]-b[1]):''}"></label></div>
+  <div class="btns mt"><button class="btn" id="aFH">Flip horizontal</button><button class="btn" id="aFV">Flip vertical</button><button class="btn" id="aRL">Rotate left</button><button class="btn" id="aRR">Rotate right</button><button class="btn" id="aFr">Bring to front</button><button class="btn" id="aBk">Send to back</button></div></fieldset>
+  <div class="blk"><p class="cap">Drag a corner to scale, or hold Shift to scale freely. Drag the circle to rotate; Shift snaps to 15°. Shift-click adds to the selection. Arrow keys nudge, Ctrl or Cmd+Z undoes.</p></div>`;
+ const g=id=>E.querySelector('#'+id);
+ if(g('eBk'))g('eBk').onclick=()=>{ensureBaked();selChanged()};
+ if(g('eUn'))g('eUn').onclick=()=>{guard().then(ok=>{if(ok){P.baked=null;P.ov=OV0||{};clearSel();refresh()}})};
+ let pend=null;const cc=mkColor(v=>{pend=v;setProp('col',v,false)});g('eCol').replaceWith(cc.el);cc.set(f?f.col:'#000000');cc.el.addEventListener('change',()=>{if(pend)setProp('col',pend,true)});
+ [['eWt','eWv','sw',1],['eOp','eOv','op',2]].forEach(([i,v,k,d])=>{g(i).oninput=e=>{g(v).textContent=(+e.target.value).toFixed(d==1?1:2);setProp(k,+e.target.value,false)};g(i).onchange=e=>setProp(k,+e.target.value,true)});
+ g('eHd').onchange=e=>setProp('h',e.target.checked,true);
+ if(b){const nf=(id,fn)=>g(id).onchange=e=>{if(e.target.value!=='')fn(+e.target.value)};
+  nf('eX',v=>xform([1,0,0,1,v-b[0],0]));nf('eY',v=>xform([1,0,0,1,0,v-b[1]]));
+  nf('eWd',v=>{const s=Math.max(.01,v/((b[2]-b[0])||1));xform([s,0,0,1,b[0]*(1-s),0])});nf('eHt',v=>{const s=Math.max(.01,v/((b[3]-b[1])||1));xform([1,0,0,s,0,b[1]*(1-s)])});
+  const cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;g('aFH').onclick=()=>xform([-1,0,0,1,b[0]+b[2],0]);g('aFV').onclick=()=>xform([1,0,0,-1,0,b[1]+b[3]]);
+  g('aRL').onclick=()=>xform(rotM(-Math.PI/2,cx,cy));g('aRR').onclick=()=>xform(rotM(Math.PI/2,cx,cy));g('aFr').onclick=()=>order(true);g('aBk').onclick=()=>order(false)}}
+$('#unbake').onclick=()=>{guard().then(ok=>{if(ok){P.baked=null;P.ov=OV0||{};clearSel();refresh()}})};
+tab('gen');
+$('[data-tab=gen]').setAttribute('aria-controls','genPane');$('[data-tab=edit]').setAttribute('aria-controls','editPane');
+$('[role=tablist]').addEventListener('keydown',e=>{const t=[...e.currentTarget.querySelectorAll('[role=tab]')],i=t.indexOf(document.activeElement),n=e.key=='ArrowRight'?(i+1)%t.length:e.key=='ArrowLeft'?(i+t.length-1)%t.length:e.key=='Home'?0:e.key=='End'?t.length-1:-1;if(i<0||n<0)return;e.preventDefault();e.stopPropagation();t[n].focus();tab(t[n].dataset.tab)});
+[['tUndo','Undo (Ctrl/Cmd+Z)'],['tRedo','Redo (Shift+Ctrl/Cmd+Z)'],['tCopy','Copy (Ctrl/Cmd+C)'],['tCut','Cut (Ctrl/Cmd+X)'],['tPaste','Paste (Ctrl/Cmd+V)'],['tDup','Duplicate (Ctrl/Cmd+D)'],['tDel','Delete (Del)'],['tAll','Select all (Ctrl/Cmd+A)'],['tSnap','Snap moves to canvas edges and centre'],['zFit','Fit canvas to window']].forEach(([i,t])=>$('#'+i).title=t);
+$('#wrap').addEventListener('wheel',e=>{if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();ZOOM=Math.min(5,Math.max(.25,ZOOM*(e.deltaY<0?1.1:1/1.1)));fit();overlay()},{passive:false});
+
+/* Randomise shape: keeps your colours, shuffles the field */
+const RND=['scale','octaves','warp','waveAmp','waveFreq','waveFall','vs','twist','peak','tilt','vx','vy','vr','curve','tvar'];
+$('#rand').onclick=()=>guard().then(ok=>{if(!ok)return;P.seed=Math.floor(Math.random()*99999);SCHEMA.flatMap(s=>s[1]).filter(c=>c.t=='r'&&(RND.includes(c.k)||c.rnd)&&vis(c.m)).forEach(c=>{const r=c.max-c.min,v=c.min+r*(.1+Math.random()*.7);P[c.k]=+(Math.round(v/c.st)*c.st).toFixed(3)});P.ov={};P.baked=null;clearSel();refresh()});
+
+/* Export */
+const dl=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+const nm=()=>`flow-${P.mode}-${P.seed}`;
+$('#svg').onclick=()=>{dl(new Blob([res.svg],{type:'image/svg+xml'}),nm()+'.svg');toast('SVG exported')};
+$('#png').onclick=()=>{toast('Preparing PNG…');const img=new Image(),u=URL.createObjectURL(new Blob([res.svg],{type:'image/svg+xml'}));img.onload=()=>{const k=2,c=document.createElement('canvas');c.width=res.W*k;c.height=res.H*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);c.toBlob(b=>{dl(b,nm()+'.png');toast('PNG exported')});URL.revokeObjectURL(u)};img.src=u};
+const copy=(t,m)=>(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(m),()=>toast('Copy failed. Allow clipboard access and try again.'));
+const MENU=$('.menu');
+function closeMenu(back){if(!MENU.open)return;MENU.classList.add('closing');setTimeout(()=>{MENU.open=false;MENU.classList.remove('closing');if(back)MENU.querySelector('summary').focus()},matchMedia('(prefers-reduced-motion:reduce)').matches?0:120)}
+MENU.onclick=e=>{if(e.target.closest('.pop .btn'))closeMenu()};document.addEventListener('pointerdown',e=>{if(!MENU.contains(e.target))closeMenu()});
+MENU.addEventListener('keydown',e=>{if(e.key=='Escape'){e.stopPropagation();closeMenu(1)}});
+$('#cs').onclick=()=>copy(res.svg,'SVG copied');$('#cj').onclick=()=>copy(JSON.stringify(P),'JSON copied');
+
+$('#lj').onclick=()=>ask({title:'Load JSON',body:'Paste the parameters you copied with Copy JSON.',field:'Parameters JSON',ok:'Load',check:v=>{try{JSON.parse(v);return''}catch(e){return'That is not valid JSON. Paste the full text from Copy JSON.'}}}).then(r=>{if(r.ok)guard().then(ok=>{if(ok){P={...FlowEngine.defaults,...JSON.parse(r.value)};P.ov=P.ov||{};clearSel();refresh()}})});
+function palettes(){const el=$('#palettes');el.innerHTML=Object.values(FlowEngine.reg.palette).map(p=>`<button class="btn" data-p="${p.id}" ><i class="sw" style="background:linear-gradient(90deg,${p.values.bg} 33.3%,${p.values.ink} 33.3% 66.6%,${p.values.ink2} 66.6%)"></i>${p.label}</button>`).join('');
+ el.onclick=e=>{const b=e.target.closest('[data-p]');if(b)guard().then(ok=>{if(ok){const v=FlowEngine.reg.palette[b.dataset.p].values;Object.assign(P,v,{tcol:v.ink,bcol:v.ink});P.ov={};P.baked=null;clearSel();refresh()}})}}
+const rebuild=()=>{build();palettes();refresh()};
+window.FlowStudio={engine:FlowEngine,rebuild};
+/* ---- register new reference plugins above this line, or later followed by FlowStudio.rebuild() ---- */
+/* Inspector drawer on tablet and mobile */
+const APP=$('.app'),MQ=matchMedia('(max-width:1023px)');
+function insp(o,back){APP.classList.toggle('insp',o);$('#inspBtn').setAttribute('aria-expanded',o);$('main').inert=o&&MQ.matches;if(o)$('#inspX').focus();else if(back)$('#inspBtn').focus()}
+$('#inspBtn').onclick=()=>insp(!APP.classList.contains('insp'));$('#inspX').onclick=$('#scrim').onclick=()=>insp(false,1);
+$('aside').addEventListener('keydown',e=>{if(e.key=='Escape'&&MQ.matches){e.stopPropagation();insp(false,1)}});
+MQ.addEventListener('change',()=>insp(false));
+$('#tClear').onclick=()=>{PREV={P:{...P},HIST:[...HIST],REDO:[...REDO],OV0};ensureBaked();commit([]);P.showText=0;SEL=new Set();LASTRECT=null;pkey='';refresh();toast('Canvas cleared.',['Undo',restore])};
+/* Import: SVG shapes become editable lines; PNG/JPG are traced into contour lines */
+const hex2=c=>{const m=(c||'').match(/rgba?\(([^)]+)\)/);return m?'#'+m[1].split(',').slice(0,3).map(v=>(+v|0).toString(16).padStart(2,'0')).join(''):/^#/.test(c)?c:'#888888'};
+function place(raw){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;raw.forEach(r=>r.subs.forEach(q=>q.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])})));
+ const bw=x1-x0||1,bh=y1-y0||1,k=Math.min(res.W*.8/bw,res.H*.8/bh),tx=res.W/2-(x0+bw/2)*k,ty=res.H/2-(y0+bh/2)*k;
+ return raw.map(r=>({d:r.subs.map(q=>'M'+q.map(p=>(p[0]*k+tx).toFixed(1)+' '+(p[1]*k+ty).toFixed(1)).join('L')+(r.closed?'Z':'')).join(''),fill:r.fill?1:0,col:r.col,sw:r.fill?0:Math.max(.3,r.sw*(r.abs?1:k)),op:r.op,acc:false,tf:[1,0,0,1,0,0],h:false}))}
+function impSVG(txt){const doc=new DOMParser().parseFromString(txt,'image/svg+xml'),src=doc.documentElement;if(src.nodeName!='svg'||doc.querySelector('parsererror'))throw 0;
+ const svg=document.importNode(src,true);svg.querySelectorAll('script,foreignObject').forEach(n=>n.remove());[svg,...svg.querySelectorAll('*')].forEach(n=>[...n.attributes].forEach(a=>/^on/i.test(a.name)&&n.removeAttribute(a.name)));
+ if(!svg.getAttribute('viewBox')){const w=parseFloat(src.getAttribute('width')),h=parseFloat(src.getAttribute('height'));if(w&&h)svg.setAttribute('viewBox',`0 0 ${w} ${h}`)}
+ svg.setAttribute('width','1000');svg.setAttribute('height','1000');const box=document.createElement('div');box.style.cssText='position:fixed;left:0;top:0;width:1000px;height:1000px;visibility:hidden;pointer-events:none';box.appendChild(svg);document.body.appendChild(box);
+ const raw=[];try{const inv=svg.getScreenCTM().inverse();svg.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse').forEach(el=>{if(raw.length>4000||el.closest('defs,clipPath,mask,symbol,pattern,marker'))return;
+  const L=el.getTotalLength();if(!(L>0))return;const n=Math.max(8,Math.min(500,Math.round(L/3))),st=L/n,M=inv.multiply(el.getScreenCTM()),cs=getComputedStyle(el),subs=[];let cur=null,pv=null;
+  for(let i=0;i<=n;i++){const q=el.getPointAtLength(L*i/n);if(!cur||(pv&&Math.hypot(q.x-pv.x,q.y-pv.y)>st*2.5+.01)){cur=[];subs.push(cur)}pv=q;const t=new DOMPoint(q.x,q.y).matrixTransform(M);cur.push([t.x,t.y])}
+  const op=+cs.opacity||1,closed=/^(polygon|rect|circle|ellipse)$/.test(el.localName)||/z\s*$/i.test(el.getAttribute('d')||'');
+  if(cs.fill!='none')raw.push({subs,closed:true,fill:1,col:hex2(cs.fill),sw:0,op});
+  if(cs.stroke!='none')raw.push({subs,closed,fill:0,col:hex2(cs.stroke),sw:parseFloat(cs.strokeWidth)||1,op})})}finally{box.remove()}
+ return place(raw)}
+function impImg(img){const m=Math.min(1,180/Math.max(img.width,img.height)),w=Math.max(2,Math.round(img.width*m)),h=Math.max(2,Math.round(img.height*m)),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+ const D=x.getImageData(0,0,w,h).data,V=new Float32Array(w*h);for(let i=0;i<w*h;i++)V[i]=(.2126*D[i*4]+.7152*D[i*4+1]+.0722*D[i*4+2])/255;
+ const T=[0,[3,2],[2,1],[3,1],[0,1],[[0,3],[2,1]],[0,2],[0,3],[0,3],[0,2],[[0,1],[3,2]],[0,1],[3,1],[2,1],[3,2],0],N=9,raw=[];
+ for(let k=0;k<N;k++){const lv=(k+.5)/N,subs=[];for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const a=V[j*w+i],b=V[j*w+i+1],cc=V[(j+1)*w+i+1],e=V[(j+1)*w+i],tt=T[(a>lv?8:0)|(b>lv?4:0)|(cc>lv?2:0)|(e>lv?1:0)];if(!tt)continue;
+   const E=q=>q==0?[i+(lv-a)/(b-a),j]:q==1?[i+1,j+(lv-b)/(cc-b)]:q==2?[i+(lv-e)/(cc-e),j+1]:[i,j+(lv-a)/(e-a)];(Array.isArray(tt[0])?tt:[tt]).forEach(([q1,q2])=>subs.push([E(q1),E(q2)]))}
+  if(subs.length)raw.push({subs,closed:false,fill:0,col:FlowEngine.kit.mixc(P.ink,P.ink2,k/(N-1)),sw:1.2,op:1,abs:1})}
+ return place(raw)}
+async function impFile(f){try{let list;if(/svg/i.test(f.type)||/\.svg$/i.test(f.name))list=impSVG(await f.text());else{const u=URL.createObjectURL(f),img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;img.src=u});URL.revokeObjectURL(u);list=impImg(img)}
+ if(!list.length){toast('Nothing to import. That file has no paths or shapes to edit.');return}
+ addObjs(list,0,0);tab('edit');toast(`Imported ${list.length} lines. Move, recolour or restyle them in Edit.`)}catch(e){toast('Could not import that file. Use an SVG, PNG or JPG.')}}
+$('#imp').onclick=()=>$('#impF').click();$('#impF').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)impFile(f)};
+$('#wrap').addEventListener('dragover',e=>e.preventDefault());$('#wrap').addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)impFile(f)});
+rebuild();
+</script>
+</body>
+</html>

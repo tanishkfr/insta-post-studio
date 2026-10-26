@@ -1,0 +1,30 @@
+# Dependencies (each tool owns its dependency tree)
+node_modules/
+.pnpm-store/
+
+# Build and test output
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
+
+# Imported-tool generated evidence / local runtime state
+tools/bend/output/
+tools/bend/.playwright-mcp/
+tools/bend/.audit-sources/
+tools/*/.vercel/
+
+# Local tooling
+.env
+.env.*
+!.env.example
+*.local
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

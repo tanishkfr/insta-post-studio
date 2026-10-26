@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Generative Art Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ws:#F3F7F6;--hov:#EAF1EF;--sel:#DCEFEB;--ac:#236F72;--acp:#19595C;--tx:#193438;--mu:#526C6E;--ln:#DEE7E5;--cb:#A7BFC0;--st:#182D30;--f:"Instrument Sans",Inter,system-ui,sans-serif;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html,body{height:100%;margin:0}[hidden]{display:none!important}
+body{background:var(--st);color:var(--tx);font:400 14px/1.45 var(--f);overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--ac);outline-offset:2px}#hero :focus-visible{outline-color:#8FD6CF}
+/* hero */
+#hero{position:fixed;inset:0;background:radial-gradient(120% 90% at 50% 120%,#0F1F21,var(--st));color:#fff;overflow:hidden;transition:opacity .4s,filter .4s}
+#hero.out{opacity:0;filter:blur(14px);pointer-events:none}
+.bl{position:absolute;border-radius:50%;filter:blur(48px);mix-blend-mode:screen;opacity:.75;will-change:transform}
+.b1{width:56vmax;height:56vmax;left:-14vmax;top:-18vmax;background:radial-gradient(circle,#3E9A9D,transparent 68%);animation:f1 17s ease-in-out infinite alternate}
+.b2{width:48vmax;height:48vmax;right:-12vmax;top:10vmax;background:radial-gradient(circle,#8FD6CF99,transparent 68%);animation:f2 21s ease-in-out infinite alternate}
+.b3{width:60vmax;height:60vmax;left:18vmax;bottom:-30vmax;background:radial-gradient(circle,#236F72,transparent 68%);animation:f3 25s ease-in-out infinite alternate}
+.b4{width:30vmax;height:30vmax;left:40%;top:30%;background:radial-gradient(circle,#DCEFEB55,transparent 66%);animation:f2 14s ease-in-out infinite alternate-reverse}
+#cur{position:absolute;width:26vmax;height:26vmax;left:0;top:0;margin:-13vmax 0 0 -13vmax;background:radial-gradient(circle,#8FD6CFAA,transparent 65%)}
+@keyframes f1{to{transform:translate(18vmax,14vmax) scale(1.2)}}@keyframes f2{to{transform:translate(-20vmax,12vmax) scale(.85)}}@keyframes f3{to{transform:translate(-16vmax,-10vmax) scale(1.15)}}
+.hc{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:20px;transition:opacity .35s,transform .35s}
+.hc.gone{opacity:0;transform:translateY(-14px);pointer-events:none}
+.eb{font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:#BFE3DF;margin:0}
+#ht{font-weight:600;font-size:clamp(48px,11vw,132px);line-height:.95;letter-spacing:-.04em;margin:0;filter:url(#wob)}
+.sub{max-width:460px;color:#CFE4E1;margin:0;font-size:16px}
+.cta{height:48px;padding:0 28px;border-radius:8px;border:0;background:#fff;color:var(--st);font-weight:600;font-size:15px;transition:transform .2s,box-shadow .2s}
+.cta:hover{transform:translateY(-2px);box-shadow:0 10px 40px #8FD6CF55}
+h2.q{font-weight:600;font-size:clamp(28px,5vw,48px);letter-spacing:-.03em;margin:0}
+.cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.card{width:200px;padding:20px;border-radius:12px;border:1px solid #ffffff33;background:#ffffff14;backdrop-filter:blur(14px);color:#fff;text-align:left;transition:transform .25s,background .25s,border-color .25s}
+.card:hover{transform:translateY(-6px);background:#ffffff26;border-color:#8FD6CF}
+.card b{display:block;font-size:20px;font-weight:600;margin-top:14px}.card span{color:#CFE4E1;font-size:13px}
+.gl{display:flex;gap:6px;height:64px;align-items:flex-end}.gl i{display:block;width:44px;height:100%;border-radius:4px;background:linear-gradient(160deg,#8FD6CF,#236F72)}.gl i:nth-child(2){opacity:.7;height:84%}.gl i:nth-child(3){opacity:.45;height:68%}
+.back{background:none;border:0;color:#BFE3DF;text-decoration:underline;height:32px}
+/* flow */
+#flow{position:fixed;inset:0;display:grid;grid-template-rows:56px minmax(0,1fr) 64px;background:var(--bg)}
+#flow header{display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--ln)}
+#flow h1{font-size:20px;font-weight:600;letter-spacing:-.015em;margin:0}
+#steps{display:flex;gap:4px;margin-left:12px;flex-wrap:wrap}
+.sp{height:32px;padding:0 12px;border-radius:8px;border:1px solid transparent;background:none;color:var(--mu);font-weight:500;display:flex;align-items:center;gap:8px}
+.sp i{font-style:normal;width:20px;height:20px;border-radius:50%;border:1px solid var(--cb);display:grid;place-items:center;font-size:11px}
+.sp.on{background:var(--sel);color:var(--tx)}.sp.on i{background:var(--ac);border-color:var(--ac);color:#fff}.sp.ok i{background:var(--ac);border-color:var(--ac);color:#fff}
+.sp:disabled{opacity:.5;cursor:not-allowed}.sp:not(:disabled):hover{background:var(--hov)}
+#stage{position:relative;min-height:0;background:var(--ws)}
+.pn{position:absolute;inset:0;overflow:auto}.pn iframe{border:0;width:100%;height:100%;display:block;background:#fff}
+.tw{max-width:760px;margin:0 auto;padding:32px 24px}.tw h2{font-size:28px;letter-spacing:-.02em;margin:0 0 4px}.tw>p{color:var(--mu);margin:0 0 24px}
+.sl{background:var(--bg);border:1px solid var(--ln);border-radius:10px;padding:16px;margin-bottom:16px}
+.sl h3{margin:0 0 12px;font-size:15px;font-weight:600}
+.sl label{display:block;font-weight:500;font-size:12px;color:var(--mu);margin:0 0 4px}
+.sl textarea{width:100%;border:1px solid var(--cb);border-radius:8px;padding:8px 12px;background:var(--bg);resize:vertical;margin-bottom:12px}
+.sl textarea.err{border-color:#A63036}
+#bar{display:flex;align-items:center;gap:12px;padding:0 16px;border-top:1px solid var(--ln);background:var(--bg)}
+#msg{flex:1;color:var(--mu);font-size:13px}
+.bt{height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--cb);background:var(--bg);font-weight:500}
+.bt:hover:not(:disabled){background:var(--hov)}.bt.dk{background:var(--ac);border-color:var(--ac);color:#fff}.bt.dk:hover:not(:disabled){background:var(--acp)}.bt:disabled{opacity:.6;cursor:wait}
+@media(prefers-reduced-motion:reduce){.bl{animation:none}#ht{filter:none}*{transition-duration:.01ms!important}}
+@media(max-width:700px){#steps .sp span{display:none}}
+.card{border-radius:10px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);backdrop-filter:none}.card:hover{background:var(--sel);border-color:var(--cb);transform:translateY(-4px)}.card span{color:var(--mu)}.gl i{background:var(--ac)}
+#flow{grid-template-rows:minmax(0,1fr) 64px}#bar #steps{margin:0}
+.pn.fr{display:flex;flex-direction:column;overflow:hidden}.pn.fr iframe{flex:1;min-height:0;height:auto}.ub{flex:none;height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;border-top:1px solid var(--ln);background:var(--bg)}.ub span{color:var(--mu);font-size:13px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wob"><feTurbulence id="tb" type="fractalNoise" baseFrequency="0.006 0.01" numOctaves="1" seed="3"/><feDisplacementMap in="SourceGraphic" scale="6"/></filter></svg>
+<div id="hero"><div class="bl b1"></div><div class="bl b2"></div><div class="bl b3"></div><div class="bl b4"></div><div class="bl" id="cur"></div>
+<div class="hc" id="s0"><p class="eb">Generative Art Studio</p><h1 id="ht">Let’s start<br>building</h1><p class="sub">Words, image and vector, flowing into posts that feel like one design.</p><button class="cta" id="go">Begin</button></div>
+<div class="hc gone" id="s1" hidden><h2 class="q">How many posts do you need?</h2><div class="cards" id="cards"></div><button class="back" id="hb">Back</button></div></div>
+<div id="flow" hidden>
+<main id="stage">
+<div class="pn" id="p0"><div class="tw"><h2>Write your text</h2><p id="tp"></p><div id="tf"></div></div></div>
+<div class="pn fr" id="p1" hidden><iframe id="fi" title="Image studio"></iframe><div class="ub"><button class="bt" data-use="image">Use in Generate</button><span id="us-image" role="status"></span></div></div>
+<div class="pn fr" id="p2" hidden><iframe id="fv" title="Vector studio"></iframe><div class="ub"><button class="bt" data-use="vector">Use in Generate</button><span id="us-vector" role="status"></span></div></div>
+<div class="pn" id="p3" hidden><iframe id="fg" title="Post generation"></iframe></div>
+</main>
+<footer id="bar"><nav id="steps" aria-label="Steps"></nav><span id="msg" role="status"></span><button class="bt" id="bk">Back</button><button class="bt" id="sk" hidden>Skip</button><button class="bt dk" id="nx">Continue</button></footer></div>
+<script>
+const SRC=__SRC__;
+const $=s=>document.querySelector(s),ST=['Text','Image','Vector','Generate'];
+const F={n:1,step:0,max:0,texts:[],img:null,svg:null,sent:'',ready:false,loaded:{},skip:{}};
+const FR={1:['fi','image'],2:['fv','vector'],3:['fg','gen']};
+/* hero motion */
+let mx=innerWidth/2,my=innerHeight/2,cx=mx,cy=my;
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+function tick(t){cx+=(mx-cx)*.06;cy+=(my-cy)*.06;$('#cur').style.transform=`translate(${cx}px,${cy}px)`;
+if(!matchMedia('(prefers-reduced-motion:reduce)').matches)$('#tb').setAttribute('baseFrequency',(.006+.003*Math.sin(t/2200)).toFixed(4)+' '+(.01+.004*Math.cos(t/2900)).toFixed(4));
+if(!$('#hero').classList.contains('out'))requestAnimationFrame(tick)}tick(0);
+const CH=[[1,'Single post','One composition'],[2,'Carousel','2 coordinated slides'],[3,'Carousel','3 coordinated slides']];
+$('#cards').innerHTML=CH.map(c=>`<button class="card" data-n="${c[0]}"><div class="gl">${'<i></i>'.repeat(c[0])}</div><b>${c[1]}</b><span>${c[2]}</span></button>`).join('');
+$('#go').onclick=()=>{$('#s0').classList.add('gone');setTimeout(()=>{$('#s0').hidden=true;$('#s1').hidden=false;requestAnimationFrame(()=>$('#s1').classList.remove('gone'))},350)};
+$('#hb').onclick=()=>{$('#s1').classList.add('gone');setTimeout(()=>{$('#s1').hidden=true;$('#s0').hidden=false;requestAnimationFrame(()=>$('#s0').classList.remove('gone'))},350)};
+$('#cards').onclick=e=>{const b=e.target.closest('.card');if(!b)return;start(+b.dataset.n)};
+/* flow */
+const ROLE=n=>n===1?['Your post']:n===2?['Slide 1 · Introduction','Slide 2 · Conclusion']:['Slide 1 · Introduction','Slide 2 · Exploration','Slide 3 · Conclusion'];
+const DEF=[['Make it loud','Issue 04 · Autumn 2026'],['Say it bigger','Exploring the shape of the idea'],['Then say it again','Read the full story']],IDX={1:[0],2:[0,2],3:[0,1,2]},dflt=i=>{const d=DEF[IDX[F.n][i]];return{head:d[0],sub:d[1]}};
+function start(n){F.n=n;F.step=0;F.max=0;F.sent='';
+$('#tp').textContent=n===1?'A headline and a short subhead for your post.':'Each slide gets its own headline and subhead. They share one visual identity.';
+$('#tf').innerHTML=ROLE(n).map((r,i)=>`<div class="sl"><h3>${r}</h3><label for="th${i}">Headline</label><textarea id="th${i}" rows="2" placeholder="Make it loud"></textarea><label for="ts${i}">Subhead (optional)</label><textarea id="ts${i}" rows="2" placeholder="Issue 04 · Autumn 2026"></textarea></div>`).join('');
+ROLE(n).forEach((_,i)=>{$('#th'+i).value=dflt(i).head;$('#ts'+i).value=dflt(i).sub});F.texts=readT();$('#hero').classList.add('out');$('#flow').hidden=false;show(0)}
+function pills(){$('#steps').innerHTML=ST.map((s,i)=>`<button class="sp${i===F.step?' on':''}${i<F.step?' ok':''}" data-i="${i}"><i>${i<F.step?'✓':i+1}</i><span>${s}</span></button>`).join('')}
+$('#steps').onclick=e=>{const b=e.target.closest('.sp');if(b&&!b.disabled){if(F.step===0)F.texts=readT();show(+b.dataset.i)}};
+function show(i){if(i===3)[['image','fi'],['vector','fv']].forEach(([k,id])=>{if(F.loaded[id]&&!F.skip[k])useAsset(k)});F.step=i;F.max=Math.max(F.max,i);pills();$('#msg').textContent='';
+for(let k=0;k<4;k++)$('#p'+k).hidden=k!==i;
+if(FR[i]){const[id,key]=FR[i],f=$('#'+id);if(!F.loaded[id]){F.loaded[id]=1;f.onload=()=>{if(id==='fg'){F.ready=true;pushGen()}};f.srcdoc=SRC[key]}else{try{f.contentWindow.dispatchEvent(new Event('resize'))}catch(e){}}}
+if(i===3)pushGen();
+$('#bk').hidden=false;$('#bk').textContent=i===0?'Change format':'Back';
+$('#sk').hidden=!(i===1||i===2);$('#sk').textContent=i===1?'Skip image':'Skip vector';
+$('#nx').hidden=i===3;$('#nx').textContent='Continue';
+$('#nx').disabled=false;
+$('#msg').textContent=i===1?'Make your image, press “Use in Generate” under it, then Continue.':i===2?'Make your vector, press “Use in Generate” under it, then Continue.':i===3?'Compose your post. Change a control to update the previews; Regenerate gives new alternatives.':''}
+$('#bk').onclick=()=>{if(F.step===0){F.texts=readT();$('#flow').hidden=true;$('#hero').classList.remove('out');$('#s0').hidden=true;$('#s1').hidden=false;$('#s1').classList.remove('gone');requestAnimationFrame(tick)}else show(F.step-1)};
+$('#nx').onclick=()=>{if(F.step===0){F.texts=readT();show(1)}else if(F.step===1)advance('image');else if(F.step===2)advance('vector')};
+$('#sk').onclick=()=>{if(F.step===1){F.img=null;F.skip.image=true}else{F.svg=null;F.skip.vector=true}show(F.step+1)};
+const readT=()=>Array.from({length:F.n},(_,i)=>({head:$('#th'+i).value.trim()||dflt(i).head,sub:$('#ts'+i).value.trim()||dflt(i).sub}));
+function useAsset(kind){const out=$('#us-'+kind);
+try{const f=$(kind==='image'?'#fi':'#fv'),d=f.contentDocument;if(!d)throw new Error('contentDocument is null (frame not loaded or cross-origin)');
+if(kind==='image'){const c=d.querySelector('#cv');if(!c)throw new Error('canvas #cv not found');F.img=c.toDataURL('image/png');out.textContent='Image captured ('+c.width+' × '+c.height+')'}
+else{const sv=d.querySelector('#stage svg');if(!sv)throw new Error('svg not found in #stage');const cl=sv.cloneNode(true),ov=cl.querySelector('#ovl');if(ov)ov.remove();
+if(!cl.getAttribute('xmlns'))cl.setAttribute('xmlns','http://www.w3.org/2000/svg');
+const t=new f.contentWindow.XMLSerializer().serializeToString(cl),vb=(cl.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number),W=vb[2]||+cl.getAttribute('width')||1000,H=vb[3]||+cl.getAttribute('height')||1000;
+F.svg={src:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(t),W,H};out.textContent='Vector captured ('+Math.round(W)+' × '+Math.round(H)+')'}
+F.sent='';F.skip[kind]=false;return true}catch(e){out.textContent='Could not read the '+kind+' tool: '+e.name+': '+e.message;return false}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-use]');if(b)useAsset(b.dataset.use)});
+function advance(kind){if(!(kind==='image'?F.img:F.svg))useAsset(kind);show(F.step+1)}
+function pushGen(){if(!F.ready||F.step!==3)return;const m={type:'setup',n:F.n,texts:F.texts,img:F.img,svg:F.svg},k=JSON.stringify(m);
+if(k===F.sent)return;F.sent=k;$('#fg').contentWindow.postMessage(m,'*')}
+</script></body></html>

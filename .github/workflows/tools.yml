@@ -1,0 +1,57 @@
+name: Preserved tool checks
+
+# Tool-specific builds stay out of the fast host CI because each preserved app
+# owns an independent dependency tree. Run manually when touching a tool baseline.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shapes:
+    name: Shapes build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/shapes/package-lock.json
+      - run: npm ci --prefix tools/shapes
+      - run: npm run build --prefix tools/shapes
+      - run: npm test --prefix tools/shapes
+
+  bend:
+    name: BEND typecheck, unit tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/bend/package-lock.json
+      - run: npm ci --prefix tools/bend
+      - run: npm run typecheck --prefix tools/bend
+      - run: npm test --prefix tools/bend
+      - run: npm run build --prefix tools/bend
+
+  static:
+    name: Legacy and typography source presence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify preserved static sources
+        run: |
+          test -f tools/legacy/upstream/index.html
+          test -f tools/legacy/image/janya.html
+          test -f tools/legacy/vector/arnav.html
+          test -f tools/legacy/generate/generator.html
+          test -f tools/typography/fonts.html
+          test -f tools/typography/custom.html
+          test -f tools/typography/fonts-data.js

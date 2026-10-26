@@ -1,0 +1,5 @@
+# New Studio files use LF across platforms.
+* text=auto eol=lf
+
+# Imported baselines are preserved as bytes. Do not normalize line endings.
+tools/** -text

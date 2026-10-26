@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-25T16:57:08.395Z",
+  "project": "BEND.",
+  "phase": "7.0",
+  "deployedPreview": "https://bend-9b07efmjr-tanishkfrs-projects.vercel.app",
+  "deployedSourceDigest": "e4f8cae96f62e0b0f640f9ce75a4b07f0e62301a088721d1dbe9b056599dbf83",
+  "statusLegend": {
+    "PASS": "Exercised end-to-end with intended behavior in deployed and/or deterministic tests.",
+    "PARTIAL": "Implementation exists and a path was verified, but not every preset/mode/browser path was exercised.",
+    "UNVERIFIED": "Source-derived only; no runtime evidence.",
+    "BLOCKED": "Requires an absent external system or hardware.",
+    "NOT_PRESENT": "Not implemented in the current schema."
+  },
+  "families": {
+    "generators": [
+      {
+        "id": "GEN-SIGNAL",
+        "name": "Signal Field",
+        "uiEntry": "Add menu; generator library",
+        "implementation": "src/engine/generators/signalField.ts; generator registry; Pixi shader",
+        "presets": ["Pulse", "Drift", "Current", "Fracture"],
+        "status": "PASS",
+        "evidence": "Deployed generator/PNG; Project A; unit determinism",
+        "presetCoverage": "Fracture and Current exercised; all UI-selectable; full visual preset matrix PARTIAL"
+      },
+      {
+        "id": "GEN-LIQUID",
+        "name": "Liquid",
+        "uiEntry": "Add menu; generator library",
+        "implementation": "src/engine/generators/liquid.ts; fixed-step CPU simulation; texture presentation",
+        "presets": ["Ink Spill", "Vortex", "Tidal", "Nebula"],
+        "status": "PASS",
+        "evidence": "Nebula performance preview; stateful seek unit tests; PNG path",
+        "presetCoverage": "Nebula exercised; all UI-selectable; full visual preset matrix PARTIAL"
+      },
+      {
+        "id": "GEN-FLOW",
+        "name": "Flow",
+        "uiEntry": "Add menu; generator library",
+        "implementation": "src/engine/generators/flow.ts; shader + CPU reference",
+        "presets": ["Threads", "Current", "Orbit", "Drift"],
+        "status": "PASS",
+        "evidence": "Project B; blend/mask tests; performance",
+        "presetCoverage": "Orbit exercised; all UI-selectable"
+      },
+      {
+        "id": "GEN-REFRACTION",
+        "name": "Refraction",
+        "uiEntry": "Add menu; generator library",
+        "implementation": "src/engine/generators/refraction.ts; shader + CPU reference",
+        "presets": ["Pool", "Glass", "Prism", "Mirage"],
+        "status": "PARTIAL",
+        "evidence": "Added in browser creative test; registry/unit coverage",
+        "presetCoverage": "No dedicated exported visual per preset"
+      },
+      {
+        "id": "GEN-SEED",
+        "name": "Seed / Randomize",
+        "uiEntry": "Seed textbox; Randomize button",
+        "implementation": "normalizeSeed/randomSeed",
+        "status": "PASS",
+        "evidence": "Deployed seed edits; unit deterministic sampling"
+      },
+      {
+        "id": "GEN-VARY",
+        "name": "Seeded generator variation",
+        "uiEntry": "Create a variation → Strength/Scope/Seed/Vary",
+        "implementation": "src/engine/random/randomize.ts",
+        "status": "PASS",
+        "evidence": "Deployed Vary + Undo; unit animated-keyframe scaling"
+      }
+    ],
+    "effects": [
+      {
+        "id": "FX-MOTION-ECHO",
+        "name": "Motion Echo",
+        "uiEntry": "Effects tab → temporal library",
+        "implementation": "src/engine/temporal/engine.ts renderMotionEcho",
+        "presets": ["Ghost Trail", "Long Exposure", "Stutter", "Afterimage"],
+        "status": "PASS",
+        "evidence": "Ghost Trail/Long Exposure selected; Project C/export; registry unit",
+        "presetCoverage": "2 of 4 presets exercised visually"
+      },
+      {
+        "id": "FX-TIME-SLICE",
+        "name": "Time Slice",
+        "uiEntry": "Effects tab → temporal library",
+        "implementation": "TemporalEngine.renderTimeSlice",
+        "presets": ["Rolling Time", "Time Stretch", "Temporal Fracture", "Wave Slice"],
+        "status": "PASS",
+        "evidence": "Temporal Fracture selected and previewed; deployed",
+        "presetCoverage": "1 of 4 presets exercised visually"
+      },
+      {
+        "id": "FX-CHANNEL-DELAY",
+        "name": "Channel Delay",
+        "uiEntry": "Effects tab → temporal library",
+        "implementation": "Channels sampled/recombined in JS",
+        "presets": ["Chromatic Ghost", "RGB Stutter", "Signal Drift", "Temporal Split"],
+        "status": "PASS",
+        "evidence": "RGB Stutter/Signal Drift and bypass regression in deployed app",
+        "presetCoverage": "2 of 4 presets exercised visually"
+      },
+      {
+        "id": "FX-FRAME-FEEDBACK",
+        "name": "Frame Feedback",
+        "uiEntry": "Effects tab → temporal library",
+        "implementation": "Stateful chronological replay + bounded checkpoints",
+        "presets": ["Infinite Tunnel", "Residue", "Smear", "Recursive Drift"],
+        "status": "PASS",
+        "evidence": "Recursive Drift; terminal-order guard; playback scheduler improvement",
+        "presetCoverage": "1 of 4 presets exercised visually"
+      },
+      {
+        "id": "FX-WAVE",
+        "name": "Wave Displacement",
+        "uiEntry": "Effects tab / Wave Displacement section",
+        "implementation": "src/engine/effects/waveDisplacement.ts; shader",
+        "status": "PASS",
+        "evidence": "Project C and treated-frame export",
+        "presetCoverage": "No presets; continuous parameters"
+      },
+      {
+        "id": "FX-STACK",
+        "name": "Temporal stack, bypass, ordering, terminal Frame Feedback",
+        "uiEntry": "Effects tab stack",
+        "implementation": "registry, isSupportedTemporalStack, Inspector",
+        "status": "PASS",
+        "evidence": "All four added individually; bypass/preset; move guard; heavy-stack warning"
+      },
+      {
+        "id": "FX-CLIPBOARD",
+        "name": "Effect stack copy / paste append / replace",
+        "uiEntry": "Effect stack clipboard group",
+        "implementation": "src/engine/temporal/clipboard.ts",
+        "status": "PASS",
+        "evidence": "Deployed cross-layer copy/append; unit animation remap"
+      },
+      {
+        "id": "FX-HEAVY-NESTED",
+        "name": "Pathological nested temporal stack",
+        "uiEntry": "Add multiple sampling effects",
+        "implementation": "Recursive temporal evaluation",
+        "status": "PARTIAL",
+        "evidence": "Warning + slow-render Stop preview implemented; can take minutes at late timestamps"
+      }
+    ],
+    "layerEditing": [
+      { "id": "LAY-IMPORT", "name": "Import H.264/AAC and VP9/Opus", "uiEntry": "Add video / Add local video", "status": "PASS", "evidence": "Chrome, Edge, Firefox; WebKit actionable codec error" },
+      { "id": "LAY-CREATE", "name": "Create procedural layer", "uiEntry": "Add menu", "status": "PASS", "evidence": "New layers append on top; deployed tests" },
+      { "id": "LAY-SELECT", "name": "Select layer", "uiEntry": "Canvas/timeline", "status": "PASS", "evidence": "Deployed" },
+      { "id": "LAY-VISIBILITY", "name": "Visibility", "uiEntry": "Hide/Show", "status": "PASS", "evidence": "Hidden missing-layer export" },
+      { "id": "LAY-LOCK", "name": "Lock layer", "uiEntry": "Lock/Unlock", "status": "PARTIAL", "evidence": "Controls disable; no full browser lock journey" },
+      { "id": "LAY-MUTE", "name": "Mute layer audio policy", "uiEntry": "Mute/Unmute", "status": "PASS", "evidence": "Muted range exported without audio" },
+      { "id": "LAY-REORDER", "name": "Layer reorder", "uiEntry": "Raise/Lower; timeline drag", "status": "PARTIAL", "evidence": "Inspector/source; timeline drag not in final suite" },
+      { "id": "LAY-DUPLICATE", "name": "Duplicate layer", "uiEntry": "Duplicate", "status": "PARTIAL", "evidence": "Source/unit; no dedicated final browser journey" },
+      { "id": "LAY-DELETE", "name": "Delete layer + undo", "uiEntry": "Remove / Delete key", "status": "PASS", "evidence": "Undo active-layer test" },
+      { "id": "LAY-TRANSFORM", "name": "Position/scale/rotation/anchor/flip", "uiEntry": "Transform controls, canvas handles", "status": "PASS", "evidence": "Project A/C; direct-manipulation unit; deployed" },
+      { "id": "LAY-CROP", "name": "Non-destructive crop", "uiEntry": "Crop disclosure/presets/canvas handles", "status": "PASS", "evidence": "Project C 4:5 crop; unit crop geometry" },
+      { "id": "LAY-FIT", "name": "Fit/Fill framing", "uiEntry": "Fit mode group", "status": "PASS", "evidence": "Project C Fill; deployed" },
+      { "id": "LAY-COLOR", "name": "Brightness/contrast/saturation/hue", "uiEntry": "Appearance disclosure", "status": "PASS", "evidence": "Project C output inspected" },
+      { "id": "LAY-TRIM", "name": "In/Out source trim", "uiEntry": "Source / trim", "status": "PASS", "evidence": "Deployed trims and range exports" },
+      { "id": "CRE-REPLACE", "name": "Replace Source", "uiEntry": "Replace source / dialog", "status": "PARTIAL", "evidence": "Unit duration policies/source; no final browser journey" },
+      { "id": "CRE-RELINK", "name": "Relink unavailable footage", "uiEntry": "Missing-media banner/Inspector", "status": "PASS", "evidence": "Deployed delete-blob, hide-export, relink" }
+    ],
+    "compositing": [
+      { "id": "CMP-BLEND-NORMAL", "name": "Blend Normal", "status": "PASS", "evidence": "Default deployed outputs" },
+      { "id": "CMP-BLEND-MULTIPLY", "name": "Blend Multiply", "status": "PASS", "evidence": "Deployed mask/blend hash change" },
+      { "id": "CMP-BLEND-SCREEN", "name": "Blend Screen", "status": "PASS", "evidence": "Project A/B and deployed mask test" },
+      { "id": "CMP-BLEND-ADD", "name": "Blend Add / Lighter", "status": "PARTIAL", "evidence": "UI/source only" },
+      { "id": "CMP-BLEND-OVERLAY", "name": "Blend Overlay", "status": "PARTIAL", "evidence": "UI/source only" },
+      { "id": "CMP-MASK-RECT", "name": "Rectangle mask", "status": "PARTIAL", "evidence": "UI/unit/source; no final exported comparison" },
+      { "id": "CMP-MASK-ELLIPSE", "name": "Ellipse mask + invert + feather", "status": "PASS", "evidence": "Deployed animated mask, Project A" },
+      { "id": "CMP-MASK-GRADIENT", "name": "Gradient mask + falloff/angle", "status": "PARTIAL", "evidence": "UI/source only" },
+      { "id": "CMP-MASK-ANIM", "name": "Animated mask parameters", "status": "PASS", "evidence": "Deployed two-keyframe width; retained across off/on" }
+    ],
+    "animation": [
+      { "id": "ANI-KEYFRAME", "name": "Keyframes", "uiEntry": "◆ / Motion / timeline", "status": "PASS", "evidence": "Deployed + Project A/C + unit" },
+      { "id": "ANI-EASING", "name": "Easing incl. cubic Bézier and hold", "uiEntry": "Motion selected keyframes", "status": "PASS", "evidence": "Unit easing; deployed Snappy cubic" },
+      { "id": "ANI-AUTOKEY", "name": "Auto-Key", "uiEntry": "Auto-Key toggle", "status": "PASS", "evidence": "Project A/C and deployed flows" },
+      { "id": "ANI-MOD", "name": "Modulators", "uiEntry": "MOD editor", "status": "PARTIAL", "evidence": "Sine/multiply deployed; advanced fields not exposed" },
+      { "id": "ANI-MULTI", "name": "Multi-keyframe selection/group editing", "uiEntry": "Shift/Ctrl click; group toolbar", "status": "PASS", "evidence": "Deployed group copy/paste; unit duplicate/delete" },
+      { "id": "ANI-RECIPES", "name": "Motion recipes", "uiEntry": "Motion → recipes", "status": "PASS", "evidence": "Deployed replace/append; terminal guard" },
+      { "id": "ANI-RECIPE-CUE", "name": "Recipe cue", "uiEntry": "Recipe detail", "status": "PASS", "evidence": "Static Canvas2D cue; real apply uses shared compositor" },
+      { "id": "CRE-COMPARE", "name": "Before/after compare", "uiEntry": "Hold to compare", "status": "PASS", "evidence": "Deployed hash change while held" },
+      { "id": "CRE-VARY", "name": "Seeded variation", "uiEntry": "Variation → Vary", "status": "PASS", "evidence": "Deployed generator; unit effects" }
+    ],
+    "timeline": [
+      { "id": "TL-SCRUB", "name": "Scrub", "status": "PASS", "evidence": "Deployed; p50 7 ms" },
+      { "id": "TL-PLAY", "name": "Play/pause", "status": "PASS", "evidence": "Deployed/cross-browser" },
+      { "id": "TL-CLIP-MOVE", "name": "Clip move/keyboard move", "status": "PARTIAL", "evidence": "Source/historical manual; no final automated journey" },
+      { "id": "TL-TRIM", "name": "Trim handles and values", "status": "PASS", "evidence": "Deployed trim and export" },
+      { "id": "TL-SNAP", "name": "Snapping", "status": "PARTIAL", "evidence": "Canvas unit snapping; timeline drag source only" },
+      { "id": "TL-ZOOM", "name": "Zoom", "status": "PARTIAL", "evidence": "Source/UI only" },
+      { "id": "TL-KEYFRAMES", "name": "Keyframe lanes", "status": "PASS", "evidence": "Deployed" },
+      { "id": "TL-LOOP", "name": "Loop region and loop playback", "status": "PARTIAL", "evidence": "Loop controls/export PASS; deployed loop-playback video not separately recorded" },
+      { "id": "TL-LOOP-KEYBOARD", "name": "Loop handle keyboard", "status": "PASS", "evidence": "Deployed arrow-key test" },
+      { "id": "TL-MARKERS", "name": "Named timeline markers", "status": "NOT_PRESENT", "evidence": "Schema only has loop/work range" },
+      { "id": "TL-RANGE", "name": "Range preview/export", "status": "PASS", "evidence": "Deployed range outputs inspected" }
+    ],
+    "exports": [
+      { "id": "EXP-PNG", "name": "PNG still", "status": "PASS", "evidence": "Chrome/Edge/Firefox/WebKit; 1080×1350/1080×1920" },
+      { "id": "EXP-FULL", "name": "Full video", "status": "PASS", "evidence": "2 s, 10 s, 4 s outputs; H.264" },
+      { "id": "EXP-RANGE", "name": "Partial range", "status": "PASS", "evidence": "1.0 s/1.5 s outputs" },
+      { "id": "EXP-QUALITY", "name": "Preview/Canvas quality", "status": "PASS", "evidence": "720×900 and 1080×1350/1920" },
+      { "id": "EXP-MP4", "name": "MP4/H.264", "status": "PASS", "evidence": "ftyp + ffprobe" },
+      { "id": "EXP-WEBM", "name": "WebM fallback", "status": "PARTIAL", "evidence": "Mediabunny WebM source path; tested browsers chose MP4 codecs" },
+      { "id": "EXP-AUDIO", "name": "Source audio inclusion", "status": "PASS", "evidence": "AAC present in A/C/range; policy documented" },
+      { "id": "EXP-MUTE", "name": "Muted/video-only", "status": "PASS", "evidence": "Muted range no audio stream" },
+      { "id": "EXP-SEAMLESS", "name": "Mirrored seamless loop", "status": "PASS", "evidence": "3 s no audio; mirrored boundary SSIM" },
+      { "id": "EXP-CANCEL", "name": "Cancellation", "status": "PASS", "evidence": "Deployed cancel/retry; no stale download" },
+      { "id": "EXP-RETRY", "name": "Retry/recovery", "status": "PASS", "evidence": "Deployed encoder fault + reload recovery" },
+      { "id": "EXP-FAILURE", "name": "Encoder failure messaging", "status": "PASS", "evidence": "Injected WebCodecs unavailable; no false success" },
+      { "id": "EXP-EMPTY-GUARD", "name": "Empty/corrupt output rejection", "status": "PASS", "evidence": "Min byte checks + MediaRecorder removed" }
+    ],
+    "projects": [
+      { "id": "PRJ-NEW", "name": "New project", "status": "PASS", "evidence": "Deployed library" },
+      { "id": "PRJ-OPEN", "name": "Open project", "status": "PASS", "evidence": "Deployed library/duplicate" },
+      { "id": "PRJ-RENAME", "name": "Rename project", "status": "PARTIAL", "evidence": "Topbar rename exercised; library rename source only" },
+      { "id": "PRJ-DUPLICATE", "name": "Duplicate project + shared media", "status": "PASS", "evidence": "Deployed library" },
+      { "id": "PRJ-DELETE", "name": "Delete project", "status": "PASS", "evidence": "Deployed delete current and reload remaining" },
+      { "id": "PRJ-AUTOSAVE", "name": "Autosave/reload", "status": "PASS", "evidence": "Chrome/Edge/Firefox reload" },
+      { "id": "PRJ-QUOTA", "name": "Quota failure + retry", "status": "PASS", "evidence": "Deployed fault injection" },
+      { "id": "PRJ-STORAGE-UNAVAILABLE", "name": "IndexedDB unavailable UI", "status": "PARTIAL", "evidence": "Source path; no final blocked-IDB browser" },
+      { "id": "PRJ-UNDO", "name": "Undo/redo + active layer", "status": "PASS", "evidence": "Unit + deployed variation undo" },
+      { "id": "PRJ-MISSING", "name": "Missing media recovery", "status": "PASS", "evidence": "Deployed hide/relink" },
+      { "id": "PRJ-PKG-EXPORT", "name": "Editable package export", "status": "PASS", "evidence": "Deployed .bendpkg" },
+      { "id": "PRJ-PKG-IMPORT", "name": "Editable package import", "status": "PASS", "evidence": "Fresh context; media/effects" },
+      { "id": "PRJ-PKG-REIMPORT", "name": "Identical reimport asset reuse", "status": "PASS", "evidence": "Asset IDs unchanged" },
+      { "id": "PRJ-LEGACY", "name": "Legacy/pre-5.5 fields", "status": "PASS", "evidence": "Unit migration + deployed additive defaults" },
+      { "id": "PRJ-ORIGIN-NOTE", "name": "Origin-scoped storage disclosure", "status": "PASS", "evidence": "Project Library copy" }
+    ],
+    "integration": [
+      { "id": "INT-HARNESS", "name": "Local reference host", "status": "PASS", "evidence": "Deployed /integration round trip" },
+      { "id": "INT-REAL-HOST", "name": "Real group toolset integration", "status": "BLOCKED", "evidence": "Host repository/runtime absent" },
+      { "id": "INT-CROSS-ORIGIN", "name": "Cross-origin bridge", "status": "BLOCKED", "evidence": "No real origin pair; not implemented" }
+    ],
+    "platform": [
+      { "id": "PLAT-ROUTES", "name": "Direct routes/refresh on Vercel", "status": "PASS", "evidence": "Deployed routing suite" },
+      { "id": "PLAT-ASSETS", "name": "Static assets/MIME/cache/404", "status": "PASS", "evidence": "Deployed header suite" },
+      { "id": "PLAT-CHROME", "name": "Chrome compatibility", "status": "PASS", "evidence": "Full deployed suite; AMD D3D11" },
+      { "id": "PLAT-EDGE", "name": "Edge compatibility", "status": "PASS", "evidence": "Deployed smoke" },
+      { "id": "PLAT-FIREFOX", "name": "Firefox compatibility", "status": "PARTIAL", "evidence": "Smoke pass; WebGL warnings open" },
+      { "id": "PLAT-WEBKIT", "name": "WebKit compatibility", "status": "PARTIAL", "evidence": "Generator/PNG; codecs/encoder unsupported in tested build" },
+      { "id": "PLAT-MOBILE", "name": "Mobile/touch", "status": "PASS", "evidence": "Touch emulation; physical hardware unverified" },
+      { "id": "A11Y-AXE", "name": "Automated accessibility", "status": "PASS", "evidence": "Zero WCAG A/AA+2.1 AA violations" },
+      { "id": "A11Y-MANUAL", "name": "Manual screen reader/physical touch", "status": "UNVERIFIED", "evidence": "No such hardware/session available" },
+      { "id": "PERF", "name": "Performance/resource lifecycle", "status": "PARTIAL", "evidence": "Measured; heavy nested temporal stack remains slow; no critical leak observed" },
+      { "id": "GPU", "name": "GPU warning investigation", "status": "PARTIAL", "evidence": "Chrome/SwiftShader clean in tested workflows; Firefox warnings open" }
+    ]
+  }
+}

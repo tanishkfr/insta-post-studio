@@ -1,0 +1,11 @@
+.git
+.vercel
+node_modules
+dist
+test-results
+output
+docs
+tests
+.audit-sources
+.playwright-mcp
+*.log

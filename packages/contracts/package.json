@@ -1,0 +1,17 @@
+{
+  "name": "@studio/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Type-only contracts for the Studio 2.0 project, layer, asset and tool-adapter boundaries.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}
