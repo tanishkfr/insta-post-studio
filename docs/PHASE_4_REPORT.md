@@ -32,9 +32,9 @@ non-exhaustive areas are named in section K.
 | Repository | `https://github.com/tanishkfr/insta-post-studio` (private) |
 | Branch | `phase-4/bend-integration` |
 | Base | `3383e6af6e0336c972cb5588be6426ee460df73e` |
-| Implementation head | `TBD` |
-| Final head | `TBD` |
-| CI | `TBD` |
+| Implementation head | `3450c57` — tested code (BEND FPS truthfulness fix) |
+| Final head | The docs-only head SHA and its CI run are recorded in the delivery response. |
+| CI | [run 40407321502](https://github.com/tanishkfr/insta-post-studio/actions/runs/40407321502) — **success** (contracts/build/67 unit + 54 Chromium browser) |
 
 No merge into Phase 3/default, no public Studio deployment, no changes to upstream BEND or
 its Vercel deployment.

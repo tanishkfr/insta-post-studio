@@ -101,6 +101,7 @@ Before storing anything, the host verifies:
 - all three artifact sizes and SHA-256 hashes;
 - video container magic (MP4 `ftyp` / WebM EBML) against BEND's declared container;
 - actual browser decodability, dimensions and duration via `<video>`;
+- frame rate as the composition's encoded target FPS (average packet rate is diagnostic);
 - PNG signature and exact poster dimensions;
 - package magic, manifest, format version, completeness, entry sizes/hashes, project/media
   agreement and video-layer/soundtrack asset references;

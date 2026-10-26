@@ -19,6 +19,12 @@
 | `npm run test:browser` | PASS | **54 Chromium tests**; includes 6 BEND-in-Studio acceptance tests; Phase 2/3 retained |
 | `npm run test:browser:bend:production` | PASS | **2 tests** against `vite preview` (production `dist`), nested route + Studio publish |
 | `npm run verify` | PASS | contracts + full build + 67 unit/component tests |
+| GitHub CI | PASS | [run 40407321502](https://github.com/tanishkfr/insta-post-studio/actions/runs/40407321502) — host build/contracts/67 unit; 54/54 Chromium browser |
+
+CI initially exposed a real truthfulness bug: Mediabunny's average packet rate on the
+runner was 30.5033 while the composition encodes at 30 FPS, so BEND's strict contract
+rejected the handoff. The adapter now reports the composition's encoded frame rate (the
+packet-rate estimate remains diagnostic), and the full CI gate passed at `3450c57`.
 
 The three BEND skipped tests are the upstream Firefox video-export cases; they are skipped by
 the preserved BEND Playwright configuration, not by Studio.
