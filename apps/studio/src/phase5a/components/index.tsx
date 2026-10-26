@@ -35,5 +35,3 @@ export function ContinueInMenu(p: { routes: RouteItem[]; onChoose: (id: string) 
 export function StudioEmptyStates(p: { title: string; detail: string; action?: { label: string; onClick: () => void } }) {
   return <div className="p5a-empty"><strong>{p.title}</strong><p>{p.detail}</p>{p.action && <button onClick={p.action.onClick}>{p.action.label}</button>}</div>;
 }
-
-

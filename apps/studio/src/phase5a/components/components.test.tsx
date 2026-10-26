@@ -24,4 +24,3 @@ describe("Phase 5A component contracts", () => {
     expect(choose).not.toHaveBeenCalled();
   });
 });
-
