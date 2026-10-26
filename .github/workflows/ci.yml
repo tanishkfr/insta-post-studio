@@ -34,10 +34,13 @@ jobs:
       - name: Install independently bundled Shapes dependencies
         run: npm ci --prefix tools/shapes
 
+      - name: Install independently bundled BEND dependencies
+        run: npm ci --prefix tools/bend
+
       - name: Typecheck shared contracts
         run: npm run contracts:typecheck
 
-      - name: Build Studio host and Shapes bundle
+      - name: Build Studio host with Shapes and BEND bundles
         run: npm run build
 
       - name: Run host unit tests
@@ -62,6 +65,9 @@ jobs:
 
       - name: Install independently bundled Shapes dependencies
         run: npm ci --prefix tools/shapes
+
+      - name: Install independently bundled BEND dependencies
+        run: npm ci --prefix tools/bend
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

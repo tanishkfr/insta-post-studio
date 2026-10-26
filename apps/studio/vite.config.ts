@@ -24,6 +24,7 @@ const TYPE_CUSTOM_BRIDGE = fileURLToPath(
   new URL("./src/adapters/typography/customBridge.js", import.meta.url),
 );
 const SHAPES_DIST = fileURLToPath(new URL("../../tools/shapes/dist/", import.meta.url));
+const BEND_DIST = fileURLToPath(new URL("../../tools/bend/dist/", import.meta.url));
 const GENERATE_SOURCE = fileURLToPath(
   new URL("../../tools/legacy/generate/generator.html", import.meta.url),
 );
@@ -250,12 +251,39 @@ function staticTypeFor(path: string): string {
   return STATIC_CONTENT_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
 }
 
-function shapesDistFile(pathname: string): string | null {
-  if (!pathname.startsWith("/tools/shapes/")) return null;
-  let relative = pathname.slice("/tools/shapes/".length);
+function bundledDistFile(pathname: string, prefix: string, dist: string): string | null {
+  if (!pathname.startsWith(prefix)) return null;
+  let relative = pathname.slice(prefix.length);
   if (!relative || relative.endsWith("/")) relative += "index.html";
   if (relative.includes("..")) return null;
-  return join(SHAPES_DIST, relative);
+  return join(dist, relative);
+}
+
+function serveBundledTool(
+  request: { url?: string },
+  response: {
+    statusCode: number;
+    setHeader(name: string, value: string): void;
+    end(body?: string | Uint8Array): void;
+  },
+  options: { prefix: string; dist: string; label: string; buildCommand: string },
+): boolean {
+  const pathname = new URL(request.url ?? "/", "http://studio.local").pathname;
+  const file = bundledDistFile(pathname, options.prefix, options.dist);
+  if (!file) return false;
+  if (!existsSync(file)) {
+    response.statusCode = 503;
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    response.end(
+      `<!doctype html><meta charset='utf-8'><title>${options.label} bundle missing</title><body style='font:14px sans-serif;padding:24px;color:#193438'><h1>${options.label} is not built yet</h1><p>Run <code>${options.buildCommand}</code>; Studio serves the independently bundled ${options.label} app from <code>${options.dist}</code>.</p></body>`,
+    );
+    return true;
+  }
+  response.statusCode = 200;
+  response.setHeader("Content-Type", staticTypeFor(file));
+  response.setHeader("Cache-Control", "no-store");
+  response.end(readFileSync(file));
+  return true;
 }
 
 function serveShapesBundle(
@@ -266,22 +294,28 @@ function serveShapesBundle(
     end(body?: string | Uint8Array): void;
   },
 ): boolean {
-  const pathname = new URL(request.url ?? "/", "http://studio.local").pathname;
-  const file = shapesDistFile(pathname);
-  if (!file) return false;
-  if (!existsSync(file)) {
-    response.statusCode = 503;
-    response.setHeader("Content-Type", "text/html; charset=utf-8");
-    response.end(
-      "<!doctype html><meta charset='utf-8'><title>Shapes bundle missing</title><body style='font:14px sans-serif;padding:24px;color:#193438'><h1>Shapes is not built yet</h1><p>Run <code>npm run tool:shapes:build</code>; Studio serves the independently bundled Shapes app from <code>tools/shapes/dist</code>.</p></body>",
-    );
-    return true;
-  }
-  response.statusCode = 200;
-  response.setHeader("Content-Type", staticTypeFor(file));
-  response.setHeader("Cache-Control", "no-store");
-  response.end(readFileSync(file));
-  return true;
+  return serveBundledTool(request, response, {
+    prefix: "/tools/shapes/",
+    dist: SHAPES_DIST,
+    label: "Shapes",
+    buildCommand: "npm run tool:shapes:build",
+  });
+}
+
+function serveBendBundle(
+  request: { url?: string },
+  response: {
+    statusCode: number;
+    setHeader(name: string, value: string): void;
+    end(body?: string | Uint8Array): void;
+  },
+): boolean {
+  return serveBundledTool(request, response, {
+    prefix: "/tools/bend/",
+    dist: BEND_DIST,
+    label: "BEND",
+    buildCommand: "npm run tool:bend:build",
+  });
 }
 
 /**
@@ -296,6 +330,7 @@ function studioAdapterPlugin(): Plugin {
       server.middlewares.use((request, response, next) => {
         const pathname = new URL(request.url ?? "/", "http://studio.local").pathname;
         if (serveShapesBundle(request, response)) return;
+        if (serveBendBundle(request, response)) return;
         const page = generatedPages().find((candidate) => `/${candidate.path}` === pathname);
         if (page) {
           try {
@@ -355,14 +390,22 @@ function studioAdapterPlugin(): Plugin {
         );
         return;
       }
+      const bendIndex = join(BEND_DIST, "index.html");
+      if (!existsSync(bendIndex)) {
+        this.error(
+          "The BEND bundle is missing. Run `npm run tool:bend:build` before building Studio.",
+        );
+        return;
+      }
       const outDir = options.dir
         ? isAbsolute(options.dir)
           ? options.dir
           : resolve(process.cwd(), options.dir)
         : fileURLToPath(new URL("./dist", import.meta.url));
       cpSync(SHAPES_DIST, join(outDir, "tools", "shapes"), { recursive: true });
+      cpSync(BEND_DIST, join(outDir, "tools", "bend"), { recursive: true });
       this.warn(
-        `Copied the independently bundled Shapes app into ${join(outDir, "tools", "shapes")}.`,
+        `Copied the independently bundled Shapes and BEND apps into ${join(outDir, "tools")}.`,
       );
     },
   };

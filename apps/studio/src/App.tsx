@@ -1,10 +1,14 @@
-import type { LayerProvenance, StudioProject, SourceToolId } from "@studio/contracts";
+import type { AssetReference, LayerProvenance, StudioProject, SourceToolId } from "@studio/contracts";
 import { useEffect, useState } from "react";
-import { createRasterLayer } from "./adapters/session/layerFactory";
+import { createBendVideoLayer, createRasterLayer } from "./adapters/session/layerFactory";
 import type { ToolSessionCapture } from "./adapters/session/toolSession";
 import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
+import { parseBendSourceState } from "./adapters/bend/bendSourceState";
+import type { StaticMotionHandoff } from "./adapters/bend/staticToVideo";
 import { typographyModeFromLayer, type TypographyMode } from "./adapters/typography/typographySourceState";
 import { createVectorLayer } from "./adapters/vector/vectorLayer";
+import { AnimateInBendDialog } from "./components/AnimateInBendDialog";
+import { BendEditor } from "./components/BendEditor";
 import { CanvasWorkspace } from "./components/CanvasWorkspace";
 import { GenerateEditor } from "./components/GenerateEditor";
 import { ImageEditor } from "./components/ImageEditor";
@@ -16,12 +20,13 @@ import { Topbar } from "./components/Topbar";
 import { TypeEditor } from "./components/TypeEditor";
 import { VectorEditor } from "./components/VectorEditor";
 import { nowIso } from "./lib/ids";
+import { assetRepository, projectRepository } from "./storage/instances";
 import { FORMAT_PRESETS } from "./project/defaultProject";
 import { studioStore, useStudioStore } from "./state/projectStore";
 import type { GeneratedLayoutTarget } from "./state/projectStore";
 import { useProjectPersistence } from "./state/useProjectPersistence";
 
-type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate";
+type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate" | "bend";
 
 function LoadingShell() {
   return (
@@ -31,7 +36,7 @@ function LoadingShell() {
       </div>
       <span className="eyebrow">Studio 2.0</span>
       <strong>Opening local project</strong>
-      <p>Restoring the document, layers and Image / Vector / Type / Shapes / Generate source references from IndexedDB.</p>
+      <p>Restoring the document, layers and Image / Vector / Type / Shapes / Generate / BEND source references from IndexedDB.</p>
     </div>
   );
 }
@@ -42,8 +47,22 @@ function isEditableTool(tool: SourceToolId | "canvas"): tool is EditableTool {
     tool === "vector" ||
     tool === "typography" ||
     tool === "shapes" ||
-    tool === "generate"
+    tool === "generate" ||
+    tool === "bend"
   );
+}
+
+function uniqueAssets(
+  ...groups: Array<AssetReference | undefined | Array<AssetReference | undefined>>
+): AssetReference[] {
+  const byId = new Map<string, AssetReference>();
+  for (const group of groups) {
+    const items = Array.isArray(group) ? group : [group];
+    for (const asset of items) {
+      if (asset) byId.set(asset.id, asset);
+    }
+  }
+  return [...byId.values()];
 }
 
 export default function App() {
@@ -56,6 +75,9 @@ export default function App() {
   const persistence = useProjectPersistence(studioStore);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [inputLayerId, setInputLayerId] = useState<string | null>(null);
+  const [bendHandoff, setBendHandoff] = useState<StaticMotionHandoff | null>(null);
+  const [showBendHandoff, setShowBendHandoff] = useState(false);
+  const [preferBendComposition, setPreferBendComposition] = useState(false);
   const [typeMode, setTypeMode] = useState<TypographyMode>("library");
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
@@ -65,6 +87,9 @@ export default function App() {
     project.artboards[0];
   const editingLayer = editingLayerId
     ? project.layers.find((layer) => layer.id === editingLayerId) ?? null
+    : null;
+  const selectedLayer = selectedLayerId
+    ? project.layers.find((layer) => layer.id === selectedLayerId) ?? null
     : null;
   const inputLayer = inputLayerId
     ? project.layers.find((layer) => layer.id === inputLayerId) ?? null
@@ -94,6 +119,9 @@ export default function App() {
   function resetEditingState() {
     setEditingLayerId(null);
     setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setPreferBendComposition(false);
     setHandoffError(null);
     studioStore.getState().setActiveTool("canvas");
   }
@@ -101,6 +129,9 @@ export default function App() {
   function openNewTool(tool: EditableTool) {
     setEditingLayerId(null);
     setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setPreferBendComposition(false);
     setHandoffError(null);
     setTypeMode("library");
     studioStore.getState().selectLayer(null);
@@ -117,6 +148,8 @@ export default function App() {
     }
     setEditingLayerId(layerId);
     setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
     setHandoffError(null);
     setTypeMode(typographyModeFromLayer(layer));
     studioStore.getState().selectLayer(layerId);
@@ -144,9 +177,29 @@ export default function App() {
     }
     setEditingLayerId(null);
     setInputLayerId(layerId);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
     setTypeMode(target === "typography" ? "custom" : "library");
     state.selectLayer(layerId);
     state.setActiveTool(target);
+  }
+
+  function openBendHandoff(handoff: StaticMotionHandoff) {
+    const state = studioStore.getState();
+    setEditingLayerId(null);
+    setInputLayerId(null);
+    setBendHandoff(handoff);
+    setShowBendHandoff(false);
+    setHandoffError(null);
+    state.selectLayer(handoff.sourceLayerIds[0] ?? null);
+    state.setActiveTool("bend");
+  }
+
+  function animateInBend(layerId: string | null, preferComposition = false) {
+    const state = studioStore.getState();
+    if (layerId) state.selectLayer(layerId);
+    setPreferBendComposition(preferComposition);
+    setShowBendHandoff(true);
   }
 
   function useAsImageInput(layerId: string) {
@@ -154,7 +207,10 @@ export default function App() {
   }
 
   function provenanceForNewLayer(): LayerProvenance | undefined {
-    const source = inputLayer;
+    const source =
+      bendHandoff?.sourceLayerIds[0]
+        ? project.layers.find((layer) => layer.id === bendHandoff.sourceLayerIds[0]) ?? null
+        : inputLayer;
     if (!source) return undefined;
     return {
       relation: "derived-from",
@@ -171,7 +227,40 @@ export default function App() {
     );
     if (!artboard) throw new Error("The active artboard no longer exists.");
     const tool = capture.sourceState.tool;
+    let committed = false;
     try {
+      if (capture.guard && editingLayerId) {
+        const current = state.project.layers.find((layer) => layer.id === editingLayerId);
+        if (!current || !current.sourceState) {
+          throw new Error("The original BEND layer no longer exists.");
+        }
+        if (current.sourceState.revision !== capture.guard.expectedHostRevision) {
+          throw new Error(
+            "This BEND layer was updated elsewhere after it was opened. Reopen the layer before publishing; the newer committed version was kept.",
+          );
+        }
+        // Cross-tab guard: the in-memory store can be older than the last
+        // durable project. Compare the committed layer revision before writing.
+        const durable = await projectRepository.loadMostRecent();
+        const durableLayer = durable?.project.layers.find((layer) => layer.id === editingLayerId);
+        if (!durableLayer || !durableLayer.sourceState) {
+          throw new Error(
+            "The committed BEND layer is no longer available. Reopen the project before publishing; the prior version was kept.",
+          );
+        }
+        if (durableLayer.sourceState.revision !== capture.guard.expectedHostRevision) {
+          throw new Error(
+            "This BEND layer was updated in another Studio tab after it was opened. Reopen the layer before publishing; the newer committed version was kept.",
+          );
+        }
+        const currentPayload = await assetRepository.getSourceState(current.sourceState);
+        const currentSource = parseBendSourceState(currentPayload.content);
+        if (currentSource.sourceRevision !== capture.guard.expectedSourceRevision) {
+          throw new Error(
+            "The committed BEND source revision changed while this edit session was open. Reopen the layer and reapply your changes; the newer version was kept.",
+          );
+        }
+      }
       if (editingLayerId) {
         if (!state.project.layers.some((layer) => layer.id === editingLayerId)) {
           throw new Error("The original layer no longer exists.");
@@ -181,9 +270,31 @@ export default function App() {
           sourceState: capture.sourceState,
           rendered: capture.rendered,
           renderedAsset: capture.renderedAsset,
-          sourceAssets: capture.sourceAssets,
+          ...(capture.poster !== undefined ? { poster: capture.poster } : {}),
+          ...(capture.temporal ? { temporal: capture.temporal } : {}),
+          sourceAssets: uniqueAssets(capture.renderedAsset, capture.posterAsset, capture.sourceAssets),
           tags: capture.tags,
         });
+        committed = true;
+      } else if (tool === "bend") {
+        const layer = createBendVideoLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture: {
+            sourceState: capture.sourceState,
+            rendered: capture.rendered,
+            poster: capture.poster,
+            temporal: capture.temporal,
+            suggestedName: capture.suggestedName,
+            tags: capture.tags,
+          },
+          provenance: provenanceForNewLayer(),
+        });
+        state.addLayer(
+          layer,
+          uniqueAssets(capture.renderedAsset, capture.posterAsset, capture.sourceAssets),
+        );
+        committed = true;
       } else if (tool === "vector") {
         const layer = createVectorLayer({
           project: state.project,
@@ -193,6 +304,7 @@ export default function App() {
           tags: capture.tags,
         });
         state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+        committed = true;
       } else if (tool === "image" || tool === "typography" || tool === "shapes") {
         const layer = createRasterLayer({
           project: state.project,
@@ -205,6 +317,7 @@ export default function App() {
           tags: capture.tags,
         });
         state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+        committed = true;
       } else if (tool === "generate") {
         const layer = createRasterLayer({
           project: state.project,
@@ -222,6 +335,7 @@ export default function App() {
           [capture.renderedAsset, ...(capture.sourceAssets ?? [])],
           { position: "back" },
         );
+        committed = true;
       } else {
         throw new Error(`No Studio layer factory exists for ${String(tool)}.`);
       }
@@ -230,7 +344,7 @@ export default function App() {
     } catch (error) {
       // The commit was in-memory only. Roll it back so a failed durable write
       // cannot leave a phantom/duplicate layer or replace an older source ref.
-      studioStore.getState().rollbackLastCommit();
+      if (committed) studioStore.getState().rollbackLastCommit();
       throw new Error(
         `Artwork is captured in this session, but the project could not be saved. The previous durable layer was preserved. ${
           error instanceof Error ? error.message : ""
@@ -238,6 +352,7 @@ export default function App() {
       );
     }
     setInputLayerId(null);
+    setBendHandoff(null);
   }
 
   async function handleApplyGenerateLayout(
@@ -354,6 +469,16 @@ export default function App() {
           onUndoLayout={handleUndoGenerateLayout}
           onClose={resetEditingState}
         />
+      ) : editingTool === "bend" && activeArtboard ? (
+        <BendEditor
+          key={`bend-${editingLayerId ?? "new"}-${project.id}-${bendHandoff?.id ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          handoff={bendHandoff}
+          onPublish={handlePublish}
+          onClose={resetEditingState}
+        />
       ) : (
         <>
           <ToolRail
@@ -363,7 +488,10 @@ export default function App() {
             onOpenTool={openNewTool}
           />
 
-          <CanvasWorkspace onOpenTool={openNewTool} />
+          <CanvasWorkspace
+            onOpenTool={openNewTool}
+            onAnimateComposition={() => animateInBend(null, true)}
+          />
 
           <aside className="sidepanel" aria-label="Layers and inspector">
             <LayersPanel
@@ -376,6 +504,7 @@ export default function App() {
               onUseAsTypePattern={(layerId) => void startHandoff(layerId, "typography")}
               onUseAsImageInput={useAsImageInput}
               onGenerateLayouts={() => openNewTool("generate")}
+              onAnimateInBend={(layerId) => animateInBend(layerId)}
             />
           </aside>
 
@@ -385,7 +514,7 @@ export default function App() {
               <span>{persistence.error ? "Local save needs attention" : "Local-first project"}</span>
             </div>
             <div className="status-center">
-              <span>Image · Vector · Type · Shapes · Generate</span>
+              <span>Image · Vector · Type · Shapes · BEND · Generate</span>
               <span className="status-divider" />
               <span>
                 {project.format.label} · {project.format.width} × {project.format.height}
@@ -399,6 +528,17 @@ export default function App() {
           </footer>
         </>
       )}
+
+      {showBendHandoff && activeArtboard ? (
+        <AnimateInBendDialog
+          project={project}
+          artboard={activeArtboard}
+          selectedLayer={selectedLayer}
+          preferComposition={preferBendComposition}
+          onCancel={() => setShowBendHandoff(false)}
+          onOpen={openBendHandoff}
+        />
+      ) : null}
 
       {handoffError ? (
         <div className="storage-banner handoff-banner" role="alert">

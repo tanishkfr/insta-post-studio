@@ -6,6 +6,7 @@ import type {
   RenderedAssetReference,
   SharedLayer,
   StudioProject,
+  TemporalMetadata,
   ToolSourceStateReference,
 } from "@studio/contracts";
 import { createStore, type StoreApi } from "zustand/vanilla";
@@ -24,6 +25,10 @@ export interface LayerArtworkUpdate {
   sourceState: ToolSourceStateReference;
   rendered: RenderedAssetReference;
   renderedAsset: AssetReference;
+  /** Replacement static cover for a temporal layer. Omit to preserve the old poster. */
+  poster?: RenderedAssetReference | null;
+  /** Updated host temporal metadata (duration/fps/audio preview policy). */
+  temporal?: TemporalMetadata;
   /** Additional binary inputs that the source document references (for example an Image source photo). */
   sourceAssets?: AssetReference[];
   /** Metadata tags replaced when a paint-mode tool changes its mode (for example Type Library → Custom). */
@@ -67,7 +72,7 @@ export interface StudioProjectActions {
     patch: Partial<
       Pick<
         SharedLayer,
-        "name" | "visible" | "locked" | "opacity" | "transform" | "blendMode"
+        "name" | "visible" | "locked" | "opacity" | "transform" | "blendMode" | "temporal"
       >
     >,
   ): void;
@@ -370,6 +375,8 @@ export function createProjectStore(
                     ...layer,
                     sourceState: update.sourceState,
                     rendered: update.rendered,
+                    ...(update.poster !== undefined ? { poster: update.poster } : {}),
+                    ...(update.temporal ? { temporal: update.temporal } : {}),
                     metadata: {
                       ...layer.metadata,
                       updatedAt: nowIso(),

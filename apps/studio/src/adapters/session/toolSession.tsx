@@ -5,6 +5,7 @@ import type {
   SharedLayer,
   SourceToolId,
   StudioProject,
+  TemporalMetadata,
   ToolInputAsset,
   ToolSourceStatePayload,
   ToolSourceStateReference,
@@ -31,6 +32,17 @@ export interface ToolSessionCapture {
   sourceState: ToolSourceStateReference;
   rendered: RenderedAssetReference;
   renderedAsset: AssetReference;
+  /** Optional static cover/poster for a temporal layer. */
+  poster?: RenderedAssetReference | null;
+  posterAsset?: AssetReference;
+  /** Host temporal preview metadata; BEND is the only producer in Phase 4. */
+  temporal?: TemporalMetadata;
+  /** Optional stale-revision guard consumed by the host publish handler. */
+  guard?: {
+    expectedHostRevision: number;
+    expectedSourceRevision: string;
+    sourceLayerIds: string[];
+  };
   sourceAssets?: AssetReference[];
   suggestedName: string;
   tags?: string[];
@@ -65,6 +77,13 @@ export interface ToolSessionConfig<TCapture extends ToolSessionCapture> {
   parseSource: (payload: ToolSourceStatePayload) => unknown;
   /** Resolves any binary assets the tool needs before restore (for example Image's source photo). */
   loadInputs?: (context: SourceLoadContext) => Promise<ToolInputAsset[]>;
+  /** Tool-specific open options (validated by the adapter). */
+  openOptions?: (context: {
+    project: StudioProject;
+    artboard: Artboard;
+    layer: SharedLayer | null;
+    parsedSource: unknown;
+  }) => Record<string, unknown>;
   capture: (context: CaptureContext<TCapture>) => Promise<TCapture>;
   /** Prime host caches from a newly captured asset before the project commits. */
   primeCapture?: (capture: TCapture) => void;
@@ -247,6 +266,12 @@ export function useToolSession<TCapture extends ToolSessionCapture>(
             sourceMode: parsedSource && typeof parsedSource === "object"
               ? (parsedSource as { mode?: unknown }).mode ?? null
               : null,
+            ...(config.openOptions?.({
+              project,
+              artboard,
+              layer,
+              parsedSource,
+            }) ?? {}),
           },
         });
         if (openResult.capabilities?.toolId !== config.toolId) {
@@ -364,6 +389,12 @@ export function useToolSession<TCapture extends ToolSessionCapture>(
     await closeSession("cancel");
   }, [closeSession, publishing]);
 
+  const cancelPublishing = useCallback(() => {
+    const adapter = adapterRef.current;
+    if (!adapter) return false;
+    return adapter.cancelAllPending() > 0;
+  }, []);
+
   const retry = useCallback(() => {
     closingRef.current = false;
     adapterRef.current?.dispose();
@@ -405,6 +436,7 @@ export function useToolSession<TCapture extends ToolSessionCapture>(
     isReady,
     clearPublishError: () => setPublishError(null),
     clearInputWarning,
+    cancelPublishing,
     toolId: config.toolId,
     label: config.label,
     iframeTitle: config.iframeTitle,
@@ -471,6 +503,7 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
     isReady,
     clearPublishError,
     clearInputWarning,
+    cancelPublishing,
   } = session;
 
   useImperativeHandle(
@@ -541,6 +574,18 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
         >
           {publishing ? "Publishing…" : actionLabel}
         </button>
+        {publishing ? (
+          <button
+            type="button"
+            className="button small publish-cancel-button"
+            onClick={() => {
+              cancelPublishing();
+            }}
+            data-testid="cancel-publish"
+          >
+            Cancel publish
+          </button>
+        ) : null}
       </header>
 
       {sessionNote ? <div className="tool-session-note">{sessionNote}</div> : null}

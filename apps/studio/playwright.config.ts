@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/browser",
+  testIgnore: ["bend-production.spec.ts"],
   fullyParallel: false,
   // The preserved Image/Type renderers do synchronous full-resolution work.
   // Two workers keep the suite deterministic without starving those frames.

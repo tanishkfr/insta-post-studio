@@ -3,7 +3,7 @@ import { toolNav, type NavToolId } from "../project/defaultProject";
 
 type LiveTool = Extract<
   NavToolId,
-  "image" | "vector" | "typography" | "shapes" | "generate"
+  "image" | "vector" | "typography" | "shapes" | "generate" | "bend"
 >;
 
 interface ToolRailProps {
@@ -77,7 +77,7 @@ export function ToolRail({
       <div className="rail-footer">
         <div className="rail-status">
           <span className="status-dot" aria-hidden="true" />
-          <span>Image · Vector · Type · Shapes · Generate integrated</span>
+          <span>Image · Vector · Type · Shapes · BEND · Generate integrated</span>
         </div>
         <p>One shared project · local-first storage</p>
       </div>
@@ -86,10 +86,11 @@ export function ToolRail({
 }
 
 export function layerIcon(layer: SharedLayer): string {
-  if (layer.kind === "vector") return "◈";
+  if (layer.kind === "vector") return "?";
   if (layer.kind === "typography") return "T";
-  if (layer.kind === "shapes") return "◇";
-  if (layer.kind === "generated-layout") return "▦";
-  if (layer.kind === "image") return "▧";
-  return "▧";
+  if (layer.kind === "shapes") return "?";
+  if (layer.kind === "generated-layout") return "?";
+  if (layer.kind === "video") return "?";
+  if (layer.kind === "image") return "?";
+  return "?";
 }

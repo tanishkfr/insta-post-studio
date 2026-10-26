@@ -113,7 +113,7 @@ describe("Studio shell components", () => {
     expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
   });
 
-  it("exposes Image, Vector, Type, Shapes and Generate as live while preserving BEND", () => {
+  it("exposes Image, Vector, Type, Shapes, BEND and Generate as live", () => {
     render(
       <ToolRail
         layerCount={1}
@@ -127,8 +127,8 @@ describe("Studio shell components", () => {
     expect(screen.getByRole("button", { name: /Type/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Shapes/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Generate/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /BEND/ })).toBeDisabled();
-    expect(screen.getAllByText("Live")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: /BEND/ })).toBeEnabled();
+    expect(screen.getAllByText("Live")).toHaveLength(6);
     expect(screen.getByText("1 layer")).toBeInTheDocument();
   });
 
@@ -160,6 +160,7 @@ describe("Studio shell components", () => {
         onUseAsTypePattern={() => undefined}
         onUseAsImageInput={() => undefined}
         onGenerateLayouts={() => undefined}
+        onAnimateInBend={() => undefined}
       />,
     );
     expect(screen.getByRole("heading", { name: "Inspector" })).toBeInTheDocument();

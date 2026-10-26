@@ -22,6 +22,8 @@ export const TOOL_PROTOCOL_METHODS = [
   "render",
   "capabilities/report",
   "operation/cancel",
+  "bend/publish",
+  "bend/publish/ack",
   "tool/close",
 ] as const satisfies readonly ToolProtocolMethod[];
 

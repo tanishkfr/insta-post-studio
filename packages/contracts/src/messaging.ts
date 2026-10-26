@@ -8,6 +8,9 @@ import type {
   ToolOpenResult,
   ToolRenderRequest,
   ToolRenderResult,
+  BendPublishAckRequest,
+  BendPublishRequest,
+  BendPublishResult,
 } from "./adapter";
 import type {
   ToolAssetReceipt,
@@ -60,6 +63,9 @@ export interface ToolProtocolMethods {
   "render": { input: ToolRenderRequest; output: ToolRenderResult };
   "capabilities/report": { input: Record<string, never>; output: ToolCapabilityReport };
   "operation/cancel": { input: { targetRequestId: RequestId }; output: { cancelled: boolean } };
+  /** Dedicated BEND publishing controller over the same scoped transport. */
+  "bend/publish": { input: BendPublishRequest; output: BendPublishResult };
+  "bend/publish/ack": { input: BendPublishAckRequest; output: { released: true } };
   "tool/close": { input: ToolCloseOptions; output: { closed: true } };
 }
 

@@ -10,12 +10,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "test:browser:bend:production": "playwright test -c playwright.production.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "^5.2.6",
     "@fontsource/source-sans-3": "^5.3.1",
     "@studio/contracts": "0.1.0",
+    "mediabunny": "^1.61.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.16"

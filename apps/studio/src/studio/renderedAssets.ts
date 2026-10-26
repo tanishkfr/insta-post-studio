@@ -35,6 +35,13 @@ export async function downloadRenderedAsset(
   assetId: string,
   filename: string,
 ): Promise<void> {
+  await downloadStoredAsset(assetId, filename);
+}
+
+export async function downloadStoredAsset(
+  assetId: string,
+  filename: string,
+): Promise<void> {
   const asset = await assetRepository.getAsset(assetId);
   const copy = new Uint8Array(asset.bytes.byteLength);
   copy.set(asset.bytes);

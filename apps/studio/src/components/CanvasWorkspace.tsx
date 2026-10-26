@@ -15,11 +15,12 @@ import type { NavToolId } from "../project/defaultProject";
 
 type LiveTool = Extract<
   NavToolId,
-  "image" | "vector" | "typography" | "shapes" | "generate"
+  "image" | "vector" | "typography" | "shapes" | "generate" | "bend"
 >;
 
 interface CanvasWorkspaceProps {
   onOpenTool: (tool: LiveTool) => void;
+  onAnimateComposition?: () => void;
 }
 
 interface DragState {
@@ -142,6 +143,128 @@ function useRenderedRaster(assetId: string | undefined): {
   };
 }
 
+function useVideoPreview(
+  assetId: string | undefined,
+  active: boolean,
+): { url: string | null; error: string | null } {
+  const [result, setResult] = useState<{
+    assetId: string | undefined;
+    url: string | null;
+    error: string | null;
+  }>({ assetId, url: null, error: null });
+
+  useEffect(() => {
+    if (!assetId || !active) {
+      setResult({ assetId, url: null, error: null });
+      return;
+    }
+    let cancelled = false;
+    let acquired = false;
+    setResult({ assetId, url: null, error: null });
+    void assetRepository
+      .getAsset(assetId)
+      .then(({ reference, bytes }) => {
+        if (cancelled) return;
+        const copy = new Uint8Array(bytes.byteLength);
+        copy.set(bytes);
+        const blob = new Blob([copy.buffer], { type: reference.mimeType });
+        const url = objectUrls.acquire(assetId, blob);
+        acquired = true;
+        setResult({ assetId, url, error: null });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setResult({
+            assetId,
+            url: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "The temporal layer could not be loaded.",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (acquired) objectUrls.release(assetId);
+    };
+  }, [assetId, active]);
+
+  return {
+    url: result.assetId === assetId ? result.url : null,
+    error: result.assetId === assetId ? result.error : null,
+  };
+}
+
+function formatSeconds(value: number | undefined): string {
+  if (!Number.isFinite(value)) return "—";
+  return `${(value as number).toFixed(1)}s`;
+}
+
+function BendVideoControls({
+  layer,
+  playing,
+  muted,
+  onTogglePlay,
+  onToggleMute,
+  error,
+}: {
+  layer: SharedLayer;
+  playing: boolean;
+  muted: boolean;
+  onTogglePlay: () => void;
+  onToggleMute: () => void;
+  error: string | null;
+}) {
+  return (
+    <div className="bend-video-bar" data-video-control="">
+      <button
+        type="button"
+        className="bend-video-play"
+        aria-label={playing ? `Pause ${layer.name}` : `Play ${layer.name}`}
+        aria-pressed={playing}
+        data-testid={`bend-video-toggle-${layer.id}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          onTogglePlay();
+        }}
+      >
+        {playing ? "Pause" : "Play video"}
+      </button>
+      <span className="bend-video-meta">
+        {formatSeconds(layer.temporal?.durationSeconds)} · {layer.temporal?.frameRate ?? "—"} fps
+      </span>
+      <button
+        type="button"
+        className="bend-video-mute"
+        aria-label={
+          layer.temporal?.audioPresent
+            ? muted
+              ? `Unmute ${layer.name}`
+              : `Mute ${layer.name}`
+            : `${layer.name} has no source audio`
+        }
+        disabled={!layer.temporal?.audioPresent}
+        title={
+          layer.temporal?.audioPresent
+            ? undefined
+            : layer.temporal?.audioMessage ?? "The published video is video-only."
+        }
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleMute();
+        }}
+      >
+        {layer.temporal?.audioPresent ? (muted ? "Sound off" : "Sound on") : "No audio"}
+      </button>
+      {layer.temporal?.preview ? <span className="bend-video-preview">Preview</span> : null}
+      {error ? <span className="bend-video-error">{error}</span> : null}
+    </div>
+  );
+}
+
 function formatRatio(artboard: Artboard): string {
   const ratio = artboard.width / artboard.height;
   if (Math.abs(ratio - 1) < 0.001) return "1:1";
@@ -173,15 +296,57 @@ function LayerView({
   onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>, layer: SharedLayer) => void;
 }) {
-  const isSvg = layer.rendered?.kind === "svg";
+  const isVideo = layer.kind === "video";
+  const isSvg = !isVideo && layer.rendered?.kind === "svg";
   const rendered = useRenderedSvg(isSvg ? layer.rendered?.assetId : undefined);
   const raster = useRenderedRaster(
-    layer.rendered?.kind === "image" ? layer.rendered.assetId : undefined,
+    isVideo
+      ? layer.poster?.assetId ??
+          (layer.rendered?.kind === "image" ? layer.rendered.assetId : undefined)
+      : layer.rendered?.kind === "image"
+        ? layer.rendered.assetId
+        : undefined,
   );
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const video = useVideoPreview(isVideo ? layer.rendered?.assetId : undefined, playing);
+  const muted = layer.temporal?.audio !== "source";
+  const playback = layer.temporal?.playback ?? "loop";
   const transform = preview ?? layer.transform;
   const moving = drag?.layerId === layer.id;
   const displayWidth = Math.max(1, transform.width * Math.abs(transform.scaleX || 1));
   const displayHeight = Math.max(1, transform.height * Math.abs(transform.scaleY || 1));
+
+  useEffect(() => {
+    setPlaying(false);
+  }, [layer.id]);
+
+  useEffect(() => {
+    if (!layer.visible) setPlaying(false);
+  }, [layer.visible]);
+
+  useEffect(() => {
+    if (!playing) return;
+    window.dispatchEvent(
+      new CustomEvent("studio:bend-video-play", { detail: { layerId: layer.id } }),
+    );
+    const element = videoRef.current;
+    if (element) void element.play().catch(() => setPlaying(false));
+  }, [playing, video.url, layer.id]);
+
+  useEffect(() => {
+    const onOtherPlay = (event: Event) => {
+      const detail = (event as CustomEvent<{ layerId?: string }>).detail;
+      if (detail?.layerId && detail.layerId !== layer.id) setPlaying(false);
+    };
+    window.addEventListener("studio:bend-video-play", onOtherPlay);
+    return () => window.removeEventListener("studio:bend-video-play", onOtherPlay);
+  }, [layer.id]);
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (element && !playing) element.pause();
+  }, [playing]);
   const style = {
     left: `${(transform.x / artboard.width) * 100}%`,
     top: `${(transform.y / artboard.height) * 100}%`,
@@ -236,7 +401,40 @@ function LayerView({
             Artwork unavailable
           </span>
         )}
+        {isVideo && playing && video.url ? (
+          <video
+            ref={videoRef}
+            className="bend-video-preview-player"
+            src={video.url}
+            muted={muted || !layer.temporal?.audioPresent}
+            playsInline
+            loop={playback === "loop"}
+            onEnded={() => {
+              if (playback !== "hold-last-frame") setPlaying(false);
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            aria-label={`${layer.name} video preview`}
+          />
+        ) : null}
       </div>
+      {isVideo && (selected || playing) ? (
+        <BendVideoControls
+          layer={layer}
+          playing={playing}
+          muted={muted}
+          error={video.error}
+          onTogglePlay={() => setPlaying((value) => !value)}
+          onToggleMute={() =>
+            studioStore.getState().updateLayer(layer.id, {
+              temporal: {
+                ...(layer.temporal ?? { kind: "video" }),
+                kind: "video",
+                audio: muted ? "source" : "muted",
+              },
+            })
+          }
+        />
+      ) : null}
       {selected ? (
         <>
           <span className="selection-label">{layer.name}</span>
@@ -258,7 +456,7 @@ function LayerView({
   );
 }
 
-export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ onOpenTool, onAnimateComposition }: CanvasWorkspaceProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -285,6 +483,7 @@ export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
     studioStore.getState().selectLayer(layer.id);
     if (layer.locked || event.button !== 0) return;
     const target = event.target as HTMLElement;
+    if (target.closest("[data-video-control]")) return;
     const mode = target.dataset.handle === "resize" ? "resize" : "move";
     const rect = artboardRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -424,6 +623,26 @@ export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
               Generate layouts
             </button>
           ) : null}
+          {layers.length > 0 && onAnimateComposition ? (
+            <button
+              type="button"
+              className="button small"
+              data-testid="animate-composition-in-bend"
+              onClick={onAnimateComposition}
+              title="Render this composition as a starting clip in BEND"
+            >
+              Animate composition
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="button small"
+            data-testid="add-video-composition"
+            onClick={() => onOpenTool("bend")}
+            title="Open BEND to create a video layer in this composition"
+          >
+            Add video
+          </button>
         </div>
       </header>
 
@@ -488,6 +707,13 @@ export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
                   onClick={() => onOpenTool("shapes")}
                 >
                   Open Shapes
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onOpenTool("bend")}
+                >
+                  Add video
                 </button>
               </div>
             </div>

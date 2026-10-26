@@ -1,4 +1,7 @@
 import type {
+  BendPublishAckRequest,
+  BendPublishRequest,
+  BendPublishResult,
   ScopedChannel,
   SourceToolId,
   StudioGlobalContext,
@@ -287,6 +290,48 @@ export class IframeToolAdapter implements ToolAdapterV1 {
       );
     }
     return result;
+  }
+
+  /**
+   * Runs BEND's dedicated publish controller. Artifacts are returned as
+   * same-origin object URLs, not large postMessage payloads. The caller must
+   * acknowledge them after verified storage so the bridge can release them.
+   */
+  async publishBend(request: BendPublishRequest): Promise<BendPublishResult> {
+    this.assertInitialized();
+    const result = await this.request("bend/publish", request, {
+      timeoutMs: Math.max(this.requestTimeoutMs, 20 * 60_000),
+    });
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !result.video ||
+      typeof result.video.url !== "string" ||
+      !result.poster ||
+      typeof result.poster.url !== "string"
+    ) {
+      throw new ToolAdapterTransportError(
+        "BAD_REQUEST",
+        "BEND returned an invalid publish result.",
+      );
+    }
+    return result;
+  }
+
+  async acknowledgeBendArtifacts(
+    request: BendPublishAckRequest,
+  ): Promise<{ released: true }> {
+    this.assertInitialized();
+    return this.request("bend/publish/ack", request, { timeoutMs: 10_000 });
+  }
+
+  /** Cancel every in-flight operation (used by the publish cancel affordance). */
+  cancelAllPending(): number {
+    const ids = [...this.pending.keys()];
+    for (const requestId of ids) {
+      void this.cancelOperation(requestId);
+    }
+    return ids.length;
   }
 
   reportCapabilities(): ToolCapabilityReport {

@@ -2,11 +2,11 @@
 
 **One project. One canvas. One layer stack. All original creative capabilities preserved.**
 
-Studio 2.0 is a unified Instagram creative toolset built around preserved standalone editors. Phase 0 imported and pinned six original capabilities. Phase 1 made Vector the first fully integrated tool. **Phase 2 added the complete Image editor, host raster layers, Image → Vector tracing, both Typography modes, and Image → Custom Type. Phase 3 adds the complete preserved Shapes 3D editor with versioned source state and transparent rendering, plus Generate as the composition assistant over real Studio layers.**
+Studio 2.0 is a unified Instagram creative toolset built around preserved standalone editors. Phase 0 imported and pinned six original capabilities. Phase 1 made Vector the first fully integrated tool. **Phase 2 added the complete Image editor, host raster layers, Image → Vector tracing, both Typography modes, and Image → Custom Type. Phase 3 added the complete preserved Shapes 3D editor with versioned source state and transparent rendering, plus Generate as the composition assistant over real Studio layers. Phase 4 adds the complete preserved BEND video editor, verified video/poster/.bendpkg publication, temporal host layers, editable source re-entry, and static-artwork → motion handoff.**
 
-BEND remains a preserved baseline for Phase 4 and is marked **Soon** in the host.
+BEND is live as the sixth tool; the complete native timeline/effects/audio/export engine remains inside its isolated runtime.
 
-## What works in Phase 3
+## What works in Phase 4
 
 - One persistent Studio project with 4:5, 1:1 and 9:16 formats.
 - Local-first IndexedDB project and binary asset storage.
@@ -93,7 +93,7 @@ insta-post-studio/
 | Type | Online-Type-Tool `fonts.html` / `custom.html` | `tools/typography/` | **Yes — Phase 2** |
 | Generate | Insta-post `generator.html` | `tools/legacy/generate/generator.html` | **Yes — Phase 3** (derived page; source byte-identical) |
 | Shapes | `tools/shapes` | `tools/shapes/index.html` | **Yes — Phase 3** (upstream pinned; adapter code added) |
-| BEND | `tools/bend` | `tools/bend/index.html` | Preserved — Phase 4 |
+| BEND | `tools/bend` | `tools/bend/index.html` | **Yes - Phase 4** (upstream pinned; adapter/bridge added) |
 
 Legacy Image/Vector/Generate pages remain byte-identical and are served through Vite-generated derived adapter pages. Shapes is the one imported app intentionally extended in Phase 3; its upstream commit remains pinned and the original editor UI/operations are preserved. SHA-256 guards continue to protect the byte-identical legacy sources.
 
@@ -106,6 +106,8 @@ Legacy Image/Vector/Generate pages remain byte-identical and are served through 
 - [Generate adapter](docs/GENERATE_ADAPTER.md)
 - [Phase 3 report](docs/PHASE_3_REPORT.md)
 - [Phase 3 test report](docs/PHASE_3_TEST_REPORT.md)
+- [Phase 4 report](docs/PHASE_4_REPORT.md) / [test report](docs/PHASE_4_TEST_REPORT.md)
+- [BEND adapter](docs/BEND_ADAPTER.md) / [video handoff](docs/VIDEO_HANDOFF.md)
 - [Phase 2 report](docs/PHASE_2_REPORT.md) / [test report](docs/PHASE_2_TEST_REPORT.md)
 - [Feature parity matrix](docs/FEATURE_PARITY_MATRIX.md)
 - [Phase 1 report](docs/PHASE_1_REPORT.md) / [Vector adapter](docs/VECTOR_ADAPTER.md)

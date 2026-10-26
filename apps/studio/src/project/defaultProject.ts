@@ -208,7 +208,7 @@ export const toolNav: ToolNavItem[] = [
     label: "BEND",
     discipline: "Video & motion",
     sourcePath: "tools/bend/",
-    status: "preserved",
+    status: "live",
   },
   {
     id: "generate",

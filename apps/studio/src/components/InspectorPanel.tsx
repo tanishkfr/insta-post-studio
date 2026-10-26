@@ -1,7 +1,13 @@
 import type { SharedLayer, StudioProject } from "@studio/contracts";
 import { useEffect, useRef, useState } from "react";
 import { studioStore, useStudioStore } from "../state/projectStore";
-import { downloadRenderedAsset } from "../studio/renderedAssets";
+import { downloadRenderedAsset, downloadStoredAsset } from "../studio/renderedAssets";
+import {
+  assertRestorableBendPayload,
+  bendAspectLabel,
+  type BendSourceStateV1,
+} from "../adapters/bend/bendSourceState";
+import { assetRepository } from "../storage/instances";
 
 interface InspectorProps {
   onEditLayer: (layerId: string) => void;
@@ -9,6 +15,7 @@ interface InspectorProps {
   onUseAsTypePattern: (layerId: string) => void;
   onUseAsImageInput: (layerId: string) => void;
   onGenerateLayouts: () => void;
+  onAnimateInBend: (layerId: string) => void;
 }
 
 function sourceLabel(layer: SharedLayer): string {
@@ -16,6 +23,7 @@ function sourceLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "typography") return "Type editor";
   if (layer.sourceTool === "shapes") return "Shapes editor";
   if (layer.sourceTool === "generate") return "Generate editor";
+  if (layer.sourceTool === "bend") return "BEND motion editor";
   return "Vector editor";
 }
 
@@ -24,11 +32,14 @@ function editLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "typography") return "Edit in Type";
   if (layer.sourceTool === "shapes") return "Edit in Shapes";
   if (layer.sourceTool === "generate") return "Edit in Generate";
+  if (layer.sourceTool === "bend") return "Edit in BEND";
   return "Edit in Vector";
 }
 
 function downloadLabel(layer: SharedLayer): string {
-  return layer.rendered?.kind === "svg" ? "Download SVG" : "Download PNG";
+  if (layer.rendered?.kind === "svg") return "Download SVG";
+  if (layer.rendered?.kind === "video") return "Download video";
+  return "Download PNG";
 }
 
 function NumberField({
@@ -194,6 +205,7 @@ export function InspectorPanel({
   onUseAsTypePattern,
   onUseAsImageInput,
   onGenerateLayouts,
+  onAnimateInBend,
 }: InspectorProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
@@ -201,6 +213,24 @@ export function InspectorPanel({
   const layer = project.layers.find((candidate) => candidate.id === selectedLayerId) ?? null;
   const artboard = project.artboards.find((candidate) => candidate.id === activeArtboardId);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [bendSource, setBendSource] = useState<BendSourceStateV1 | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBendSource(null);
+    if (layer?.sourceTool !== "bend" || !layer.sourceState) return;
+    void assetRepository
+      .getSourceState(layer.sourceState)
+      .then((payload) => {
+        if (!cancelled) setBendSource(assertRestorableBendPayload(payload));
+      })
+      .catch(() => {
+        if (!cancelled) setBendSource(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [layer?.id, layer?.sourceState, layer?.sourceTool]);
 
   function updateTransform(patch: Partial<SharedLayer["transform"]>) {
     if (!layer) return;
@@ -379,7 +409,13 @@ export function InspectorPanel({
                 if (!layer.rendered?.assetId) return;
                 setDownloadError(null);
                 const extension =
-                  layer.rendered.kind === "svg" ? "svg" : "png";
+                  layer.rendered.kind === "svg"
+                    ? "svg"
+                    : layer.rendered.kind === "video"
+                      ? layer.rendered.mimeType.includes("mp4")
+                        ? "mp4"
+                        : "webm"
+                      : "png";
                 void downloadRenderedAsset(
                   layer.rendered.assetId,
                   `${layer.name.replace(/[^\w.-]+/g, "-").toLowerCase()}.${extension}`,
@@ -399,6 +435,165 @@ export function InspectorPanel({
             <p className="inline-error" role="alert">
               {downloadError}
             </p>
+          ) : null}
+
+          {layer.sourceTool === "bend" && layer.temporal ? (
+            <div className="handoff-actions bend-layer-details" data-testid="bend-layer-details">
+              <span className="handoff-heading">Temporal layer</span>
+              <dl className="format-spec" aria-label="BEND video metadata">
+                <div>
+                  <dt>Duration</dt>
+                  <dd>
+                    {(layer.temporal.durationSeconds ?? 0).toFixed(2)}s ·{" "}
+                    {layer.temporal.frameRate ?? "—"} FPS
+                  </dd>
+                </div>
+                <div>
+                  <dt>Output</dt>
+                  <dd>
+                    {layer.rendered?.width ?? "—"} × {layer.rendered?.height ?? "—"} ·{" "}
+                    {layer.temporal.container ?? "video"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Codec</dt>
+                  <dd>{layer.temporal.codec ?? "browser codec"}</dd>
+                </div>
+                <div>
+                  <dt>Source</dt>
+                  <dd>
+                    {bendSource
+                      ? `${bendAspectLabel(bendSource.canvas.width, bendSource.canvas.height)} · ${bendSource.exportQuality ?? "saved"}`
+                      : "BEND package"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Audio</dt>
+                  <dd>
+                    {layer.temporal.audioPresent
+                      ? layer.temporal.audio === "source"
+                        ? "Included · preview on"
+                        : "Included · preview muted"
+                      : "Video only"}
+                  </dd>
+                </div>
+              </dl>
+              {layer.temporal.preview ? (
+                <p className="handoff-note">
+                  This is BEND&apos;s 720px preview encode. Reopen the layer and
+                  publish Final quality for the full {layer.poster?.width ?? artboard?.width ?? 1080}×
+                  {layer.poster?.height ?? artboard?.height ?? 1350} canvas.
+                </p>
+              ) : (
+                <p className="handoff-note">
+                  Published at full composition resolution. Host transform, opacity,
+                  visibility and stacking stay separate from BEND&apos;s timeline.
+                </p>
+              )}
+              <label className="toggle-row">
+                <span>Preview playback</span>
+                <select
+                  aria-label="BEND preview playback policy"
+                  value={layer.temporal.playback ?? "loop"}
+                  onChange={(event) =>
+                    studioStore.getState().updateLayer(layer.id, {
+                      temporal: {
+                        ...layer.temporal!,
+                        kind: "video",
+                        playback: event.target.value as "loop" | "hold-last-frame" | "once",
+                      },
+                    })
+                  }
+                >
+                  <option value="loop">Loop</option>
+                  <option value="hold-last-frame">Hold last frame</option>
+                  <option value="once">Play once</option>
+                </select>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={layer.temporal.audio === "source"}
+                  disabled={!layer.temporal.audioPresent}
+                  aria-label="Include BEND source audio in preview"
+                  onChange={(event) =>
+                    studioStore.getState().updateLayer(layer.id, {
+                      temporal: {
+                        ...layer.temporal!,
+                        kind: "video",
+                        audio: event.target.checked ? "source" : "muted",
+                      },
+                    })
+                  }
+                />
+                Include source audio in the single-video preview
+              </label>
+              {layer.temporal.audioMessage ? (
+                <p className="inline-note">{layer.temporal.audioMessage}</p>
+              ) : null}
+              <div className="bend-export-actions">
+                <button
+                  type="button"
+                  className="button small"
+                  disabled={!layer.rendered?.assetId}
+                  onClick={() => {
+                    if (!layer.rendered?.assetId) return;
+                    const extension = layer.rendered.mimeType.includes("mp4") ? "mp4" : "webm";
+                    void downloadRenderedAsset(
+                      layer.rendered.assetId,
+                      `${layer.name.replace(/[^\w.-]+/g, "-").toLowerCase()}.${extension}`,
+                    ).catch((error: unknown) =>
+                      setDownloadError(
+                        error instanceof Error ? error.message : "Could not download the video.",
+                      ),
+                    );
+                  }}
+                  data-testid="bend-download-video"
+                >
+                  Download video
+                </button>
+                <button
+                  type="button"
+                  className="button small"
+                  disabled={!bendSource}
+                  onClick={() => {
+                    if (!bendSource) return;
+                    void downloadStoredAsset(
+                      bendSource.package.assetId,
+                      `${layer.name.replace(/[^\w.-]+/g, "-").toLowerCase()}.bendpkg`,
+                    ).catch((error: unknown) =>
+                      setDownloadError(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not download the editable BEND package.",
+                      ),
+                    );
+                  }}
+                  data-testid="bend-download-package"
+                >
+                  Download .bendpkg
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {layer.kind !== "video" && layer.rendered ? (
+            <div className="handoff-actions">
+              <span className="handoff-heading">Motion</span>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => onAnimateInBend(layer.id)}
+                data-testid="animate-in-bend"
+              >
+                Animate in BEND
+              </button>
+              <p className="handoff-note">
+                Rasterizes this static layer at the artboard size and imports it
+                as a real editable clip in BEND. The original source layer is not
+                changed.
+              </p>
+            </div>
           ) : null}
 
           {layer.sourceTool === "image" && layer.rendered?.kind === "image" ? (

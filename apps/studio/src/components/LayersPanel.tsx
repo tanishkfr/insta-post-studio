@@ -6,7 +6,7 @@ import { layerIcon } from "./ToolRail";
 
 type LiveTool = Extract<
   NavToolId,
-  "image" | "vector" | "typography" | "shapes" | "generate"
+  "image" | "vector" | "typography" | "shapes" | "generate" | "bend"
 >;
 
 interface LayersPanelProps {
@@ -19,6 +19,7 @@ function toolLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "typography") return "Type";
   if (layer.sourceTool === "shapes") return "Shapes";
   if (layer.sourceTool === "generate") return "Generate";
+  if (layer.sourceTool === "bend") return "BEND";
   return "Vector";
 }
 
