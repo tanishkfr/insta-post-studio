@@ -7,19 +7,36 @@ const IntegrationPage = lazy(() => import("../features/integration/IntegrationPa
 
 type AppPath = "/" | "/studio" | "/studio/edit" | "/integration";
 
+const BASE_URL = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+function relativePath(pathname: string): string {
+  const base = BASE_URL.replace(/\/$/, "");
+  if (base && base !== "/" && pathname.startsWith(`${base}/`)) {
+    return pathname.slice(base.length) || "/";
+  }
+  if (pathname === base) return "/";
+  return pathname;
+}
+
+function appURL(path: string): string {
+  return `${BASE_URL}${path.replace(/^\/+/, "")}`;
+}
+
 export function App() {
-  const [path, setPath] = useState<AppPath>(() => normalizePath(window.location.pathname));
+  const [path, setPath] = useState<AppPath>(() => normalizePath(relativePath(window.location.pathname)));
   const setProject = useEditorStore((state) => state.setProject);
 
   useEffect(() => {
-    const handlePopState = () => setPath(normalizePath(window.location.pathname));
+    const handlePopState = () => setPath(normalizePath(relativePath(window.location.pathname)));
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const navigate = useCallback((nextPath: string) => {
-    window.history.pushState({}, "", nextPath);
-    setPath(normalizePath(window.location.pathname));
+    window.history.pushState({}, "", appURL(nextPath));
+    setPath(normalizePath(relativePath(window.location.pathname)));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 

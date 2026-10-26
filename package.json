@@ -12,12 +12,14 @@
   },
   "scripts": {
     "dev": "npm run dev --workspace @studio/host",
-    "predev": "npm run tool:shapes:build",
-    "build": "npm run tool:shapes:build && npm run build --workspace @studio/host",
+    "predev": "npm run tool:shapes:build && npm run tool:bend:build",
+    "build": "npm run tool:shapes:build && npm run tool:bend:build && npm run build --workspace @studio/host",
     "preview": "npm run preview --workspace @studio/host",
     "test": "npm run test --workspace @studio/host",
-    "pretest:browser": "npm run tool:shapes:build",
+    "pretest:browser": "npm run tool:shapes:build && npm run tool:bend:build",
     "test:browser": "npm run test:browser --workspace @studio/host",
+    "pretest:browser:bend:production": "npm run build",
+    "test:browser:bend:production": "npm run test:browser:bend:production --workspace @studio/host",
     "typecheck": "npm run contracts:typecheck && npm run typecheck --workspace @studio/host",
     "contracts:typecheck": "npm run typecheck --workspace @studio/contracts",
     "verify": "npm run contracts:typecheck && npm run build && npm test",
@@ -31,7 +33,7 @@
     "tool:bend:dev": "npm --prefix tools/bend run dev",
     "tool:bend:typecheck": "npm --prefix tools/bend run typecheck",
     "tool:bend:test": "npm --prefix tools/bend test",
-    "tool:bend:build": "npm --prefix tools/bend run build",
+    "tool:bend:build": "node scripts/build-bend.mjs",
     "tool:bend:verify": "npm --prefix tools/bend run verify",
     "tool:bend:test:browser": "npm --prefix tools/bend run test:browser"
   }
