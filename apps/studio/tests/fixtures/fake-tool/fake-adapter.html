@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Studio fake adapter</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef4f1; color: #17322f; font: 14px/1.5 system-ui, sans-serif; }
+    main { padding: 24px; border: 1px solid #cfe0da; border-radius: 8px; background: #fff; text-align: center; }
+    code { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <strong>Studio transport fixture</strong>
+    <p>This cross-origin frame exists only for adapter conformance tests.</p>
+    <code id="scenario">waiting</code>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      const PROTOCOL_VERSION = "1.0.0";
+      const params = new URLSearchParams(location.search);
+      const scenario = params.get("scenario") || "happy";
+      document.getElementById("scenario").textContent = "scenario: " + scenario;
+
+      const bootPrefix = "#studio=";
+      if (!location.hash.startsWith(bootPrefix)) {
+        document.getElementById("scenario").textContent = "missing boot config";
+        return;
+      }
+      let boot;
+      try {
+        boot = JSON.parse(decodeURIComponent(location.hash.slice(bootPrefix.length)));
+      } catch {
+        document.getElementById("scenario").textContent = "invalid boot config";
+        return;
+      }
+      const hostOrigin = boot.origins.hostOrigin;
+      const scope = boot.scope;
+      const targetOrigin = hostOrigin;
+      const capabilities = {
+        toolId: "vector",
+        adapterVersion: "fake-1.0.0",
+        protocolVersion: PROTOCOL_VERSION,
+        integrationMode: "isolated-iframe",
+        supported: ["open-canvas", "export-svg", "editable-source", "transparent-render"],
+        limitations: [{ code: "FAKE", summary: "Test fixture only.", environmentDependent: false }],
+        outputFormats: ["svg"],
+        runtimeRequirements: {},
+      };
+
+      const pending = new Map();
+      let initialized = false;
+      const state = { scenario, initializeCount: 0, restoreCount: 0, cancelCount: 0, closed: false };
+      window.__FAKE_TOOL_STATE__ = state;
+
+      function localScope() {
+        if (scenario === "wrong-scope-response") {
+          return Object.assign({}, scope, { channelId: "wrong-channel" });
+        }
+        return scope;
+      }
+
+      function post(message) {
+        parent.postMessage(message, targetOrigin);
+      }
+
+      function event(eventValue) {
+        post({
+          protocolVersion: PROTOCOL_VERSION,
+          kind: "event",
+          scope: scope,
+          event: eventValue,
+          sentAt: new Date().toISOString(),
+        });
+      }
+
+      function respond(request, ok, resultOrError, delayMs) {
+        const send = () => {
+          if (ok) {
+            post({
+              protocolVersion: scenario === "protocol-mismatch" ? "9.9.9" : PROTOCOL_VERSION,
+              kind: "response",
+              scope: localScope(),
+              requestId: request.requestId,
+              method: request.method,
+              ok: true,
+              result: resultOrError,
+              sentAt: new Date().toISOString(),
+            });
+          } else {
+            post({
+              protocolVersion: scenario === "protocol-mismatch" ? "9.9.9" : PROTOCOL_VERSION,
+              kind: "response",
+              scope: localScope(),
+              requestId: request.requestId,
+              method: request.method,
+              ok: false,
+              error: resultOrError,
+              sentAt: new Date().toISOString(),
+            });
+          }
+        };
+        if (delayMs) setTimeout(send, delayMs);
+        else send();
+      }
+
+      function renderSvg() {
+        return new TextEncoder().encode(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#236F72"/></svg>',
+        );
+      }
+
+      function handleRequest(message) {
+        if (!message || message.kind !== "request") return;
+        if (message.protocolVersion !== PROTOCOL_VERSION) {
+          respond(message, false, { code: "PROTOCOL_VERSION_MISMATCH", message: "Fake protocol mismatch.", retryable: false });
+          return;
+        }
+        if (message.scope.channelId !== scope.channelId) {
+          respond(message, false, { code: "SCOPE_MISMATCH", message: "Fake scope mismatch.", retryable: false });
+          return;
+        }
+        if (scenario === "silent-render" && message.method === "render") {
+          pending.set(message.requestId, message);
+          return;
+        }
+        if (scenario === "cancel" && message.method === "render") {
+          pending.set(message.requestId, message);
+          return;
+        }
+        if (scenario === "late" && message.method === "render") {
+          setTimeout(() => {
+            respond(message, true, {
+              requestId: message.requestId,
+              rendered: { kind: "svg", mimeType: "image/svg+xml", width: 100, height: 100, hasAlpha: true },
+              bytes: renderSvg(),
+              warnings: [],
+            });
+          }, 300);
+          return;
+        }
+        if (scenario === "stale" && message.method === "render") {
+          post({
+            protocolVersion: PROTOCOL_VERSION,
+            kind: "response",
+            scope: scope,
+            requestId: "stale_request",
+            method: "render",
+            ok: true,
+            result: {
+              requestId: "stale_request",
+              rendered: { kind: "svg", mimeType: "image/svg+xml", width: 1, height: 1 },
+              warnings: [],
+            },
+            sentAt: new Date().toISOString(),
+          });
+          setTimeout(() => {
+            respond(message, true, {
+              requestId: message.requestId,
+              rendered: { kind: "svg", mimeType: "image/svg+xml", width: 100, height: 100, hasAlpha: true },
+              bytes: renderSvg(),
+              warnings: [],
+            });
+          }, 25);
+          return;
+        }
+
+        switch (message.method) {
+          case "tool/initialize":
+            initialized = true;
+            state.initializeCount += 1;
+            respond(message, true, {
+              sessionId: scope.sessionId,
+              capabilities: capabilities,
+              warnings: [],
+            }, scenario === "delay-response" ? 500 : 0);
+            break;
+          case "tool/open":
+            respond(message, true, {
+              sessionId: scope.sessionId,
+              capabilities: capabilities,
+              warnings: [],
+            }, scenario === "delay-response" ? 500 : 0);
+            setTimeout(() => {
+              event({ type: "progress", operation: "prepare", progress: 0.5 });
+              event({
+                type: "issue",
+                issue: {
+                  code: "CAPABILITY_UNSUPPORTED",
+                  message: "Fixture advisory only.",
+                  severity: "warning",
+                  recoverable: true,
+                  occurredAt: new Date().toISOString(),
+                },
+              });
+            }, 20);
+            break;
+          case "context/update":
+            respond(message, true, {
+              applied: true,
+              activeArtboardId: message.params.activeArtboard.id,
+            });
+            break;
+          case "assets/input":
+            respond(message, true, (message.params || []).map((asset) => ({
+              inputLayerId: asset.layerId,
+              accepted: true,
+              localAssetId: "fake_" + asset.layerId,
+            })));
+            break;
+          case "state/restore":
+            state.restoreCount += 1;
+            respond(message, true, {
+              restored: true,
+              warnings: [],
+              migratedFromVersion: message.params.toolStateVersion,
+            });
+            break;
+          case "state/serialize":
+            respond(message, true, {
+              tool: "vector",
+              toolStateVersion: "1.0.0",
+              mimeType: "application/vnd.studio.vector+json",
+              content: JSON.stringify({ fake: true, source: "fake-adapter" }),
+            });
+            break;
+          case "render":
+            respond(message, true, {
+              requestId: message.requestId,
+              rendered: {
+                kind: "svg",
+                mimeType: "image/svg+xml",
+                width: 100,
+                height: 100,
+                hasAlpha: true,
+              },
+              bytes: renderSvg(),
+              warnings: [],
+            }, scenario === "delay-response" ? 500 : 0);
+            break;
+          case "capabilities/report":
+            respond(message, true, capabilities);
+            break;
+          case "operation/cancel": {
+            state.cancelCount += 1;
+            const target = pending.get(message.params.targetRequestId);
+            if (target) {
+              pending.delete(message.params.targetRequestId);
+              setTimeout(() => {
+                respond(target, false, {
+                  code: "CANCELLED",
+                  message: "Fake render was cancelled.",
+                  retryable: false,
+                });
+              }, 30);
+            }
+            respond(message, true, { cancelled: !!target });
+            break;
+          }
+          case "tool/close":
+            state.closed = true;
+            respond(message, true, { closed: true });
+            break;
+          default:
+            respond(message, false, {
+              code: "UNKNOWN_METHOD",
+              message: "Unknown fake method: " + message.method,
+              retryable: false,
+            });
+        }
+      }
+
+      window.addEventListener("message", (messageEvent) => {
+        if (messageEvent.origin !== hostOrigin) return;
+        handleRequest(messageEvent.data);
+      });
+
+      const readyDelay =
+        scenario === "ready-timeout" ? 400 :
+        scenario === "protocol-mismatch" ? 0 :
+        20;
+      setTimeout(() => {
+        const readyScope =
+          scenario === "wrong-scope-ready"
+            ? Object.assign({}, scope, { channelId: "wrong-channel" })
+            : scope;
+        parent.postMessage({
+          protocolVersion: scenario === "protocol-mismatch" ? "9.9.9" : PROTOCOL_VERSION,
+          kind: "event",
+          scope: readyScope,
+          event: { type: "ready", capabilities: capabilities },
+          sentAt: new Date().toISOString(),
+        }, targetOrigin);
+      }, readyDelay);
+      void initialized;
+    })();
+  </script>
+</body>
+</html>
