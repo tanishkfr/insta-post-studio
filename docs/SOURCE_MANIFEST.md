@@ -32,6 +32,7 @@ BEND CI reference: [run 40325071662](https://github.com/tanishkfr/Bend/actions/r
 | `index.html` | `D9FCA40E82D962E552F1D13DBE6E2B5CAF2E7BC308A10135D42A0F6AEBD84EB6` |
 
 6. The installed Shapes `package-lock.json` gained npm `peer` metadata during installation; it was restored to the committed upstream bytes so the baseline stays exact.
+7. A clean clone of the private remote was tested after push: root `npm ci`, contracts typecheck, host build, host tests and dev server all passed. All four legacy hashes matched, and Shapes/Typography/BEND again showed **0 file differences** against the pinned staging clones. `.gitattributes` marks `tools/**` as byte-preserving so Windows line-ending conversion cannot alter imported baselines.
 
 Full upstream histories are **not** included. History and provenance remain recoverable through the commit SHAs above and the original repositories. No original files were deleted or rewritten.
 

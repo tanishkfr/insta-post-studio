@@ -15,10 +15,11 @@ The host application builds and runs; shared contracts typecheck; all four sourc
 | --- | --- |
 | Repository | `https://github.com/tanishkfr/insta-post-studio` (private) |
 | Branch | `phase-0/foundation` |
-| Remote commit | `[recorded after authenticated push]` |
+| Remote commit | `352007ea7c341090e2bdc492a92750f7475f6339` (verified Phase 0 baseline; this report is a subsequent docs-only commit on the same branch) |
 | Visibility | Private |
 | Local workspace | `C:\Dev\Coursework\insta-post-studio` |
 | Default start | `npm install && npm run dev` |
+| CI | [run 40329333860](https://github.com/tanishkfr/insta-post-studio/actions/runs/40329333860) — success |
 
 Repo creation was verified with `gh repo view` after creation. No source work was published to teammates' repositories, and BEND's Vercel project was not touched.
 
@@ -69,7 +70,8 @@ The checked-in `index.html` is the prebuilt combined application. The old builde
 | BEND browser | Playwright load against Vite | PASS — editor and First Study project loaded |
 | Typography | static server + browser | PASS — 22 font rows, 8/8 bundled faces loaded, “Fonts ready”; Custom Type loaded, opentype available |
 | Legacy | static server + browser | PASS — combined flow and standalone Image/Vector/Generate load; handoff worked |
-| CI workflow | GitHub Actions `Studio CI` | See remote verification after push |
+| CI workflow | GitHub Actions `Studio CI` | PASS — [run 40329333860](https://github.com/tanishkfr/insta-post-studio/actions/runs/40329333860) |
+| Clean clone | `git clone` remote → `npm ci` → contracts typecheck → build → tests → dev server | PASS — 182 packages from committed lockfile; 43-module build; 3/3 tests; HTTP 200 at `127.0.0.1:4180`; tool trees byte-identical to pinned sources |
 
 **Legacy browser walkthrough evidence:** Text → Image iframe (`600×750` canvas, non-empty pixels) → captured `Image captured (600 × 750)` → Vector iframe (`1,000×1,414` SVG, 62 items) → captured `Vector captured (1000 × 1414)` → Generate with vector and text assets, 3 alternatives. No page or console errors.
 
@@ -119,7 +121,7 @@ Architecture decisions are detailed in [INTEGRATION_ARCHITECTURE.md](INTEGRATION
 - Unit and Playwright smoke infrastructure; 3 unit tests and 1 browser test pass.
 - In-memory demo project typed against the real contracts. No persistence or tool embedding yet; UI labeling says so explicitly.
 - Minimal CI workflow at `.github/workflows/ci.yml` checks install, contracts, host build and unit tests. A separate manual tool-checks workflow exists for preserved-tool builds.
-- Clean-clone verification result will be recorded after the GitHub push.
+- Clean-clone verification passed from the private remote at the baseline SHA: `npm ci`, contracts typecheck, production build, unit tests, dev server HTTP 200, and byte-identical source trees. Remote CI is green.
 
 ## H. Known blockers and risks
 
