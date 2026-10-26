@@ -36,9 +36,12 @@ browser-tested. Deferred cases are named in section K and the matrix.
 | Base branch | `phase-2/tool-expansion` @ `0fe4e7498abcdef2aa6aba19ffb799b0851dc5a9` |
 | Base CI | run `40367370457` — success |
 | Branch | `phase-3/shapes-generate` |
-| Phase 3 code/tests commit | `TBD` |
-| Documentation head | subsequent docs commit on the same branch |
-| Final CI | `TBD` |
+| Shapes runtime commit | `bdb5aa8` — versioned 3D source + transparent render |
+| Studio integration commit | `7409d20` — Shapes/Generate host integration |
+| Tests + docs commit | `ceb7466` — Phase 3 acceptance, evidence, reports |
+| CI for tested head | [run 40384892175](https://github.com/tanishkfr/insta-post-studio/actions/runs/40384892175) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
+| Verified remote head | `ceb746674b37e654e22e3544cf998e496d05b1f1` (before the final docs-only report update) |
+| Documentation head | A subsequent docs-only commit on the same branch; its exact SHA and CI run are in the delivery response. |
 
 No merge into the Phase 2/default branch, no public Studio deployment, no changes to
 upstream repositories, and no BEND repository/Vercel changes.
