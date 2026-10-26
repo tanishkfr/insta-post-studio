@@ -77,10 +77,46 @@ The checked-in `index.html` is the prebuilt combined application. The old builde
 
 **BEND test suites deferred in Phase 0:**
 
-- Maintained browser gate: `npm --prefix tools/bend run test:browser` (19 cases × Chromium/Firefox; exports and media-heavy). Deferred to protect the Phase 0 time budget; upstream records 35 passed / 3 codec-specific skipped.
-- Historical/heavy specs: `phase2b`, `phase2b-export`, `phase3-temporal`, `phase4-animation`, `phase5-1a`, `phase5-1d`, `phase6a`, `smoke`, `accessibility`, `timing`. Exact commands are in the feature matrix/BEND source notes. Some are outside the maintained `testMatch` and need a dedicated config.
-- Deployed/Vercel acceptance suites: not run; no deployment was performed.
+- Maintained browser gate: 19 cases × Chromium/Firefox, including media import, clip editing, transitions, audio, persistence and export. Deferred to protect the Phase 0 time budget; upstream records 35 passed / 3 codec-specific skipped.
+- Historical/heavy specs and manual acceptance harnesses were not run. Deployed/Vercel suites were not run; no deployment was performed.
 - Export codecs (MP4/WebM), `.bendpkg` browser round-trip and full media acceptance remain unverified in Phase 0. Unit coverage for package format/export logic passed.
+
+Exact deferred commands (from `tools/bend`; run after `npm --prefix tools/bend install`):
+
+```powershell
+# Maintained gate (current playwright.config.ts testMatch)
+npm run test:browser
+
+# Declared script, but note its named specs are outside the maintained testMatch
+npm run test:phase2a1
+
+# Historical specs — current config only discovers four maintained specs.
+# Use/restore a dedicated Playwright config whose testMatch includes these files.
+npx playwright test tests/browser/phase2b.spec.ts tests/browser/phase2b-export.spec.ts --project=chromium
+npx playwright test tests/browser/phase3-temporal.spec.ts --project=chromium
+npx playwright test tests/browser/phase4-animation.spec.ts --project=chromium
+npx playwright test tests/browser/smoke.spec.ts --project=chromium
+npx playwright test tests/browser/phase5-1a.spec.ts tests/browser/phase5-1d.spec.ts --project=chromium
+npx playwright test tests/browser/phase6a.spec.ts --project=chromium
+npx playwright test tests/browser/accessibility.spec.ts tests/browser/timing.spec.ts --project=chromium
+
+# Heavy manual acceptance harnesses (start their own Vite server)
+node tests/manual/phase5-3-acceptance.mjs
+node tests/manual/phase5-4-ui-acceptance.mjs
+node tests/manual/phase5-5-acceptance.mjs
+node tests/manual/phase5-1b.mjs
+node tests/manual/phase5-1c-motion.mjs
+
+# Deployed checks (require an authorized non-production/preview URL + env credentials)
+npm run test:deployed:smoke
+npm run test:deployed:full
+npm run test:deployed:creator
+npm run test:deployed:host
+npm run test:deployed:exports
+npm run test:deployed:a11y
+```
+
+Upstream documentation has drift in pass counts and some architecture claims; source and the pinned commit are authoritative.
 
 **Other deferred checks:** Image PNG/GIF/ZIP export, Vector import/undo/export, Typography PNG/OTF export, Shapes FBX/booleans (booleans are dead code), Generate Claude mode/Export spec (host-dependent), and BEND maintained browser gate. These are marked **S** or **E** in the matrix, never **T**.
 
