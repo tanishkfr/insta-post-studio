@@ -1,6 +1,6 @@
 # Integration Architecture — Studio 2.0
 
-**Phase 1 status:** the authoritative project store, IndexedDB persistence, secure iframe transport and the Vector adapter are implemented. Other tools are still preserved baselines and are not integrated.
+**Phase 2 status:** the authoritative project store, IndexedDB persistence, secure iframe transport, reusable tool session, Image/Vector/Type adapters, raster host rendering and Image→Vector / Image→Type handoffs are implemented. Generate, Shapes and BEND remain preserved baselines and are not integrated.
 
 Phase 0 defined these boundaries; this document remains the target architecture. Implementation details for Vector are in [VECTOR_ADAPTER.md](VECTOR_ADAPTER.md).
 
@@ -178,10 +178,15 @@ Editing source never overwrites host truth automatically. The tool reports dirty
 | Asset/source-state persistence + integrity | `apps/studio/src/storage/assetRepository.ts` |
 | Object URL lifecycle | `apps/studio/src/storage/objectUrls.ts` |
 | Iframe transport + origin/sender/scope validation | `apps/studio/src/adapters/iframe/` |
+| Reusable tool session | `apps/studio/src/adapters/session/toolSession.tsx` |
 | Vector editor wrapper and bridge | Vite plugin in `apps/studio/vite.config.ts`, `apps/studio/src/adapters/vector/vectorBridge.js` |
 | Vector capture/update/sanitization | `apps/studio/src/adapters/vector/` |
+| Image editor wrapper, source state, capture and bridge | `apps/studio/src/adapters/image/`, `components/ImageEditor.tsx` |
+| Type Library / Custom Type derived scripts, source state and capture | `apps/studio/src/adapters/typography/`, `components/TypeEditor.tsx` |
+| Raster host rendering + object URLs | `components/CanvasWorkspace.tsx`, `storage/objectUrls.ts` |
+| Cross-tool inputs/provenance | `adapters/session/inputAssets.ts`, `adapters/session/layerFactory.ts`, `SharedLayer.provenance` |
 | Working canvas/layers/inspector | `apps/studio/src/components/` |
 
 **Deviations from the Phase 0 design:** none of consequence. The only contract extension is `ToolSourceStateReference.revision` plus optional content hashes on source/rendered references, needed to make source revisions explicit. Vector currently runs same-origin in development/deployment; the transport already requires exact origins and can move to a dedicated tool origin later.
 
-**Still absent by design:** general compositor/ext, asset garbage collection, multi-artboard host UI, adapters for Image/Generate/Typography/Shapes/BEND, and final multi-layer export.
+**Still absent by design:** final composition export, asset garbage collection, multi-artboard host UI, adapters for Generate/Shapes/BEND, dual-mode Type source in one layer, and dedicated production tool origins.

@@ -1,11 +1,11 @@
 # Feature Parity Matrix — Studio 2.0
 
 **Baseline date:** 2026-10-26  
-**Phase 1 status:** Vector is integrated; all other tool boundaries remain as recorded in Phase 0.  
+**Phase 2 status:** Image, Vector and Type (Type Library + Custom Type) are integrated. Shapes, Generate and BEND remain preserved baselines.
 **Baseline commits:** see [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md)  
 **Purpose:** the non-regression contract for future phases. It records what exists, not what is planned.
 
-> **Phase 1 update:** the original editor inventories below remain the source-preservation contract. Vector source re-entry, secure transport, host persistence and the working SVG compositor were added in Phase 1. Their automated evidence is in the new [Phase 1 integration](#phase-1-integration-verified) section and [PHASE_1_TEST_REPORT.md](PHASE_1_TEST_REPORT.md). No other tool was integrated or marked tested.
+> **Phase 2 update:** the original editor inventories remain the source-preservation contract. Image source re-entry/full-resolution publish, host raster layers, Image→Vector tracing, Type Library/Custom Type source re-entry, Image→Custom Type, and the shared tool session were added in Phase 2. Automated evidence is in [Phase 2 integration](#phase-2-integration--verified) and [PHASE_2_TEST_REPORT.md](PHASE_2_TEST_REPORT.md). Rows below were upgraded only where a repeatable Phase 2 test actually exercised them.
 
 ## Status legend
 
@@ -29,28 +29,28 @@ Entry point: standalone `janya.html`; also embedded in the legacy combined shell
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IMG-01 | Photo import: file picker, drag/drop, image clipboard paste | `loadFile()`, `#file`, `#drop`, paste listener | Source photo outside `S`; filename sets header | Canvas2D, FileReader, Clipboard API | In-editor source bitmap | Store original as an input asset; source image is not covered by undo | S |
-| IMG-02 | Square/portrait/story preview formats, zoom, safe-zone guides | `dims()`, `zoomF`/`fitSc`, UI-zone overlay | `S.frame`, `S.zone`; zoom is view state | DOM, Canvas2D | Live preview | Tools receive the host artboard; avoid conflicting format ownership | R (4:5 loaded, 600×750), S (zoom/zones) |
-| IMG-03 | 4:5, 1:1 and 9:16 export sizing to 1080 short edge | `dims(1)`, `expo()` | `S` | Canvas2D | 1080×1350 / 1080×1080 / 1080×1920 PNG | Replace shell's low-res capture with this export path | S |
+| IMG-01 | Photo import: file picker, drag/drop, image clipboard paste | `loadFile()`, `#file`, `#drop`, paste listener | Source photo outside `S`; filename sets header | Canvas2D, FileReader, Clipboard API | In-editor source bitmap | Source photo stored as a separate host asset; source image is not covered by undo | **T** (file-picker import + host asset round-trip); S (drop/paste) |
+| IMG-02 | Square/portrait/story preview formats, zoom, safe-zone guides | `dims()`, `zoomF`/`fitSc`, UI-zone overlay | `S.frame`, `S.zone`; zoom is view state | DOM, Canvas2D | Live preview | Host artboard format is authoritative in Studio; integrated zoom/safe-zone controls remain available | **T** (4:5/1:1/9:16 host map); S (zoom/safe zones) |
+| IMG-03 | 4:5, 1:1 and 9:16 export sizing to 1080 short edge | `dims(1)`, `expo()` | `S` | Canvas2D | 1080×1350 / 1080×1080 / 1080×1920 PNG | Studio uses the same full-resolution path, verifies exact artboard dimensions and rejects unsupported aspects | **T** (shared publish + native PNG) |
 | IMG-04 | Eight built-in looks (Dreamy sunset, Neon night, Faded polaroid, Moody film, Pastel haze, Speed rush, Fading to dust, No effects) | `LOOKS`, `look()`, `#ls` | `S` sections/order; frame preserved | Canvas2D, Google Fonts | Rendered canvas | Map to source-state presets; don't flatten on integration | S |
 | IMG-05 | Saved looks with thumbnails and delete | `#ps`, `PR`, `localStorage['bd_presets']` | Browser localStorage | localStorage, Canvas2D | Local presets | Migrate into project-scoped presets or preserve as local user library | S |
 | IMG-06 | Prompt-based look generation, shuffle, idea chips | `gen()`, `applyGen()`, `RULES`, `localGen()`, `#gi`, `#sh` | `S` | DOM regex local fallback; optional `window.claude` sampling | Updated effect controls | Local rule engine can be preserved as an in-tool assistant; Claude path optional | S |
-| IMG-07 | Colour: Original/B&W/Sepia/Duotone, brightness, contrast, saturation, posterize, duotone swatches | `colorPass()`, `PAL`, `c1`/`c2` | `S` | Canvas2D | Rendered canvas | Source-state fields map directly; preserve exact grading math | S |
-| IMG-08 | Cover-fit framing and pan/zoom | `S.frame`, `render()`, Edit tab | `S.frame` | Canvas2D, pointer events | Rendered canvas | Frame should become layer crop/transform or stay source-editor state | S |
-| IMG-09 | Pattern treatments: Cross-stitch, Pixels, Dots, Beads, Lines, Knit, Letters, Glass + palettes/yarn limits | `medium()`, `#cats`, Pattern controls | `S.medium` | Canvas2D, optional JSZip only for export | Rendered canvas; layer exports | Preserve as source state; rendered flat output as composition asset | R (Cross-stitch visible), S (controls) |
-| IMG-10 | Trace treatments: Paper layers, Contours, Waveform, Stipple | `traceFx()`, `tPaper`/`tContour`/`tWave`/`tStipple` | `S.trace` | Canvas2D | Rendered canvas | Heavy synchronous CPU work; consider preview quality at integration | S |
-| IMG-11 | Blur treatments: Soft, Smudge, Motion, Zoom, Blast, Wave, Glitch; smudge stroke brush, paint/erase mask brush | `blur()`, `smudge()`, `dab()`, `S.blur.strokes` | `S.blur`, pointer strokes | Pointer events, Canvas2D | Rendered canvas | Preserve pointer strokes; do not replace with simplified CSS filters | S |
-| IMG-12 | Effect stack with drag reorder, per-effect visibility, opacity and removal | `S.order`, `buildStack()`, `build()` | `S.order`, section states | DOM drag, keyboard arrows | Rendered canvas | Host layer stack is separate; this remains intra-image effect stack | S |
-| IMG-13 | Masks/fades: directional/edge/centre gradients, hand-painted paint/erase mask, clear/fill | `S.zone`, `mk`, `mask` rendering, `#ov` | `S.zone`, mask canvas | Canvas2D, pointer capture | `paint-mask.png` in ZIP | Map to host mask only if semantics allow; otherwise keep in source state | S; some dormant `z.*` fields are unreachable **L** |
+| IMG-07 | Colour: Original/B&W/Sepia/Duotone, brightness, contrast, saturation, posterize, duotone swatches | `colorPass()`, `PAL`, `c1`/`c2` | `S` | Canvas2D | Rendered canvas | Source-state fields map directly; preserve exact grading math | **T** (Duotone + brightness round-trip/republish); S (other modes) |
+| IMG-08 | Cover-fit framing and pan/zoom | `S.frame`, `render()`, Edit tab | `S.frame` | Canvas2D, pointer events | Rendered canvas | Frame stays source-editor crop; host transform remains separate | **T** (zoom/x/y source round-trip) |
+| IMG-09 | Pattern treatments: Cross-stitch, Pixels, Dots, Beads, Lines, Knit, Letters, Glass + palettes/yarn limits | `medium()`, `#cats`, Pattern controls | `S.medium` | Canvas2D, optional JSZip only for export | Rendered canvas; layer exports | Preserve as source state; rendered flat output as composition asset | **T** (Cross-stitch/Dots render, source round-trip); S (other variants) |
+| IMG-10 | Trace treatments: Paper layers, Contours, Waveform, Stipple | `traceFx()`, `tPaper`/`tContour`/`tWave`/`tStipple` | `S.trace` | Canvas2D | Rendered canvas | Heavy synchronous CPU work; preserve exact tracing algorithms | **T** (Contours used for Image?Vector input); S (other trace styles) |
+| IMG-11 | Blur treatments: Soft, Smudge, Motion, Zoom, Blast, Wave, Glitch; smudge stroke brush, paint/erase mask brush | `blur()`, `smudge()`, `dab()`, `S.blur.strokes` | `S.blur`, pointer strokes | Pointer events, Canvas2D | Rendered canvas | Preserve pointer strokes; do not replace with simplified CSS filters | **T** (Glitch render + source state); S (smudge gesture and other variants) |
+| IMG-12 | Effect stack with drag reorder, per-effect visibility, opacity and removal | `S.order`, `buildStack()`, `build()` | `S.order`, section states | DOM drag, keyboard arrows | Rendered canvas | Host layer stack is separate; this remains intra-image effect stack | **T** (reorder via preserved keyboard handle); S (visibility/opacity/removal) |
+| IMG-13 | Masks/fades: directional/edge/centre gradients, hand-painted paint/erase mask, clear/fill | `S.zone`, `mk`, `mask` rendering, `#ov` | `S.zone`, mask canvas | Canvas2D, pointer capture | `paint-mask.png` in ZIP | Painted mask is stored separately in source state and restored before settings render | **T** (painted mask round-trip + ZIP paint-mask); S (gradient/clear/fill); some dormant `z.*` fields unreachable **L** |
 | IMG-14 | Grain and vignette finish | `S.finish`, `render()` texture pass | `S.finish` | Canvas2D | Rendered canvas | Preserve in source-state render | S |
-| IMG-15 | Fixed three-layer stack with rename, visibility, lock, opacity, blend, order; each layer exported separately | `defLayers()`, `layersView()`, `BMN`/`BMV` | Layer metadata in `S` | DOM, Canvas2D | Layer PNGs + manifest | Host layer stack can either import these as a group or preserve them inside image source state | S |
-| IMG-16 | Undo/redo snapshots (max 60), section reset, reset all | `hist`, `go()`, `undo`, `redo` | JSON snapshots of `S` (not source photo/name) | localStorage only for presets | In-editor state | Source-state adapter must define checkpoints; host undo must not fight tool history | S |
-| IMG-17 | Piece motion presets and animated GIF export (10/12/15 fps; 360/480/600) | `PCS`, `setPlay()`, `makeGif()`, LZW/median-cut | `S.motion`, phase `PH` | Canvas2D, Blob, timing | GIF | Preserve specialized animation; host temporal contract can reference GIF/video proxy | S |
-| IMG-18 | PNG export; layered ZIP with `manifest.json`, `flattened.png`, `source.json`, layer PNGs, `paint-mask.png` | `expo()`, `#modal`, JSZip | `S` + current source bitmap | Canvas2D, JSZip CDN, Blob | PNG, ZIP | Strong reference for source state; manifest schema v1 is tool-specific | S; ZIP requires JSZip to load **E/L** |
-| IMG-19 | “Use in Generate” handoff from legacy shell | `upstream/index.html` `useAsset('image')`, direct same-origin `#cv.toDataURL` | Shell `F.img` | Same-origin iframe, Canvas2D | Data URL at preview resolution | Must be replaced by scripted adapter capture at export resolution; current handoff is 600×750, not 1080 **L** | R (captured 600×750 in combined flow) |
-| IMG-20 | Project persistence / save-load | None | Only saved Looks in localStorage | — | — | Source state and input image need explicit host storage; no full project save exists | L |
+| IMG-15 | Fixed three-layer stack with rename, visibility, lock, opacity, blend, order; each layer exported separately | `defLayers()`, `layersView()`, `BMN`/`BMV` | Layer metadata in `S` | DOM, Canvas2D | Layer PNGs + manifest | Preserved inside Image source; host layer stack remains separate | **T** (opacity/order + three layer ZIP files); S (rename/visibility/lock/blend) |
+| IMG-16 | Undo/redo snapshots (max 60), section reset, reset all | `hist`, `go()`, `undo`, `redo` | JSON snapshots of `S` (not source photo/name) | localStorage only for presets | In-editor state | Native history/index persisted; host undo remains separate | **T** (restore + native undo/redo after reload); S (section/reset-all) |
+| IMG-17 | Piece motion presets and animated GIF export (10/12/15 fps; 360/480/600) | PCS, setPlay(), makeGif(), LZW/median-cut | S.motion, phase PH | Canvas2D, Blob, timing | GIF | Preserve specialized animation; host temporal contract can reference GIF/video proxy | **T** (native 360×360 GIF89a, 10 fps) |
+| IMG-18 | PNG export; layered ZIP with `manifest.json`, `flattened.png`, `source.json`, layer PNGs, `paint-mask.png` | `expo()`, `#modal`, JSZip | `S` + current source bitmap | Canvas2D, vendored JSZip for derived page, Blob | PNG, ZIP | Strong reference for source state; manifest schema v1 is tool-specific | **T** (native PNG and ZIP contents validated) |
+| IMG-19 | "Use in Generate" handoff from legacy shell | `upstream/index.html` `useAsset('image')`, direct same-origin `#cv.toDataURL` | Shell `F.img` | Same-origin iframe, Canvas2D | Data URL at preview resolution | Studio uses scoped adapter export at full resolution instead; legacy standalone shell remains preserved | **T** (full-res Studio publish/handoff); legacy low-res path **L** |
+| IMG-20 | Project persistence / save-load | Studio adapter adds versioned source state; original standalone still has none | `ToolSourceStateReference` + IndexedDB | Tool bridge, IndexedDB | Editable Image source JSON + separate photo/render assets | **T** (Studio round-trip); L (standalone) |
 
-**Image limitations to preserve deliberately:** single source photo, synchronous heavy effects, low-res shell handoff, no project persistence, undo excludes the photo and project name, no safe-zone for 1:1, no URL import, no layer reordering across effect sections.
+**Image limitations to preserve deliberately (standalone baseline):** single source photo, synchronous heavy effects, legacy shell handoff at preview resolution, no standalone project persistence, undo excludes the photo and project name, no safe-zone for 1:1, no URL import, no layer reordering across effect sections. Studio adds full-resolution scoped capture, separate photo/source assets and persistence through its adapter; the standalone tool is unchanged.
 
 ---
 
@@ -116,14 +116,14 @@ Entry points: `index.html` hub → `fonts.html` (Type Library) and `custom.html`
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TYP-01 | Font catalogue: 13 system stacks + 8 bundled open-source fonts, previews and source groups | `fonts.html`; `STANDARD`, `OPEN`, `buildList()`, `row()` | Static catalogue; selected font + `S` | Canvas2D, FontFace | Live canvas | Preserve font list/credits; no search/filter exists | R (21 fonts + Custom Type link; “Fonts ready”) |
-| TYP-02 | Bundled font assets as base64: Barlow-TypoDesBois, Beast, Crédible, Ding Dong, Elastic, Goozette, Rami, Space Notorious Rounded | `fonts-data.js`, `fontBytes()`, `loadOne()` | `window.FONT_DATA`; each font status | FontFace, base64 | Loaded browser fonts | Eight fonts; preserve credits and licences; vendor assets in adapter build | R (all eight font faces loaded; 8 keys) |
-| TYP-03 | Font loading states, retry on failure, credit/licence UI | `loadAll()`, `loadOne()`, `updateCredit()`, `#credit` | `pending`, `S.fonts` statuses | FontFace, network fallback | Font credit text | Preserve inline credits; upstream has no separate licence files **L** | R (loaded); S (failure path) |
-| TYP-04 | Text, newline support, ink colour, automatic black/white preview backing, caps-only behaviour | `#text`, `#ink`, `draw()`, `shown()` | `S.text`, `S.ink` | Canvas2D | Live canvas, PNG | Include text/ink/background choice in source state | R (text rendered) |
-| TYP-05 | Size 24–400 px and tracking −10…40% with recommended-range warning | `#size`, `#track`; `S`, `draw()` | `S.size`, `S.tracking` | Canvas2D letterSpacing/fallback | Live canvas | Preserve recommended ranges; no leading/alignment **L** | S |
-| TYP-06 | Synthetic weight shaping (100–900, erode/dilate), not true variable weight | `weight` slider, `draw()` | `S.weight` | Canvas2D compositing | Live canvas, PNG | Do not replace with a static font weight; it is a distinct effect | S |
-| TYP-07 | Distort edges: brush-based displacement field, strength/brush size/reset | `warp()`, pointer handlers, `#reset` | `S.field` Float32Array | Pointer events, Canvas2D | Warped canvas/PNG | Fixed canvas-space field; not automatically resized **L** | S |
-| TYP-08 | PNG export of distorted preview | `#export-png`, `exportPng()` | Canvas + DPR | Canvas2D, Blob | PNG | Use as specialized export; include not only flattened composition | S |
+| TYP-01 | Font catalogue: 13 system stacks + 8 bundled open-source fonts, previews and source groups | `fonts.html`; `STANDARD`, `OPEN`, `buildList()`, `row()` | Static catalogue; selected font + `S` | Canvas2D, FontFace | Live canvas | Preserve font list/credits; no search/filter exists | **T** (all catalogue rows loaded; "Fonts ready"; credits) |
+| TYP-02 | Bundled font assets as base64: Barlow-TypoDesBois, Beast, Crédible, Ding Dong, Elastic, Goozette, Rami, Space Notorious Rounded | `fonts-data.js`, `fontBytes()`, `loadOne()` | `window.FONT_DATA`; each font status | FontFace, base64 | Loaded browser fonts | Eight fonts; preserve credits and licences; vendor assets in adapter build | **T** (Goozette, Rami, Elastic loaded) |
+| TYP-03 | Font loading states, retry on failure, credit/licence UI | `loadAll()`, `loadOne()`, `updateCredit()`, `#credit` | `pending`, `S.fonts` statuses | FontFace, network fallback | Font credit text | Preserve inline credits; upstream has no separate licence files **L** | **T** (success + credits + failure path) |
+| TYP-04 | Text, newline support, ink colour, automatic black/white preview backing, caps-only behaviour | `#text`, `#ink`, `draw()`, `shown()` | `S.text`, `S.ink` | Canvas2D | Live canvas, PNG | Include text/ink/background choice in source state | **T** (text round-trip); S (ink/multiline/color backing beyond default) |
+| TYP-05 | Size 24–400 px and tracking −10…40% with recommended-range warning | `#size`, `#track`; `S`, `draw()` | `S.size`, `S.tracking` | Canvas2D letterSpacing/fallback | Live canvas | Preserve recommended ranges; no leading/alignment **L** | **T** (size/tracking round-trip) |
+| TYP-06 | Synthetic weight shaping (100–900, erode/dilate), not true variable weight | `weight` slider, `draw()` | `S.weight` | Canvas2D compositing | Live canvas, PNG | Do not replace with a static font weight; it is a distinct effect | **T** (weight 600 round-trip) |
+| TYP-07 | Distort edges: brush-based displacement field, strength/brush size/reset | `warp()`, pointer handlers, `#reset` | `S.field` Float32Array | Pointer events, Canvas2D | Warped canvas/PNG | Fixed canvas-space field; not automatically resized **L** | **T** (brush distortion + exact field restore + reset) |
+| TYP-08 | PNG export of distorted preview | `#export-png`, `exportPng()` | Canvas + DPR | Canvas2D, Blob | PNG | Use as specialized export; include not only flattened composition | **T** (native PNG) |
 | TYP-09 | UI limits: no search/filter, no custom font import, no leading/alignment, no project persistence, no OTF export | source | — | — | — | Preserve as parity boundaries; future additions must not remove existing controls | L |
 | TYP-10 | Browser requirements | `fonts.js` | — | Canvas2D, FontFace, Blob, DPR | — | Network Google Fonts for UI; bundled font path is offline-capable | E |
 
@@ -131,17 +131,17 @@ Entry points: `index.html` hub → `fonts.html` (Type Library) and `custom.html`
 
 | # | Source feature | Source & entry point | State owner | Required deps / browser | Output formats | Future integration consideration | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TYP-11 | Draw pattern: freehand stroke capture, thickness, coalesced events, undo, clear | `script.js` `showStage`, pointer handlers; `#draw`; `#undo`, `#clear` | `S.strokes` | Pointer Events, Canvas2D | Internal motif sprite; PNG/OTF | Preserve stroke data for source state; undo only strokes | R (Draw stage loaded), S (strokes) |
-| TYP-12 | Image-as-pattern upload, centre fit, 10–300% scaling, remove, drawing/image layer order | `image` handling, `#img`, `#imgSize`, Drawing/Image toggle | `S.image`, `S.imageScale`, `S.imageOnTop` | FileReader, object URLs, Canvas2D | Internal motif; PNG | Image colour/alpha lost in OTF glyph outline; preserve for PNG | S |
-| TYP-13 | Pattern spacing, size, rotation, seeded per-cell rotation variation, stroke/image weight | pattern controls, `glyphInstances()`, `sprite()` | `S` | Canvas2D, deterministic hash | Internal motif; PNG/OTF | Source-state needs all pattern sliders and image | S |
-| TYP-14 | Letter setting: multiline text, size 60–400 px, tracking, stretch, slant | `script.js` layout/draw; `#text`, `#size`, `#track`, `#stretch`, `#slant` | `S` | Canvas2D, Google Fonts | Canvas, PNG, OTF | Fixed leading/alignment remain limitations **L** | S |
-| TYP-15 | Face blending: Serif, Monospace, Script weights over sans remainder; blur/contrast pipeline | `FACES`, weight sliders, `glyphs()` | `S.weights` | Canvas2D filters, Google Fonts (DM Serif, JetBrains Mono, Pacifico) | Glyph bitmaps, PNG, OTF | Bitmap morphing, not variable-axis interpolation; exact faces required for parity | S |
-| TYP-16 | Legibility warnings and recommended slider ranges | `flag` logic, `#legibility`, `sliders.js` | Page-local computed flags | DOM | Warning text | Preserve ranges/warnings; not a hard restriction | S |
-| TYP-17 | PNG export at 3×, capped to 6000 px, auto-contrast background | `#export-png`, `exportPng()` | `S` | Canvas2D, Blob | PNG | Specialized export remains available | S |
-| TYP-18 | OTF export: ASCII 32–126, line-segment glyphs, unitsPerEm 1000, progress | `#export-otf`, `exportOtf()`; global `opentype` | `S` + cdnjs library | opentype.js 1.3.4 CDN | OTF | No kerning/curves/Unicode beyond ASCII **L**; image becomes 1-bit dark runs **L** | R (opentype available), S (export) |
-| TYP-19 | Draw/Type ARIA tabs, retained page-local state, keyboard arrows | `showStage()` | `S` | DOM | — | Adapter can expose two entry modes rather than one generic page | R (both tabs present) |
-| TYP-20 | Persistence/history limits: no save/load, no redo, no localStorage, no cross-page state | source | — | — | — | Source-state bridge required; do not claim project restore | L |
-| TYP-21 | Font credits: Typothèque of ESA le 75 (SIL OFL), Fonderie Download (WTFPL), designers/years, source links; no LICENSE file in repo | `fonts.js` `SOURCES`, `#credit`; `fonts-data.js` | Static | — | In-app credit UI | Preserve credits; resolve font redistribution rights before public release | R (credit UI loaded); licensing gap **L** |
+| TYP-11 | Draw pattern: freehand stroke capture, thickness, coalesced events, undo, clear | `script.js` `showStage`, pointer handlers; `#draw`; `#undo`, `#clear` | `S.strokes` | Pointer Events, Canvas2D | Internal motif sprite; PNG/OTF | Preserve stroke data for source state; undo only strokes | **T** (draw/persist); S (undo/clear) |
+| TYP-12 | Image-as-pattern upload, centre fit, 10–300% scaling, remove, drawing/image layer order | `image` handling, `#img`, `#imgSize`, Drawing/Image toggle | `S.image`, `S.imageScale`, `S.imageOnTop` | FileReader, object URLs, Canvas2D | Internal motif; PNG | Image colour/alpha lost in OTF glyph outline; preserve for PNG | **T** (native upload, remove, layering) |
+| TYP-13 | Pattern spacing, size, rotation, seeded per-cell rotation variation, stroke/image weight | pattern controls, `glyphInstances()`, `sprite()` | `S` | Canvas2D, deterministic hash | Internal motif; PNG/OTF | Source-state needs all pattern sliders and image | **T** (spacing/motif size/rotation/variation/weight) |
+| TYP-14 | Letter setting: multiline text, size 60–400 px, tracking, stretch, slant | `script.js` layout/draw; `#text`, `#size`, `#track`, `#stretch`, `#slant` | `S` | Canvas2D, Google Fonts | Canvas, PNG, OTF | Fixed leading/alignment remain limitations **L** | **T** (text/size/tracking/stretch/slant) |
+| TYP-15 | Face blending: Serif, Monospace, Script weights over sans remainder; blur/contrast pipeline | `FACES`, weight sliders, `glyphs()` | `S.weights` | Canvas2D filters, Google Fonts (DM Serif, JetBrains Mono, Pacifico) | Glyph bitmaps, PNG, OTF | Bitmap morphing, not variable-axis interpolation; exact faces required for parity | **T** (serif/mono blending); S (script in isolation) |
+| TYP-16 | Legibility warnings and recommended slider ranges | `flag` logic, `#legibility`, `sliders.js` | Page-local computed flags | DOM | Warning text | Preserve ranges/warnings; not a hard restriction | **T** (warning rendered) |
+| TYP-17 | PNG export at 3×, capped to 6000 px, auto-contrast background | `#export-png`, `exportPng()` | `S` | Canvas2D, Blob | PNG | Specialized export remains available | **T** (native PNG) |
+| TYP-18 | OTF export: ASCII 32–126, line-segment glyphs, unitsPerEm 1000, progress | `#export-otf`, `exportOtf()`; global `opentype` | `S` + cdnjs library | opentype.js 1.3.4 CDN | OTF | No kerning/curves/Unicode beyond ASCII **L**; image becomes 1-bit dark runs **L** | **T** (OTF parsed) |
+| TYP-19 | Draw/Type ARIA tabs, retained page-local state, keyboard arrows | `showStage()` | `S` | DOM | — | Adapter can expose two entry modes rather than one generic page | **T** (mode switch preserves drafts; reopen mode) |
+| TYP-20 | Persistence/history limits: no save/load, no redo, no localStorage, no cross-page state | source | — | — | — | Source-state bridge required; do not claim project restore | **T** (Studio adapter); L (standalone) |
+| TYP-21 | Font credits: Typothèque of ESA le 75 (SIL OFL), Fonderie Download (WTFPL), designers/years, source links; no LICENSE file in repo | `fonts.js` `SOURCES`, `#credit`; `fonts-data.js` | Static | — | In-app credit UI | Preserve credits; resolve font redistribution rights before public release | **T** (credits); licensing gap **L** |
 | TYP-22 | Runtime dependencies: Google Fonts (UI and Custom Type faces), cdnjs opentype.js | HTML `<link>`/`<script>` tags | — | Network | — | Network-dependent OTF export and face blending; vendor or explicitly declare offline limits | E |
 
 ---
@@ -227,20 +227,23 @@ Entry: `src/main.tsx` → `src/app/App.tsx` (`/`, `/studio`, `/studio/edit`, `/i
 
 ## 7. Cross-cutting shared gaps
 
-| Gap | Impact after Phase 1 | Follow-up |
+| Gap | Impact after Phase 2 | Follow-up |
 | --- | --- | --- |
-| Only Vector implements `ToolAdapterV1` | Image/Type/Generate/Shapes/BEND still need adapters; the transport and project/asset engine are reusable | Phase 2+ adapters |
-| Vector now has full source serialization/re-entry; Image/Type/Generate/Shapes still lack shared project serialization; BEND has its own schema/package | Source re-entry must be added per remaining tool without deleting existing state | Remaining tool adapters |
+| Image, Vector and Type implement `ToolAdapterV1` | Generate/Shapes/BEND still need adapters; the shared session, transport and project/asset engine are reusable | Phase 3+ adapters |
+| Image/Vector/Type have full source serialization/re-entry; Generate/Shapes lack shared project serialization; BEND has its own schema/package | Source re-entry must be added per remaining tool without deleting existing state | Remaining tool adapters |
 | Shapes has no export/render API | Transparent layer output and final composition require a new render path | Shapes adapter |
-| Legacy shell handoff is direct DOM access and low resolution for Image | Not safe/scalable as a host integration; replace with adapter protocol | Image adapter |
+| Legacy shell handoff is direct DOM access and low resolution for Image | Studio replaces it with scoped full-resolution export; legacy shell remains preserved but not used for Studio composition | Keep legacy path out of Studio |
 | Generate has no visual export, only DOM and Claude-host spec export | Cannot publish a composition asset yet | Generate adapter/host capture |
-| Typography/Generate rely on Google Fonts; Custom Type relies on cdnjs opentype.js | Offline/secure iframe requirements and export determinism | Typography adapter |
+| Typography/Generate rely on Google Fonts; Custom Type uses a vendored opentype.js in the derived adapter | Offline/secure iframe determinism still depends on font availability | Vendor/font strategy |
 | No upstream licence grants for Legacy, Shapes, Typography | Private use only until permission is obtained | Project owner |
-| Old source/rendered revisions are never deleted | Safe undo/history, but IndexedDB grows over time | Reference-aware GC after project history persistence is designed |
+| Old source/rendered revisions are never deleted | Safe undo/history, but IndexedDB grows over time; Image source/photo/mask data increases size | Reference-aware GC |
 | Host has no final composition export | Single-artboard editing works; all-layer export is still deferred | Host compositor phase |
-| Vector runs same-origin in current deployment | Exact-origin transport is ready, but production isolation still needs a dedicated tool origin | Deployment topology |
-| No host UI for multiple artboards | Store/contract support artboards; only the first/active artboard is exposed in this phase | Host UI phase |
+| Tools run same-origin in current deployment | Exact-origin transport is ready, but production isolation still needs a dedicated tool origin | Deployment topology |
+| No host UI for multiple artboards | Store/contract support artboards; only the first/active artboard is exposed | Host UI phase |
 | Host undo is not persisted | Source/rendered/project data survive reload; host undo history is session-only | Project history persistence |
+| Type modes have independent in-session drafts but only the active mode is durable per layer | A Type layer cannot retain both Library and Custom source variants after reload | Future dual-mode layer design |
+| Image accepts three artboard aspects only | Other aspects fail explicitly rather than stretching/cropping | Future renderer mapping |
+| Raster/source assets lack a reference-aware GC | Orphaned assets from cancelled/failed captures remain safe but consume space | GC phase |
 
 ## 8. How to use this matrix
 
@@ -282,4 +285,36 @@ Legend references in the rows below are automated evidence from `npm test` (unit
 | INT-24 | No console errors, host overflow or broken core fonts in tested desktop workflows | Playwright console guard + layout/font checks | T (smoke) |
 | INT-25 | Final multi-layer composition export | Not implemented (explicit non-goal) | L |
 
-**Original Vector capabilities still not exhaustively exercised:** imports, clipboard, PNG export, original undo/redo, all per-object inspector controls and edge-case path selection. The source remains unchanged; these retain **S** status above.
+**Original Vector capabilities still not exhaustively exercised:** clipboard, all per-object inspector controls and edge-case path selection. Vector SVG/PNG export, native undo/redo and raster image import (Image→Vector) are now exercised by Phase 2 tests. The source remains unchanged.
+
+## 10. Phase 2 integration — verified
+
+Legend references below are automated evidence from `npm test` (unit/component) and `npm run test:browser` (Chromium, 1440×900 plus narrower layout checks). Full details are in [PHASE_2_TEST_REPORT.md](PHASE_2_TEST_REPORT.md).
+
+| # | Integrated capability | Source / implementation | Verification |
+| --- | --- | --- | --- |
+| INT-26 | Reusable tool session: handshake, context, inputs, source restore, dirty/progress, publish/cancel/retry/error, cleanup | `adapters/session/toolSession.tsx` | **T** (Vector + Image + Type browser journeys; transport unit/browser) |
+| INT-27 | Transactional publish rollback when project save fails | `projectStore.rollbackLastCommit`, `App.handlePublish` | **T** (browser failed-project-write + failed-asset-write tests) |
+| INT-28 | Image source state `1.0.0`: full `S`, layers/order, mask, brush strokes, crop, history/index, view | `adapters/image/`, `imageBridge.js` | **T** (4 unit + Journey A browser; painted-mask pixel count restored) |
+| INT-29 | Original photo stored as a separate source-image asset; durable source holds only asset reference | `captureImageArtwork.ts` | **T** (source JSON inspected; photo bytes survive reopen) |
+| INT-30 | Restore waits for photo decode and bypasses the file-import reset path | `imageBridge.restoreSourceState` | **T** (settings/mask/history after reload) |
+| INT-31 | Full-resolution Image publish at exact 1080×1350 / 1080×1080 / 1080×1920 | bridge `renderArtwork` + PNG IHDR validation | **T** (4:5 and 9:16 host publishes; native 9:16 PNG) |
+| INT-32 | Publish excludes editor overlays/guides/selection; unsupported aspects fail clearly | bridge temp canvas + exact-dimension check | **T** (browser + unit) |
+| INT-33 | Host raster layers: intrinsic aspect, alpha, transforms, rotation, opacity, blend, clipping, missing-asset state | `CanvasWorkspace.tsx`, object-URL registry | **T** (mixed-layer browser; alpha scan; reload) |
+| INT-34 | Image republish updates same layer and preserves host transform/order; cancel preserves prior revision | adapter commit path | **T** (Journey A) |
+| INT-35 | Native Image PNG, layered ZIP and animated GIF exports | preserved `expo()`/`makeGif()` + vendored JSZip | **T** (native-exports browser) |
+| INT-36 | Image→Vector traced derivative with provenance; original Image untouched; explicit conversion UI | `vectorBridge.receiveInputAssets`, native `impFile` | **T** (Journey B) |
+| INT-37 | Type Library source `1.0.0`: font identity, controls, full sparse distortion field | generated closure bridge | **T** (4 unit + Journey C; exact canvas data URL) |
+| INT-38 | Font wait/credits/failure/reset behavior | `loadOne`, `document.fonts.ready`, reset field | **T** (browser success/failure/reset) |
+| INT-39 | Type Library transparent shared PNG; native PNG preserved | bridge `renderArtwork`; original export | **T** (mixed alpha scan + native export) |
+| INT-40 | Custom Type source `1.0.0`: strokes, motif image bytes/placement, layering, all controls, stage | generated closure bridge | **T** (4 unit + Journey D; exact canvas) |
+| INT-41 | Native Custom Type motif upload/remove/layer order, PNG and OTF | preserved controls + vendored opentype.js | **T** (Journey D + OTF parse) |
+| INT-42 | Image→Custom Type motif derivative; original Image untouched; native direct upload still possible | Custom Type `assets/input` + host handoff | **T** (Journey E) |
+| INT-43 | Type mode switch preserves both unsaved drafts in session; reopen returns to published mode | `TypeEditor.tsx` serialize/stash + tags | **T** (browser mode-switch + Journey D) |
+| INT-44 | Type publishing never overwrites native font/pattern size with host artboard format | host fits raster layer; Type source untouched | **T** (Journey C/D, mixed-layer) |
+| INT-45 | Mixed opaque Image + Vector + transparent Type layers stay separate and reorderable | host layer stack + raster renderer | **T** (mixed-layer browser alpha/order/drag/opacity/reload) |
+| INT-46 | Derivative provenance for cross-tool layers | `SharedLayer.provenance` | **T** (Journey B/E) |
+| INT-47 | Failure paths: missing photo, font load, render, asset write, project write, unsupported version, cancel | adapters + host rollback | **T** (six reliability browser tests) |
+| INT-48 | Source integrity for Image/Vector/Typography originals | SHA-256 guards + empty `git diff` | **T** (3 unit tests) |
+| INT-49 | Desktop + narrower layouts without host overflow or hidden essential controls | responsive host session/iframe layout | **T** (layout browser at 1024×768 and 900×700) |
+| INT-50 | Final multi-layer composition export | Not implemented | L |
