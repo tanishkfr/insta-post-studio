@@ -39,9 +39,8 @@ browser-tested. Deferred cases are named in section K and the matrix.
 | Shapes runtime commit | `bdb5aa8` — versioned 3D source + transparent render |
 | Studio integration commit | `7409d20` — Shapes/Generate host integration |
 | Tests + docs commit | `ceb7466` — Phase 3 acceptance, evidence, reports |
-| CI for tested head | [run 40384892175](https://github.com/tanishkfr/insta-post-studio/actions/runs/40384892175) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
-| Final verified remote head | `bc6af8aa0fd992cc116669b66ad6ab494eaf550b` |
-| Final CI | [run 40385823566](https://github.com/tanishkfr/insta-post-studio/actions/runs/40385823566) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
+| CI for tested code/tests head | [run 40384892175](https://github.com/tanishkfr/insta-post-studio/actions/runs/40384892175) — **success** (contracts/build/56 unit + 48 Chromium browser tests) |
+| Verified remote head | The docs-only commits after `ceb7466` update reports only; the exact final branch SHA and its successful CI run are recorded in the delivery response. |
 
 No merge into the Phase 2/default branch, no public Studio deployment, no changes to
 upstream repositories, and no BEND repository/Vercel changes.
