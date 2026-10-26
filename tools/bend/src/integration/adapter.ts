@@ -30,7 +30,7 @@ export function createBendIntegrationAdapter(): BendIntegrationAdapter {
         poster: poster.blob,
         width: result.width,
         height: result.height,
-        fps: result.fps,
+        fps: normalized.canvas.fps,
         duration: result.duration,
         aspectRatio: result.width / result.height,
         mimeType: result.mimeType,
