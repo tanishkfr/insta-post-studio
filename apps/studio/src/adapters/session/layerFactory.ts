@@ -20,8 +20,8 @@ export interface CreateRasterLayerOptions {
   project: StudioProject;
   artboardId: string;
   capture: RasterLayerCapture;
-  kind: Extract<LayerKind, "image" | "typography">;
-  sourceTool: Extract<SourceToolId, "image" | "typography">;
+  kind: Extract<LayerKind, "image" | "typography" | "shapes" | "generated-layout">;
+  sourceTool: Extract<SourceToolId, "image" | "typography" | "shapes" | "generate">;
   toolVersion: string;
   name?: string;
   tags?: string[];

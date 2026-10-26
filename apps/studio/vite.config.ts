@@ -1,7 +1,8 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, cpSync } from "node:fs";
+import { extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, URL } from "node:url";
-import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 const VECTOR_SOURCE = fileURLToPath(
   new URL("../../tools/legacy/vector/arnav.html", import.meta.url),
@@ -21,6 +22,13 @@ const TYPE_LIBRARY_BRIDGE = fileURLToPath(
 );
 const TYPE_CUSTOM_BRIDGE = fileURLToPath(
   new URL("./src/adapters/typography/customBridge.js", import.meta.url),
+);
+const SHAPES_DIST = fileURLToPath(new URL("../../tools/shapes/dist/", import.meta.url));
+const GENERATE_SOURCE = fileURLToPath(
+  new URL("../../tools/legacy/generate/generator.html", import.meta.url),
+);
+const GENERATE_BRIDGE = fileURLToPath(
+  new URL("./src/adapters/generate/generateBridge.js", import.meta.url),
 );
 
 const JSZIP_CDN =
@@ -108,6 +116,58 @@ function buildCustomTypeScript(): string {
   );
 }
 
+function replaceOnce(source: string, needle: string, replacement: string, label: string): string {
+  if (!source.includes(needle)) {
+    throw new Error(`Preserved ${label} source no longer contains an expected integration point.`);
+  }
+  return source.replace(needle, replacement);
+}
+
+/**
+ * Generates the integrated Generate page from the byte-identical preserved
+ * source. Only three narrowly scoped changes are applied: the slide aspect
+ * ratio becomes format-driven, the rule engine receives an aspect-aware frame
+ * height, and placement height prefers an authored asset aspect ratio.
+ */
+function buildGeneratePage(): string {
+  let source = read(GENERATE_SOURCE);
+  source = replaceOnce(
+    source,
+    ".slide{position:relative;width:200px;aspect-ratio:4/5;",
+    ".slide{position:relative;width:200px;aspect-ratio:var(--studio-gen-aspect,4/5);",
+    "Generate",
+  );
+  source = replaceOnce(
+    source,
+    "top:${p.y/1.25}%",
+    "top:${p.y/(window.__studioGenFrameHeight||125)*100}%",
+    "Generate",
+  );
+  source = replaceOnce(
+    source,
+    "h:w*AR[k]",
+    "h:w*(a.aspectHOverW||AR[k])",
+    "Generate",
+  );
+  source = replaceOnce(
+    source,
+    "const kind=a=>a.type==='text'?a.role||'sub':a.type;",
+    "const kind=a=>{const base=a.type==='text'?a.role||'sub':a.type;if(!a.hostKind)return base;return ({image:'img',vector:'vec',typography:'head',shapes:'obj'})[a.hostKind]||base};",
+    "Generate",
+  );
+  // The upstream texture helper embeds double quotes inside a double-quoted
+  // HTML style attribute, producing malformed markup. The derived page uses
+  // single-quoted CSS URL syntax and percent-encodes the SVG's single quotes so
+  // the same feTurbulence texture survives DOM/XML serialization for capture.
+  source = replaceOnce(
+    source,
+    "const GR=(f,o,b)=>`url(\"data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${f}' numOctaves='3'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='${o}'/></svg>`)}\")`;",
+    "const GR=(f,o,b)=>`url('data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${f}' numOctaves='3'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='${o}'/></svg>`).replace(/'/g,'%27')}')`;",
+    "Generate",
+  );
+  return injectBridge(source, read(GENERATE_BRIDGE), "Generate");
+}
+
 let generatedPagesCache: GeneratedPage[] | null = null;
 
 function generatedPages(): GeneratedPage[] {
@@ -146,6 +206,7 @@ function generatedPages(): GeneratedPage[] {
   generatedPagesCache = [
     { path: "tools/vector/adapter.html", html: buildVectorPage() },
     { path: "tools/image/adapter.html", html: buildImagePage() },
+    { path: "tools/generate/adapter.html", html: buildGeneratePage() },
     {
       path: "tools/typography/fonts-adapter.html",
       html: buildTypeLibraryPage(),
@@ -166,6 +227,63 @@ function contentTypeFor(path: string): string {
   return "application/octet-stream";
 }
 
+const STATIC_CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".wasm": "application/wasm",
+  ".map": "application/json; charset=utf-8",
+};
+
+function staticTypeFor(path: string): string {
+  return STATIC_CONTENT_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
+}
+
+function shapesDistFile(pathname: string): string | null {
+  if (!pathname.startsWith("/tools/shapes/")) return null;
+  let relative = pathname.slice("/tools/shapes/".length);
+  if (!relative || relative.endsWith("/")) relative += "index.html";
+  if (relative.includes("..")) return null;
+  return join(SHAPES_DIST, relative);
+}
+
+function serveShapesBundle(
+  request: { url?: string },
+  response: {
+    statusCode: number;
+    setHeader(name: string, value: string): void;
+    end(body?: string | Uint8Array): void;
+  },
+): boolean {
+  const pathname = new URL(request.url ?? "/", "http://studio.local").pathname;
+  const file = shapesDistFile(pathname);
+  if (!file) return false;
+  if (!existsSync(file)) {
+    response.statusCode = 503;
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    response.end(
+      "<!doctype html><meta charset='utf-8'><title>Shapes bundle missing</title><body style='font:14px sans-serif;padding:24px;color:#193438'><h1>Shapes is not built yet</h1><p>Run <code>npm run tool:shapes:build</code>; Studio serves the independently bundled Shapes app from <code>tools/shapes/dist</code>.</p></body>",
+    );
+    return true;
+  }
+  response.statusCode = 200;
+  response.setHeader("Content-Type", staticTypeFor(file));
+  response.setHeader("Cache-Control", "no-store");
+  response.end(readFileSync(file));
+  return true;
+}
+
 /**
  * Serves derived integration pages without touching preserved sources. Vector
  * and Image inject the bridge into the same classic script; Typography inserts
@@ -177,6 +295,7 @@ function studioAdapterPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         const pathname = new URL(request.url ?? "/", "http://studio.local").pathname;
+        if (serveShapesBundle(request, response)) return;
         const page = generatedPages().find((candidate) => `/${candidate.path}` === pathname);
         if (page) {
           try {
@@ -227,6 +346,24 @@ function studioAdapterPlugin(): Plugin {
           this.emitFile({ type: "asset", fileName: asset.path, source: asset.content });
         }
       }
+    },
+    writeBundle(options) {
+      const indexFile = join(SHAPES_DIST, "index.html");
+      if (!existsSync(indexFile)) {
+        this.error(
+          "The Shapes bundle is missing. Run `npm run tool:shapes:build` before building Studio.",
+        );
+        return;
+      }
+      const outDir = options.dir
+        ? isAbsolute(options.dir)
+          ? options.dir
+          : resolve(process.cwd(), options.dir)
+        : fileURLToPath(new URL("./dist", import.meta.url));
+      cpSync(SHAPES_DIST, join(outDir, "tools", "shapes"), { recursive: true });
+      this.warn(
+        `Copied the independently bundled Shapes app into ${join(outDir, "tools", "shapes")}.`,
+      );
     },
   };
 }

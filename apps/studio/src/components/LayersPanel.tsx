@@ -4,7 +4,10 @@ import { studioStore, useStudioStore } from "../state/projectStore";
 import type { NavToolId } from "../project/defaultProject";
 import { layerIcon } from "./ToolRail";
 
-type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
+type LiveTool = Extract<
+  NavToolId,
+  "image" | "vector" | "typography" | "shapes" | "generate"
+>;
 
 interface LayersPanelProps {
   onOpenTool: (tool: LiveTool) => void;
@@ -14,6 +17,8 @@ interface LayersPanelProps {
 function toolLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "image") return "Image";
   if (layer.sourceTool === "typography") return "Type";
+  if (layer.sourceTool === "shapes") return "Shapes";
+  if (layer.sourceTool === "generate") return "Generate";
   return "Vector";
 }
 
@@ -148,6 +153,13 @@ export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
               onClick={() => onOpenTool("typography")}
             >
               Open Type
+            </button>
+            <button
+              type="button"
+              className="button small"
+              onClick={() => onOpenTool("shapes")}
+            >
+              Open Shapes
             </button>
           </div>
         </div>

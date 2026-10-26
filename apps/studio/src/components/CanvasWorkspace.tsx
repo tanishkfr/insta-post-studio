@@ -13,7 +13,10 @@ import { assetRepository, objectUrls } from "../storage/instances";
 import { loadRenderedSvg } from "../studio/renderedAssets";
 import type { NavToolId } from "../project/defaultProject";
 
-type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
+type LiveTool = Extract<
+  NavToolId,
+  "image" | "vector" | "typography" | "shapes" | "generate"
+>;
 
 interface CanvasWorkspaceProps {
   onOpenTool: (tool: LiveTool) => void;
@@ -410,6 +413,17 @@ export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
         <div className="workspace-tools" aria-label="Workspace display">
           <span className="workspace-chip">{artboard.name}</span>
           <span className="workspace-zoom">{formatRatio(artboard)} · Fit</span>
+          {layers.length >= 2 ? (
+            <button
+              type="button"
+              className="button small generate-layouts-button"
+              data-testid="generate-layouts"
+              onClick={() => onOpenTool("generate")}
+              title="Open Generate with these real layers"
+            >
+              Generate layouts
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -467,6 +481,13 @@ export function CanvasWorkspace({ onOpenTool }: CanvasWorkspaceProps) {
                   onClick={() => onOpenTool("typography")}
                 >
                   Open Type
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onOpenTool("shapes")}
+                >
+                  Open Shapes
                 </button>
               </div>
             </div>

@@ -12,9 +12,11 @@
   },
   "scripts": {
     "dev": "npm run dev --workspace @studio/host",
-    "build": "npm run build --workspace @studio/host",
+    "predev": "npm run tool:shapes:build",
+    "build": "npm run tool:shapes:build && npm run build --workspace @studio/host",
     "preview": "npm run preview --workspace @studio/host",
     "test": "npm run test --workspace @studio/host",
+    "pretest:browser": "npm run tool:shapes:build",
     "test:browser": "npm run test:browser --workspace @studio/host",
     "typecheck": "npm run contracts:typecheck && npm run typecheck --workspace @studio/host",
     "contracts:typecheck": "npm run typecheck --workspace @studio/contracts",

@@ -1,7 +1,10 @@
 import type { SharedLayer } from "@studio/contracts";
 import { toolNav, type NavToolId } from "../project/defaultProject";
 
-type LiveTool = Extract<NavToolId, "image" | "vector" | "typography">;
+type LiveTool = Extract<
+  NavToolId,
+  "image" | "vector" | "typography" | "shapes" | "generate"
+>;
 
 interface ToolRailProps {
   layerCount: number;
@@ -74,7 +77,7 @@ export function ToolRail({
       <div className="rail-footer">
         <div className="rail-status">
           <span className="status-dot" aria-hidden="true" />
-          <span>Image · Vector · Type integrated</span>
+          <span>Image · Vector · Type · Shapes · Generate integrated</span>
         </div>
         <p>One shared project · local-first storage</p>
       </div>
@@ -85,6 +88,8 @@ export function ToolRail({
 export function layerIcon(layer: SharedLayer): string {
   if (layer.kind === "vector") return "◈";
   if (layer.kind === "typography") return "T";
+  if (layer.kind === "shapes") return "◇";
+  if (layer.kind === "generated-layout") return "▦";
   if (layer.kind === "image") return "▧";
   return "▧";
 }

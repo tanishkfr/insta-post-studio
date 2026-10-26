@@ -30,6 +30,15 @@ export interface LayerArtworkUpdate {
   tags?: string[];
 }
 
+export interface GeneratedLayoutTarget {
+  hostLayerId: LayerId;
+  centerXPercent: number;
+  centerYPercent: number;
+  widthPercent: number;
+  aspectHOverW: number;
+  rotationDegrees: number;
+}
+
 export interface StudioProjectState {
   project: StudioProject;
   activeArtboardId: ArtboardId;
@@ -48,7 +57,11 @@ export interface StudioProjectActions {
   setActiveArtboard(artboardId: ArtboardId): void;
   setActiveTool(tool: ActiveTool): void;
   selectLayer(layerId: LayerId | null): void;
-  addLayer(layer: SharedLayer, assets?: AssetReference[]): void;
+  addLayer(
+    layer: SharedLayer,
+    assets?: AssetReference[],
+    options?: { position?: "top" | "back" },
+  ): void;
   updateLayer(
     layerId: LayerId,
     patch: Partial<
@@ -59,6 +72,14 @@ export interface StudioProjectActions {
     >,
   ): void;
   applyLayerArtwork(update: LayerArtworkUpdate): void;
+  /**
+   * Applies a selected Generate alternative to unlocked, visible host layers in
+   * one undoable commit. Native tool source documents are never touched.
+   */
+  applyGeneratedLayout(
+    artboardId: ArtboardId,
+    targets: GeneratedLayoutTarget[],
+  ): number;
   deleteLayer(layerId: LayerId): void;
   duplicateLayer(layerId: LayerId): LayerId | null;
   moveLayer(layerId: LayerId, direction: "up" | "down"): void;
@@ -258,7 +279,7 @@ export function createProjectStore(
         set({ selectedLayerId: layerId });
       },
 
-      addLayer(layer, assets = []) {
+      addLayer(layer, assets = [], options = {}) {
         commit((project) => {
           if (project.layers.some((candidate) => candidate.id === layer.id)) {
             throw new Error(`Layer ${layer.id} already exists.`);
@@ -267,7 +288,7 @@ export function createProjectStore(
             (candidate) => candidate.id === layer.artboardId,
           );
           if (!artboard) throw new Error(`Artboard ${layer.artboardId} does not exist.`);
-          const order = artboard.layerOrder.length;
+          const order = options.position === "back" ? 0 : artboard.layerOrder.length;
           const knownAssetIds = new Set(project.assets.map((asset) => asset.id));
           return {
             ...project,
@@ -280,7 +301,10 @@ export function createProjectStore(
               candidate.id === artboard.id
                 ? {
                     ...candidate,
-                    layerOrder: [...candidate.layerOrder, layer.id],
+                    layerOrder:
+                      options.position === "back"
+                        ? [layer.id, ...candidate.layerOrder]
+                        : [...candidate.layerOrder, layer.id],
                   }
                 : candidate,
             ),
@@ -357,6 +381,73 @@ export function createProjectStore(
             ),
           };
         });
+      },
+
+      applyGeneratedLayout(artboardId, targets) {
+        const state = get();
+        const artboard = state.project.artboards.find(
+          (candidate) => candidate.id === artboardId,
+        );
+        if (!artboard) return 0;
+        const byId = new Map(targets.map((target) => [target.hostLayerId, target]));
+        const nextTransforms = new Map<LayerId, SharedLayer["transform"]>();
+        for (const layer of state.project.layers) {
+          if (layer.artboardId !== artboardId) continue;
+          if (layer.locked || !layer.visible) continue;
+          const target = byId.get(layer.id);
+          if (!target) continue;
+          if (
+            !Number.isFinite(target.centerXPercent) ||
+            !Number.isFinite(target.centerYPercent) ||
+            !Number.isFinite(target.widthPercent) ||
+            !Number.isFinite(target.aspectHOverW) ||
+            !Number.isFinite(target.rotationDegrees) ||
+            target.widthPercent <= 0 ||
+            target.aspectHOverW <= 0
+          ) {
+            continue;
+          }
+          let width = Math.max(16, (target.widthPercent / 100) * artboard.width);
+          let height = Math.max(16, width * target.aspectHOverW);
+          const fit = Math.min(1, artboard.width / width, artboard.height / height);
+          width = Math.max(16, width * fit);
+          height = Math.max(16, height * fit);
+          const x = (target.centerXPercent / 100) * artboard.width - width / 2;
+          const y = (target.centerYPercent / 100) * artboard.height - height / 2;
+          const transform = clampTransformToArtboard(state.project, layer, {
+            ...layer.transform,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: Math.round(width),
+            height: Math.round(height),
+            rotationDegrees: Math.round(target.rotationDegrees * 10) / 10,
+          });
+          const current = layer.transform;
+          if (
+            current.x !== transform.x ||
+            current.y !== transform.y ||
+            current.width !== transform.width ||
+            current.height !== transform.height ||
+            current.rotationDegrees !== transform.rotationDegrees
+          ) {
+            nextTransforms.set(layer.id, transform);
+          }
+        }
+        if (nextTransforms.size === 0) return 0;
+        commit((project) => ({
+          ...project,
+          layers: project.layers.map((layer) => {
+            const transform = nextTransforms.get(layer.id);
+            return transform
+              ? {
+                  ...layer,
+                  transform,
+                  metadata: { ...layer.metadata, updatedAt: nowIso() },
+                }
+              : layer;
+          }),
+        }));
+        return nextTransforms.size;
       },
 
       deleteLayer(layerId) {

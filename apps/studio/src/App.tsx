@@ -6,9 +6,11 @@ import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
 import { typographyModeFromLayer, type TypographyMode } from "./adapters/typography/typographySourceState";
 import { createVectorLayer } from "./adapters/vector/vectorLayer";
 import { CanvasWorkspace } from "./components/CanvasWorkspace";
+import { GenerateEditor } from "./components/GenerateEditor";
 import { ImageEditor } from "./components/ImageEditor";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { LayersPanel } from "./components/LayersPanel";
+import { ShapesEditor } from "./components/ShapesEditor";
 import { ToolRail } from "./components/ToolRail";
 import { Topbar } from "./components/Topbar";
 import { TypeEditor } from "./components/TypeEditor";
@@ -16,9 +18,10 @@ import { VectorEditor } from "./components/VectorEditor";
 import { nowIso } from "./lib/ids";
 import { FORMAT_PRESETS } from "./project/defaultProject";
 import { studioStore, useStudioStore } from "./state/projectStore";
+import type { GeneratedLayoutTarget } from "./state/projectStore";
 import { useProjectPersistence } from "./state/useProjectPersistence";
 
-type EditableTool = "image" | "vector" | "typography";
+type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate";
 
 function LoadingShell() {
   return (
@@ -28,13 +31,19 @@ function LoadingShell() {
       </div>
       <span className="eyebrow">Studio 2.0</span>
       <strong>Opening local project</strong>
-      <p>Restoring the document, layers and Image / Vector / Type source references from IndexedDB.</p>
+      <p>Restoring the document, layers and Image / Vector / Type / Shapes / Generate source references from IndexedDB.</p>
     </div>
   );
 }
 
 function isEditableTool(tool: SourceToolId | "canvas"): tool is EditableTool {
-  return tool === "image" || tool === "vector" || tool === "typography";
+  return (
+    tool === "image" ||
+    tool === "vector" ||
+    tool === "typography" ||
+    tool === "shapes" ||
+    tool === "generate"
+  );
 }
 
 export default function App() {
@@ -184,18 +193,35 @@ export default function App() {
           tags: capture.tags,
         });
         state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
-      } else if (tool === "image" || tool === "typography") {
+      } else if (tool === "image" || tool === "typography" || tool === "shapes") {
         const layer = createRasterLayer({
           project: state.project,
           artboardId: artboard.id,
           capture,
-          kind: tool === "image" ? "image" : "typography",
+          kind: tool === "image" ? "image" : tool === "typography" ? "typography" : "shapes",
           sourceTool: tool,
           toolVersion: `${tool}@${capture.sourceState.toolStateVersion}`,
           provenance: provenanceForNewLayer(),
           tags: capture.tags,
         });
         state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+      } else if (tool === "generate") {
+        const layer = createRasterLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          kind: "generated-layout",
+          sourceTool: "generate",
+          toolVersion: `generate@${capture.sourceState.toolStateVersion}`,
+          tags: capture.tags,
+        });
+        // A generated treatment is a background by default. The user can still
+        // reorder it at any time; the foreground layers remain untouched.
+        state.addLayer(
+          layer,
+          [capture.renderedAsset, ...(capture.sourceAssets ?? [])],
+          { position: "back" },
+        );
       } else {
         throw new Error(`No Studio layer factory exists for ${String(tool)}.`);
       }
@@ -212,6 +238,38 @@ export default function App() {
       );
     }
     setInputLayerId(null);
+  }
+
+  async function handleApplyGenerateLayout(
+    artboardId: string,
+    targets: GeneratedLayoutTarget[],
+  ): Promise<number> {
+    const applied = studioStore.getState().applyGeneratedLayout(artboardId, targets);
+    if (applied === 0) return 0;
+    try {
+      await persistence.saveNow();
+    } catch (error) {
+      studioStore.getState().rollbackLastCommit();
+      throw new Error(
+        `The generated layout could not be saved, so the previous composition was restored. ${
+          error instanceof Error ? error.message : ""
+        }`.trim(),
+      );
+    }
+    return applied;
+  }
+
+  async function handleUndoGenerateLayout(): Promise<void> {
+    studioStore.getState().undo();
+    try {
+      await persistence.saveNow();
+    } catch (error) {
+      throw new Error(
+        `The layout was undone in memory but could not be saved. ${
+          error instanceof Error ? error.message : ""
+        }`.trim(),
+      );
+    }
   }
 
   if (!persistence.hydrated) {
@@ -276,6 +334,26 @@ export default function App() {
           onPublish={handlePublish}
           onClose={resetEditingState}
         />
+      ) : editingTool === "shapes" && activeArtboard ? (
+        <ShapesEditor
+          key={`shapes-${editingLayerId ?? "new"}-${project.id}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          onPublish={handlePublish}
+          onClose={resetEditingState}
+        />
+      ) : editingTool === "generate" && activeArtboard ? (
+        <GenerateEditor
+          key={`generate-${editingLayerId ?? "new"}-${project.id}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          onPublish={handlePublish}
+          onApplyLayout={handleApplyGenerateLayout}
+          onUndoLayout={handleUndoGenerateLayout}
+          onClose={resetEditingState}
+        />
       ) : (
         <>
           <ToolRail
@@ -297,6 +375,7 @@ export default function App() {
               onContinueInVector={(layerId) => void startHandoff(layerId, "vector")}
               onUseAsTypePattern={(layerId) => void startHandoff(layerId, "typography")}
               onUseAsImageInput={useAsImageInput}
+              onGenerateLayouts={() => openNewTool("generate")}
             />
           </aside>
 
@@ -306,7 +385,7 @@ export default function App() {
               <span>{persistence.error ? "Local save needs attention" : "Local-first project"}</span>
             </div>
             <div className="status-center">
-              <span>Image · Vector · Type integration</span>
+              <span>Image · Vector · Type · Shapes · Generate</span>
               <span className="status-divider" />
               <span>
                 {project.format.label} · {project.format.width} × {project.format.height}

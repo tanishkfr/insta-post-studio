@@ -68,6 +68,9 @@ export interface ToolSessionConfig<TCapture extends ToolSessionCapture> {
   capture: (context: CaptureContext<TCapture>) => Promise<TCapture>;
   /** Prime host caches from a newly captured asset before the project commits. */
   primeCapture?: (capture: TCapture) => void;
+  /** Primary action labels for specialized publish semantics. */
+  publishLabel?: string;
+  updateLabel?: string;
   handshakeTimeoutMs?: number;
   requestTimeoutMs?: number;
 }
@@ -85,6 +88,9 @@ export interface ToolSessionProps<TCapture extends ToolSessionCapture> {
   sourceOverride?: ToolSourceStatePayload | null;
   headerAddon?: ReactNode;
   sessionNote?: ReactNode;
+  /** Optional labels override the generic add/update wording. */
+  publishLabel?: string;
+  updateLabel?: string;
   onPublish: (capture: TCapture) => Promise<void>;
   onClose: () => void;
   onStateChange?: (state: "loading" | "ready" | "error") => void;
@@ -477,7 +483,9 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
   );
 
   const title = layer ? layer.name : config.newDocumentTitle;
-  const actionLabel = layer ? "Update layer" : "Add to composition";
+  const actionLabel = layer
+    ? props.updateLabel ?? config.updateLabel ?? "Update layer"
+    : props.publishLabel ?? config.publishLabel ?? "Add to composition";
 
   return (
     <main

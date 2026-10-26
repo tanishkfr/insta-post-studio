@@ -1988,6 +1988,66 @@ select:focus-visible,
   font-weight: 580;
 }
 
+.tool-session-addon {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.apply-layout-button {
+  min-width: 108px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.session-note-divider {
+  display: inline-block;
+  width: 1px;
+  height: 9px;
+  margin: 0 8px;
+  background: var(--line-strong);
+  vertical-align: -1px;
+}
+
+.generate-apply-notice {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-size: 8.5px;
+  font-weight: 540;
+}
+
+.generate-apply-notice.is-info {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.generate-apply-notice.is-error {
+  background: #fdecec;
+  color: var(--danger);
+}
+
+.generate-undo-layout {
+  margin-left: 7px;
+  min-height: 22px;
+  padding: 0 6px;
+  font-size: 8px;
+}
+
+.generate-layouts-button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 8.5px;
+}
+
+.tool-generate .tool-frame-wrap,
+.tool-generate .vector-frame {
+  background: #f3f7f6;
+}
+
 .handoff-actions {
   display: flex;
   flex-wrap: wrap;

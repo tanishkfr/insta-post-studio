@@ -8,17 +8,22 @@ interface InspectorProps {
   onContinueInVector: (layerId: string) => void;
   onUseAsTypePattern: (layerId: string) => void;
   onUseAsImageInput: (layerId: string) => void;
+  onGenerateLayouts: () => void;
 }
 
 function sourceLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "image") return "Image editor";
   if (layer.sourceTool === "typography") return "Type editor";
+  if (layer.sourceTool === "shapes") return "Shapes editor";
+  if (layer.sourceTool === "generate") return "Generate editor";
   return "Vector editor";
 }
 
 function editLabel(layer: SharedLayer): string {
   if (layer.sourceTool === "image") return "Edit in Image";
   if (layer.sourceTool === "typography") return "Edit in Type";
+  if (layer.sourceTool === "shapes") return "Edit in Shapes";
+  if (layer.sourceTool === "generate") return "Edit in Generate";
   return "Edit in Vector";
 }
 
@@ -188,6 +193,7 @@ export function InspectorPanel({
   onContinueInVector,
   onUseAsTypePattern,
   onUseAsImageInput,
+  onGenerateLayouts,
 }: InspectorProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
@@ -356,7 +362,11 @@ export function InspectorPanel({
               data-testid={
                 layer.sourceTool === "vector"
                   ? "inspector-edit-vector"
-                  : "inspector-edit-layer"
+                  : layer.sourceTool === "shapes"
+                    ? "inspector-edit-shapes"
+                    : layer.sourceTool === "generate"
+                      ? "inspector-edit-generate"
+                      : "inspector-edit-layer"
               }
             >
               {editLabel(layer)}
@@ -421,6 +431,52 @@ export function InspectorPanel({
               <p className="handoff-note">
                 Vector traces the raster into editable contour lines. Custom Type uses
                 it as a pattern motif. The original Image layer stays unchanged.
+              </p>
+            </div>
+          ) : null}
+
+          {layer.sourceTool === "shapes" && layer.rendered?.kind === "image" ? (
+            <div className="handoff-actions">
+              <span className="handoff-heading">Continue in…</span>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => onUseAsImageInput(layer.id)}
+                data-testid="shapes-continue-in-image"
+              >
+                Continue in Image
+              </button>
+              <button
+                type="button"
+                className="button small"
+                onClick={onGenerateLayouts}
+                data-testid="shapes-generate-layouts"
+              >
+                Generate layouts
+              </button>
+              <p className="handoff-note">
+                The transparent Shapes render becomes a new Image input; the 3D source
+                stays editable. Generate receives it as a real layer alongside the rest
+                of the composition.
+              </p>
+            </div>
+          ) : null}
+
+          {layer.sourceTool === "generate" ? (
+            <div className="handoff-actions">
+              <span className="handoff-heading">Composition</span>
+              <button
+                type="button"
+                className="button small"
+                onClick={onGenerateLayouts}
+                data-testid="generate-reopen-layouts"
+              >
+                Generate layouts
+              </button>
+              <p className="handoff-note">
+                This is an independent generated background layer. Reopen it to adjust
+                the treatment; Apply layout composes the current foreground layers
+                without flattening them.
               </p>
             </div>
           ) : null}

@@ -200,7 +200,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Shapes",
     discipline: "3D & geometry",
     sourcePath: "tools/shapes/",
-    status: "preserved",
+    status: "live",
   },
   {
     id: "bend",
@@ -216,6 +216,6 @@ export const toolNav: ToolNavItem[] = [
     label: "Generate",
     discipline: "Layouts & carousels",
     sourcePath: "tools/legacy/generate/generator.html",
-    status: "preserved",
+    status: "live",
   },
 ];
