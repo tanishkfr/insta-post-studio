@@ -31,11 +31,46 @@ jobs:
       - name: Install host dependencies
         run: npm ci
 
+      - name: Install independently bundled Shapes dependencies
+        run: npm ci --prefix tools/shapes
+
+      - name: Install independently bundled BEND dependencies
+        run: npm ci --prefix tools/bend
+
       - name: Typecheck shared contracts
         run: npm run contracts:typecheck
 
-      - name: Build Studio host
+      - name: Build Studio host with Shapes and BEND bundles
         run: npm run build
 
       - name: Run host unit tests
         run: npm test
+
+  browser:
+    name: Host browser acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install host dependencies
+        run: npm ci
+
+      - name: Install independently bundled Shapes dependencies
+        run: npm ci --prefix tools/shapes
+
+      - name: Install independently bundled BEND dependencies
+        run: npm ci --prefix tools/bend
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Studio browser acceptance
+        run: npm run test:browser

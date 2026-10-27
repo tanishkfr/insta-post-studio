@@ -400,8 +400,8 @@ function SelectionBox({ item }: { item: ProjectedMesh }) {
   )
 }
 
-function SceneInput({ editor }: { editor: Editor }) {
-  const { camera, gl, scene } = useThree()
+function SceneInput({ editor, camera }: { editor: Editor; camera: Snapshot['camera'] }) {
+  const { camera: threeCamera, gl, scene } = useThree()
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const ndc = useMemo(() => new THREE.Vector2(), [])
   const panRight = useMemo(() => new THREE.Vector3(), [])
@@ -410,24 +410,36 @@ function SceneInput({ editor }: { editor: Editor }) {
   const ground = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const groundHit = useMemo(() => new THREE.Vector3(), [])
   const rig = useRef({
-    theta: 0.72,
-    phi: 1.08,
-    radius: 9,
-    target: new THREE.Vector3(0.4, 0.2, 0.4),
+    theta: camera.theta,
+    phi: camera.phi,
+    radius: camera.radius,
+    target: new THREE.Vector3(camera.target.x, camera.target.y, camera.target.z),
     lastX: 0,
     lastY: 0,
   })
 
+  function persistCamera() {
+    const { theta, phi, radius, target } = rig.current
+    editor.setCamera({ theta, phi, radius, target: { x: target.x, y: target.y, z: target.z } })
+  }
+
+  useEffect(() => {
+    rig.current.theta = camera.theta
+    rig.current.phi = camera.phi
+    rig.current.radius = camera.radius
+    rig.current.target.set(camera.target.x, camera.target.y, camera.target.z)
+  }, [camera])
+
   useFrame(() => {
     const { theta, phi, radius, target } = rig.current
     const sinPhi = Math.sin(phi)
-    camera.position.set(
+    threeCamera.position.set(
       target.x + radius * sinPhi * Math.cos(theta),
       target.y + radius * Math.cos(phi),
       target.z + radius * sinPhi * Math.sin(theta),
     )
-    camera.up.set(0, 1, 0)
-    camera.lookAt(target)
+    threeCamera.up.set(0, 1, 0)
+    threeCamera.lookAt(target)
   })
 
   useEffect(() => {
@@ -448,7 +460,7 @@ function SceneInput({ editor }: { editor: Editor }) {
       const rect = el.getBoundingClientRect()
       ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1
       ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1
-      raycaster.setFromCamera(ndc, camera)
+      raycaster.setFromCamera(ndc, threeCamera)
       return hitFromIntersects(raycaster.intersectObjects(scene.children, true))
     }
 
@@ -456,7 +468,7 @@ function SceneInput({ editor }: { editor: Editor }) {
       const rect = el.getBoundingClientRect()
       ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1
       ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1
-      raycaster.setFromCamera(ndc, camera)
+      raycaster.setFromCamera(ndc, threeCamera)
       return raycaster.ray.intersectPlane(ground, groundHit) ? groundHit.clone() : null
     }
 
@@ -513,14 +525,16 @@ function SceneInput({ editor }: { editor: Editor }) {
       if (lock.gesture === 'orbit') {
         rig.current.theta -= dx * 0.005
         rig.current.phi = clamp(rig.current.phi - dy * 0.005, 0.12, Math.PI - 0.12)
+        persistCamera()
         return
       }
       if (lock.gesture === 'pan') {
         const pan = rig.current.radius * 0.0018
-        panRight.setFromMatrixColumn(camera.matrixWorld, 0)
-        panUp.setFromMatrixColumn(camera.matrixWorld, 1)
+        panRight.setFromMatrixColumn(threeCamera.matrixWorld, 0)
+        panUp.setFromMatrixColumn(threeCamera.matrixWorld, 1)
         rig.current.target.addScaledVector(panRight, -dx * pan)
         rig.current.target.addScaledVector(panUp, dy * pan)
+        persistCamera()
       }
     }
 
@@ -550,6 +564,7 @@ function SceneInput({ editor }: { editor: Editor }) {
       if (editor.snapshot().pointer.owner === 'gizmo') return
       event.preventDefault()
       rig.current.radius = clamp(rig.current.radius * Math.exp(event.deltaY * 0.0012), 2.2, 48)
+      persistCamera()
     }
 
     const onContext = (event: Event) => event.preventDefault()
@@ -569,7 +584,7 @@ function SceneInput({ editor }: { editor: Editor }) {
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('contextmenu', onContext)
     }
-  }, [camera, editor, gl, ground, groundHit, ndc, panRight, panUp, raycaster, scene])
+  }, [editor, gl, ground, groundHit, ndc, panRight, panUp, raycaster, scene, threeCamera])
 
   return null
 }
@@ -664,7 +679,7 @@ function Scene({ editor, snapshot }: { editor: Editor; snapshot: Snapshot }) {
       {selected && snapshot.showGizmo ? (
         <AxisGizmo id={selected.id} transform={selected.transform} tool={snapshot.tool} activeAxis={activeAxis} />
       ) : null}
-      <SceneInput editor={editor} />
+      <SceneInput editor={editor} camera={snapshot.camera} />
     </>
   )
 }

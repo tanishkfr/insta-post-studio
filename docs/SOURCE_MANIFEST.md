@@ -33,6 +33,15 @@ BEND CI reference: [run 40325071662](https://github.com/tanishkfr/Bend/actions/r
 
 6. The installed Shapes `package-lock.json` gained npm `peer` metadata during installation; it was restored to the committed upstream bytes so the baseline stays exact.
 7. A clean clone of the private remote was tested after push: root `npm ci`, contracts typecheck, host build, host tests and dev server all passed. All four legacy hashes matched, and Shapes/Typography/BEND again showed **0 file differences** against the pinned staging clones. `.gitattributes` marks `tools/**` as byte-preserving so Windows line-ending conversion cannot alter imported baselines.
+8. **Phase 1 re-check:** `tools/legacy/vector/arnav.html` remains byte-identical at SHA-256 `24633B7233A5E7AD088D1E4423AACD21D838F215654F838170077328C1CB5AA2`. `git diff phase-0/foundation -- tools` is empty. The automated `sourceIntegrity` unit guard enforces this hash. No other imported tool source was modified in Phase 1.
+
+9. **Phase 3 re-check:** `tools/legacy/generate/generator.html` remains byte-identical at SHA-256 `8D8FBEF2ECD9A2F74F790652A3F46E567CA5AE97552011B117EC9CA790E00A6D`; the Image and Vector legacy pages also match their Phase 0 hashes. Generate is integrated through a derived page that injects the adapter bridge and a small set of documented render-coordinate changes at build time; the preserved file is never edited.
+
+10. **Phase 3 Shapes extension:** Shapes is the one imported app intentionally extended in this phase. The upstream baseline remains pinned at `08fea0e00d43f2b955f34e6e341c4f2aaba427ca`; the following files were added or modified to provide the Studio adapter and its state/render requirements:
+    - added `src/studioBridge.ts`, `src/editor/sourceState.ts`, `src/editor/renderScene.ts`, `src/editor/sourceState.test.ts`, `src/editor/loadFbx.test.ts`, `src/editor/fixtures/cube-ascii.fbx`;
+    - modified `src/main.tsx`, `src/editor/model.ts`, `src/editor/store.ts`, `src/ui/Viewport.tsx`, `vite.config.ts`.
+
+    The original editor UI/operations remain present. No upstream Shapes repository or deployment was changed; the original application can still be built from its pinned commit and the standalone route continues to load from this repository's copy.
 
 Full upstream histories are **not** included. History and provenance remain recoverable through the commit SHAs above and the original repositories. No original files were deleted or rewritten.
 

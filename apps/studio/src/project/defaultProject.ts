@@ -1,5 +1,10 @@
-import type { SourceToolId, StudioProject } from "@studio/contracts";
+import type {
+  ProjectFormat,
+  SourceToolId,
+  StudioProject,
+} from "@studio/contracts";
 import { STUDIO_PROJECT_SCHEMA_VERSION } from "@studio/contracts";
+import { createId, nowIso } from "../lib/ids";
 
 const baselineAt = "2026-10-26T00:00:00.000Z";
 
@@ -54,19 +59,92 @@ const sources = [
   },
 ] satisfies StudioProject["metadata"]["sourceProjects"];
 
-export const defaultProject: StudioProject = {
-  id: "project_untitled",
-  name: "Untitled Project",
-  schemaVersion: STUDIO_PROJECT_SCHEMA_VERSION,
-  format: {
-    id: "instagram-post-square",
-    label: "Instagram post",
+export const FORMAT_PRESETS: ProjectFormat[] = [
+  {
+    id: "instagram-4-5",
+    label: "Instagram 4:5",
+    width: 1080,
+    height: 1350,
+    unit: "px",
+    aspectRatio: 0.8,
+    orientation: "portrait",
+  },
+  {
+    id: "instagram-square",
+    label: "Instagram 1:1",
     width: 1080,
     height: 1080,
     unit: "px",
     aspectRatio: 1,
     orientation: "square",
   },
+  {
+    id: "instagram-story",
+    label: "Instagram 9:16",
+    width: 1080,
+    height: 1920,
+    unit: "px",
+    aspectRatio: 0.5625,
+    orientation: "portrait",
+  },
+];
+
+export const DEFAULT_FORMAT_ID = "instagram-square";
+
+export function findFormat(formatId: string): ProjectFormat {
+  const format = FORMAT_PRESETS.find((candidate) => candidate.id === formatId);
+  if (!format) throw new Error(`Unknown format preset: ${formatId}`);
+  return structuredClone(format);
+}
+
+export interface CreateProjectOptions {
+  id?: string;
+  name?: string;
+  formatId?: string;
+  createdAt?: string;
+}
+
+export function createStudioProject(options: CreateProjectOptions = {}): StudioProject {
+  const format = findFormat(options.formatId ?? DEFAULT_FORMAT_ID);
+  const timestamp = options.createdAt ?? nowIso();
+  return {
+    id: options.id ?? createId("project"),
+    name: options.name?.trim() || "Untitled Project",
+    schemaVersion: STUDIO_PROJECT_SCHEMA_VERSION,
+    format,
+    artboards: [
+      {
+        id: createId("artboard"),
+        name: "Artboard 01",
+        index: 0,
+        width: format.width,
+        height: format.height,
+        background: { kind: "solid", color: "#ffffff" },
+        layerOrder: [],
+      },
+    ],
+    layers: [],
+    assets: [],
+    layerOrder: [],
+    metadata: {
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      appVersion: "0.2.0",
+      tags: ["phase-1"],
+      notes: "Local-first Studio project. Binary assets live in IndexedDB.",
+      sourceProjects: structuredClone(sources),
+    },
+  };
+}
+
+/** Deterministic fallback used by tests and before IndexedDB hydration. */
+export const defaultProject: StudioProject = {
+  ...createStudioProject({
+    id: "project_untitled",
+    name: "Untitled Project",
+    formatId: DEFAULT_FORMAT_ID,
+    createdAt: baselineAt,
+  }),
   artboards: [
     {
       id: "artboard_01",
@@ -78,17 +156,6 @@ export const defaultProject: StudioProject = {
       layerOrder: [],
     },
   ],
-  layers: [],
-  assets: [],
-  layerOrder: [],
-  metadata: {
-    createdAt: baselineAt,
-    updatedAt: baselineAt,
-    appVersion: "0.1.0",
-    tags: ["phase-0"],
-    notes: "In-memory foundation project. Persistence arrives in a later phase.",
-    sourceProjects: sources,
-  },
 };
 
 export type NavToolId = Exclude<SourceToolId, "host">;
@@ -99,6 +166,7 @@ export interface ToolNavItem {
   label: string;
   discipline: string;
   sourcePath: string;
+  status: "live" | "preserved";
 }
 
 export const toolNav: ToolNavItem[] = [
@@ -108,6 +176,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Image",
     discipline: "Raster & filters",
     sourcePath: "tools/legacy/image/janya.html",
+    status: "live",
   },
   {
     id: "vector",
@@ -115,6 +184,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Vector",
     discipline: "Paths & generators",
     sourcePath: "tools/legacy/vector/arnav.html",
+    status: "live",
   },
   {
     id: "typography",
@@ -122,6 +192,7 @@ export const toolNav: ToolNavItem[] = [
     label: "Type",
     discipline: "Fonts & forms",
     sourcePath: "tools/typography/",
+    status: "live",
   },
   {
     id: "shapes",
@@ -129,13 +200,15 @@ export const toolNav: ToolNavItem[] = [
     label: "Shapes",
     discipline: "3D & geometry",
     sourcePath: "tools/shapes/",
+    status: "live",
   },
   {
     id: "bend",
     index: "05",
-    label: "BEND",
+    label: "Video",
     discipline: "Video & motion",
     sourcePath: "tools/bend/",
+    status: "live",
   },
   {
     id: "generate",
@@ -143,5 +216,6 @@ export const toolNav: ToolNavItem[] = [
     label: "Generate",
     discipline: "Layouts & carousels",
     sourcePath: "tools/legacy/generate/generator.html",
+    status: "live",
   },
 ];

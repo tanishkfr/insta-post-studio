@@ -52,6 +52,9 @@ export interface LayerMaskReference {
   featherPixels: number;
 }
 
+export type TemporalPlaybackPolicy = "loop" | "hold-last-frame" | "once";
+export type TemporalAudioPolicy = "source" | "muted";
+
 export interface TemporalMetadata {
   kind: "static" | "video" | "audio" | "animated";
   durationSeconds?: number;
@@ -59,6 +62,17 @@ export interface TemporalMetadata {
   sourceInSeconds?: number;
   sourceDurationSeconds?: number;
   frameRate?: number;
+  /** Host preview policy. A single temporal layer is previewed at a time. */
+  playback?: TemporalPlaybackPolicy;
+  /** Audio defaults to muted in the static composition to avoid overlapping beds. */
+  audio?: TemporalAudioPolicy;
+  /** True when the rendered video is a 720px-wide BEND preview, not full canvas. */
+  preview?: boolean;
+  /** Container/codec metadata surfaced honestly in the host inspector. */
+  container?: string;
+  codec?: string | null;
+  audioPresent?: boolean;
+  audioMessage?: string;
   /** Links a layer to an external BEND sequence while its full timeline stays tool-owned. */
   bendSequenceId?: string;
 }
@@ -69,6 +83,17 @@ export interface LayerMetadata {
   /** Upstream tool version whose output produced this layer. */
   toolVersion?: string;
   tags?: string[];
+}
+
+/**
+ * Optional cross-tool lineage. A derivative layer keeps its own source state
+ * while recording which existing host layer/asset was used as input.
+ */
+export interface LayerProvenance {
+  relation: "derived-from";
+  sourceLayerId: LayerId;
+  sourceAssetId?: string;
+  createdAt: IsoDateTime;
 }
 
 /**
@@ -85,6 +110,8 @@ export interface SharedLayer {
   order: number;
   sourceState: ToolSourceStateReference | null;
   rendered: RenderedAssetReference | null;
+  /** Static cover/poster for temporal layers; the rendered video stays separate. */
+  poster?: RenderedAssetReference | null;
   transform: LayerTransform;
   visible: boolean;
   locked: boolean;
@@ -93,6 +120,7 @@ export interface SharedLayer {
   mask: LayerMaskReference | null;
   clipToArtboard: boolean;
   temporal?: TemporalMetadata;
+  provenance?: LayerProvenance;
   metadata: LayerMetadata;
 }
 

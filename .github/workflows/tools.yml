@@ -40,6 +40,21 @@ jobs:
       - run: npm test --prefix tools/bend
       - run: npm run build --prefix tools/bend
 
+  bend-browser:
+    name: BEND preserved editor browser suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/bend/package-lock.json
+      - run: npm ci --prefix tools/bend
+      - run: npx --prefix tools/bend playwright install --with-deps chromium firefox
+      - run: npm run test:browser --prefix tools/bend
+
   static:
     name: Legacy and typography source presence
     runs-on: ubuntu-latest

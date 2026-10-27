@@ -1,307 +1,698 @@
-import { useState } from "react";
-import { defaultProject, toolNav, type NavToolId } from "./project/defaultProject";
+import type { AssetReference, LayerProvenance, StudioProject, SourceToolId } from "@studio/contracts";
+import { useEffect, useRef, useState } from "react";
+import { createBendVideoLayer, createRasterLayer } from "./adapters/session/layerFactory";
+import type { ToolSessionCapture } from "./adapters/session/toolSession";
+import { SessionNavigation, type SessionDepartureResult } from "./adapters/session/navigation";
+import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
+import { parseBendSourceState } from "./adapters/bend/bendSourceState";
+import type { StaticMotionHandoff } from "./adapters/bend/staticToVideo";
+import { typographyModeFromLayer, type TypographyMode } from "./adapters/typography/typographySourceState";
+import { createVectorLayer } from "./adapters/vector/vectorLayer";
+import { AnimateInBendDialog } from "./components/AnimateInBendDialog";
+import { BendEditor } from "./components/BendEditor";
+import { CanvasWorkspace } from "./components/CanvasWorkspace";
+import { ExportDialog } from "./components/ExportDialog";
+import { GenerateEditor } from "./components/GenerateEditor";
+import { ImageEditor } from "./components/ImageEditor";
+import { InspectorPanel } from "./components/InspectorPanel";
+import { LayersPanel } from "./components/LayersPanel";
+import { Landing } from "./components/Landing";
+import { ProjectDataDialog } from "./components/ProjectDataDialog";
+import { ShapesEditor } from "./components/ShapesEditor";
+import { ToolRail } from "./components/ToolRail";
+import { Topbar } from "./components/Topbar";
+import { TypeEditor } from "./components/TypeEditor";
+import { VectorEditor } from "./components/VectorEditor";
+import { nowIso } from "./lib/ids";
+import { assetRepository, projectRepository } from "./storage/instances";
+import { FORMAT_PRESETS } from "./project/defaultProject";
+import { studioStore, useStudioStore } from "./state/projectStore";
+import type { GeneratedLayoutTarget } from "./state/projectStore";
+import { useProjectPersistence } from "./state/useProjectPersistence";
+import { CompactPanel } from "./phase5a/components";
+import "./phase5a/components.css";
 
-type ActiveWorkspace = "canvas" | NavToolId;
+type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate" | "bend";
 
-function StudioMark() {
+function LoadingShell() {
   return (
-    <svg
-      aria-hidden="true"
-      className="studio-mark"
-      viewBox="0 0 28 28"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect x="2.5" y="6.5" width="15" height="15" rx="1.5" stroke="currentColor" opacity="0.35" />
-      <rect x="6.5" y="4" width="15" height="15" rx="1.5" stroke="currentColor" opacity="0.6" />
-      <rect x="10.5" y="1.5" width="15" height="15" rx="1.5" stroke="currentColor" />
-      <path d="M14.25 9h7.5v7.5" stroke="currentColor" strokeWidth="1.25" />
-    </svg>
+    <div className="loading-shell" role="status">
+      <div className="loading-mark" aria-hidden="true">
+        ◈
+      </div>
+      <span className="eyebrow">Studio 2.0</span>
+      <strong>Opening local project</strong>
+      <p>Restoring the document, layers and Image / Vector / Type / Shapes / Generate / BEND source references from IndexedDB.</p>
+    </div>
   );
 }
 
-function LayerStackGlyph() {
+function isEditableTool(tool: SourceToolId | "canvas"): tool is EditableTool {
   return (
-    <svg
-      aria-hidden="true"
-      className="empty-layer-glyph"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect x="9" y="24" width="26" height="14" rx="2" stroke="currentColor" opacity="0.22" />
-      <rect x="13" y="17" width="26" height="14" rx="2" stroke="currentColor" opacity="0.45" />
-      <rect x="17" y="10" width="26" height="14" rx="2" stroke="currentColor" />
-      <path d="M22 17h9" stroke="currentColor" strokeWidth="1.25" />
-    </svg>
+    tool === "image" ||
+    tool === "vector" ||
+    tool === "typography" ||
+    tool === "shapes" ||
+    tool === "generate" ||
+    tool === "bend"
   );
 }
 
-function ArtboardCorners() {
-  return (
-    <span className="artboard-corners" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-    </span>
-  );
+function uniqueAssets(
+  ...groups: Array<AssetReference | undefined | Array<AssetReference | undefined>>
+): AssetReference[] {
+  const byId = new Map<string, AssetReference>();
+  for (const group of groups) {
+    const items = Array.isArray(group) ? group : [group];
+    for (const asset of items) {
+      if (asset) byId.set(asset.id, asset);
+    }
+  }
+  return [...byId.values()];
 }
 
 export default function App() {
-  const [activeWorkspace, setActiveWorkspace] = useState<ActiveWorkspace>("canvas");
-  const [projectName, setProjectName] = useState(defaultProject.name);
-  const activeTool = toolNav.find((tool) => tool.id === activeWorkspace);
-  const artboard = defaultProject.artboards[0];
-  const format = defaultProject.format;
-  const width = String(format.width);
-  const height = String(format.height);
-  const baselineCount = defaultProject.metadata.sourceProjects.length;
+  const project = useStudioStore((state) => state.project);
+  const activeTool = useStudioStore((state) => state.activeTool);
+  const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
+  const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
+  const canUndo = useStudioStore((state) => state.past.length > 0);
+  const canRedo = useStudioStore((state) => state.future.length > 0);
+  const persistence = useProjectPersistence(studioStore);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [inputLayerId, setInputLayerId] = useState<string | null>(null);
+  const [bendHandoff, setBendHandoff] = useState<StaticMotionHandoff | null>(null);
+  const [showBendHandoff, setShowBendHandoff] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showProjectData, setShowProjectData] = useState(false);
+  const [preferBendComposition, setPreferBendComposition] = useState(false);
+  const [typeMode, setTypeMode] = useState<TypographyMode>("library");
+  const [handoffError, setHandoffError] = useState<string | null>(null);
+  const [compact, setCompact] = useState(() => window.innerWidth <= 760);
+  const [compactPanel, setCompactPanel] = useState<"Layers" | "Inspector" | null>(null);
+  const [panelsOpen, setPanelsOpen] = useState(false);
+  const previousLayerCount = useRef(0);
+  const panelOpener = useRef<HTMLButtonElement | null>(null);
+  const sessionDeparture = useRef<(() => SessionDepartureResult) | null>(null);
+  const pendingDestination = useRef<EditableTool | "canvas" | "home" | null>(null);
+  const pendingEntryTool = useRef<EditableTool | null>(null);
+  const [showStudio, setShowStudio] = useState(() => window.location.hash === "#studio");
+
+  useEffect(() => {
+    if (project.layers.length > previousLayerCount.current) setPanelsOpen(true);
+    previousLayerCount.current = project.layers.length;
+  }, [project.layers.length]);
+
+  useEffect(() => {
+    if (selectedLayerId) setPanelsOpen(true);
+  }, [selectedLayerId]);
+
+  useEffect(() => {
+    const resize = () => {
+      const next = window.innerWidth <= 760;
+      setCompact(next);
+      if (!next) setCompactPanel(null);
+    };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  function closeCompactPanel() {
+    setCompactPanel(null);
+    requestAnimationFrame(() => panelOpener.current?.focus());
+  }
+
+  const editingTool = isEditableTool(activeTool) ? activeTool : null;
+  const activeArtboard =
+    project.artboards.find((artboard) => artboard.id === activeArtboardId) ??
+    project.artboards[0];
+  const editingLayer = editingLayerId
+    ? project.layers.find((layer) => layer.id === editingLayerId) ?? null
+    : null;
+  const selectedLayer = selectedLayerId
+    ? project.layers.find((layer) => layer.id === selectedLayerId) ?? null
+    : null;
+  const inputLayer = inputLayerId
+    ? project.layers.find((layer) => layer.id === inputLayerId) ?? null
+    : null;
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (editingTool) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.matches("input, textarea, select") ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const command = event.metaKey || event.ctrlKey;
+      if (!command || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) studioStore.getState().redo();
+      else studioStore.getState().undo();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editingTool]);
+
+  function resetEditingState() {
+    setEditingLayerId(null);
+    setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setPreferBendComposition(false);
+    setHandoffError(null);
+    studioStore.getState().setActiveTool("canvas");
+  }
+
+  function enterStudio(tool?: EditableTool) {
+    if (tool) {
+      if (persistence.hydrated) openNewTool(tool);
+      else pendingEntryTool.current = tool;
+    }
+    window.history.pushState(null, "", `${window.location.pathname}${window.location.search}#studio`);
+    setShowStudio(true);
+  }
+
+  function goHome(updateHistory = true) {
+    if (updateHistory) window.history.pushState(null, "", `${window.location.pathname}${window.location.search}`);
+    setShowStudio(false);
+  }
+
+  function finishEditorClose() {
+    const destination = pendingDestination.current;
+    pendingDestination.current = null;
+    resetEditingState();
+    if (destination === "home") goHome(window.location.hash === "#studio");
+    else if (destination && destination !== "canvas") openNewTool(destination);
+  }
+
+  function navigate(destination: EditableTool | "canvas" | "home"): boolean {
+    if (destination === activeTool) return true;
+    if (!editingTool) {
+      if (destination === "home") goHome();
+      else if (destination === "canvas") resetEditingState();
+      else openNewTool(destination);
+      return true;
+    }
+    pendingDestination.current = destination;
+    if (sessionDeparture.current) {
+      const departure = sessionDeparture.current();
+      if (departure === "pending") {
+        // The editor is showing its own discard confirmation. Keep the
+        // destination so a confirmed leave can finish the navigation.
+        return false;
+      }
+      if (!departure) {
+        pendingDestination.current = null;
+        return false;
+      }
+    } else if (editingTool === "bend") {
+      // BEND can be preparing or asking for a format decision before a session exists.
+      finishEditorClose();
+    } else {
+      // Do not bypass a session that has not registered its close handler yet.
+      pendingDestination.current = null;
+      return false;
+    }
+    return true;
+  }
+
+  useEffect(() => {
+    const onHistory = () => {
+      if (window.location.hash === "#studio") setShowStudio(true);
+      else if (showStudio && !navigate("home")) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#studio`);
+      }
+    };
+    window.addEventListener("popstate", onHistory);
+    return () => window.removeEventListener("popstate", onHistory);
+  });
+
+  function openNewTool(tool: EditableTool) {
+    setEditingLayerId(null);
+    setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setPreferBendComposition(false);
+    setHandoffError(null);
+    setTypeMode("library");
+    studioStore.getState().selectLayer(null);
+    studioStore.getState().setActiveTool(tool);
+  }
+
+  useEffect(() => {
+    if (persistence.hydrated && pendingEntryTool.current) {
+      const tool = pendingEntryTool.current;
+      pendingEntryTool.current = null;
+      openNewTool(tool);
+    }
+  }, [persistence.hydrated]);
+
+  function openExistingTool(layerId: string) {
+    const layer = studioStore.getState().project.layers.find(
+      (candidate) => candidate.id === layerId,
+    );
+    if (!layer?.sourceState || !isEditableTool(layer.sourceTool)) {
+      setHandoffError("This layer does not have a supported editable source document.");
+      return;
+    }
+    setEditingLayerId(layerId);
+    setInputLayerId(null);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setHandoffError(null);
+    setTypeMode(typographyModeFromLayer(layer));
+    studioStore.getState().selectLayer(layerId);
+    studioStore.getState().setActiveTool(layer.sourceTool);
+  }
+
+  async function startHandoff(layerId: string, target: EditableTool) {
+    const state = studioStore.getState();
+    const layer = state.project.layers.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    setHandoffError(null);
+    try {
+      await loadRasterInputForLayer(
+        state.project,
+        layerId,
+        target === "vector" ? "rendered-input" : "reference",
+      );
+    } catch (error) {
+      setHandoffError(
+        error instanceof Error
+          ? error.message
+          : "That layer cannot be used as a raster input.",
+      );
+      return;
+    }
+    setEditingLayerId(null);
+    setInputLayerId(layerId);
+    setBendHandoff(null);
+    setShowBendHandoff(false);
+    setTypeMode(target === "typography" ? "custom" : "library");
+    state.selectLayer(layerId);
+    state.setActiveTool(target);
+  }
+
+  function openBendHandoff(handoff: StaticMotionHandoff) {
+    const state = studioStore.getState();
+    setEditingLayerId(null);
+    setInputLayerId(null);
+    setBendHandoff(handoff);
+    setShowBendHandoff(false);
+    setHandoffError(null);
+    state.selectLayer(handoff.sourceLayerIds[0] ?? null);
+    state.setActiveTool("bend");
+  }
+
+  function animateInBend(layerId: string | null, preferComposition = false) {
+    const state = studioStore.getState();
+    if (layerId) state.selectLayer(layerId);
+    setPreferBendComposition(preferComposition);
+    setShowBendHandoff(true);
+  }
+
+  function useAsImageInput(layerId: string) {
+    void startHandoff(layerId, "image");
+  }
+
+  function provenanceForNewLayer(): LayerProvenance | undefined {
+    const source =
+      bendHandoff?.sourceLayerIds[0]
+        ? project.layers.find((layer) => layer.id === bendHandoff.sourceLayerIds[0]) ?? null
+        : inputLayer;
+    if (!source) return undefined;
+    return {
+      relation: "derived-from",
+      sourceLayerId: source.id,
+      sourceAssetId: source.rendered?.assetId,
+      createdAt: nowIso(),
+    };
+  }
+
+  async function handlePublish(capture: ToolSessionCapture) {
+    const state = studioStore.getState();
+    const artboard = state.project.artboards.find(
+      (candidate) => candidate.id === state.activeArtboardId,
+    );
+    if (!artboard) throw new Error("The active artboard no longer exists.");
+    const tool = capture.sourceState.tool;
+    let committed = false;
+    try {
+      if (capture.guard && editingLayerId) {
+        const current = state.project.layers.find((layer) => layer.id === editingLayerId);
+        if (!current || !current.sourceState) {
+          throw new Error("The original BEND layer no longer exists.");
+        }
+        if (current.sourceState.revision !== capture.guard.expectedHostRevision) {
+          throw new Error(
+            "This BEND layer was updated elsewhere after it was opened. Reopen the layer before publishing; the newer committed version was kept.",
+          );
+        }
+        // Cross-tab guard: the in-memory store can be older than the last
+        // durable project. Compare the committed layer revision before writing.
+        const durable = await projectRepository.loadMostRecent();
+        const durableLayer = durable?.project.layers.find((layer) => layer.id === editingLayerId);
+        if (!durableLayer || !durableLayer.sourceState) {
+          throw new Error(
+            "The committed BEND layer is no longer available. Reopen the project before publishing; the prior version was kept.",
+          );
+        }
+        if (durableLayer.sourceState.revision !== capture.guard.expectedHostRevision) {
+          throw new Error(
+            "This BEND layer was updated in another Studio tab after it was opened. Reopen the layer before publishing; the newer committed version was kept.",
+          );
+        }
+        const currentPayload = await assetRepository.getSourceState(current.sourceState);
+        const currentSource = parseBendSourceState(currentPayload.content);
+        if (currentSource.sourceRevision !== capture.guard.expectedSourceRevision) {
+          throw new Error(
+            "The committed BEND source revision changed while this edit session was open. Reopen the layer and reapply your changes; the newer version was kept.",
+          );
+        }
+      }
+      if (editingLayerId) {
+        if (!state.project.layers.some((layer) => layer.id === editingLayerId)) {
+          throw new Error("The original layer no longer exists.");
+        }
+        state.applyLayerArtwork({
+          layerId: editingLayerId,
+          sourceState: capture.sourceState,
+          rendered: capture.rendered,
+          renderedAsset: capture.renderedAsset,
+          ...(capture.poster !== undefined ? { poster: capture.poster } : {}),
+          ...(capture.temporal ? { temporal: capture.temporal } : {}),
+          sourceAssets: uniqueAssets(capture.renderedAsset, capture.posterAsset, capture.sourceAssets),
+          tags: capture.tags,
+        });
+        committed = true;
+      } else if (tool === "bend") {
+        const layer = createBendVideoLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture: {
+            sourceState: capture.sourceState,
+            rendered: capture.rendered,
+            poster: capture.poster,
+            temporal: capture.temporal,
+            suggestedName: capture.suggestedName,
+            tags: capture.tags,
+          },
+          provenance: provenanceForNewLayer(),
+        });
+        state.addLayer(
+          layer,
+          uniqueAssets(capture.renderedAsset, capture.posterAsset, capture.sourceAssets),
+        );
+        committed = true;
+      } else if (tool === "vector") {
+        const layer = createVectorLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          provenance: provenanceForNewLayer(),
+          tags: capture.tags,
+        });
+        state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+        committed = true;
+      } else if (tool === "image" || tool === "typography" || tool === "shapes") {
+        const layer = createRasterLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          kind: tool === "image" ? "image" : tool === "typography" ? "typography" : "shapes",
+          sourceTool: tool,
+          toolVersion: `${tool}@${capture.sourceState.toolStateVersion}`,
+          provenance: provenanceForNewLayer(),
+          tags: capture.tags,
+        });
+        state.addLayer(layer, [capture.renderedAsset, ...(capture.sourceAssets ?? [])]);
+        committed = true;
+      } else if (tool === "generate") {
+        const layer = createRasterLayer({
+          project: state.project,
+          artboardId: artboard.id,
+          capture,
+          kind: "generated-layout",
+          sourceTool: "generate",
+          toolVersion: `generate@${capture.sourceState.toolStateVersion}`,
+          tags: capture.tags,
+        });
+        // A generated treatment is a background by default. The user can still
+        // reorder it at any time; the foreground layers remain untouched.
+        state.addLayer(
+          layer,
+          [capture.renderedAsset, ...(capture.sourceAssets ?? [])],
+          { position: "back" },
+        );
+        committed = true;
+      } else {
+        throw new Error(`No Studio layer factory exists for ${String(tool)}.`);
+      }
+
+      await persistence.saveNow();
+    } catch (error) {
+      // The commit was in-memory only. Roll it back so a failed durable write
+      // cannot leave a phantom/duplicate layer or replace an older source ref.
+      if (committed) studioStore.getState().rollbackLastCommit();
+      throw new Error(
+        `Artwork is captured in this session, but the project could not be saved. The previous durable layer was preserved. ${
+          error instanceof Error ? error.message : ""
+        }`.trim(),
+      );
+    }
+    setInputLayerId(null);
+    setBendHandoff(null);
+  }
+
+  async function handleApplyGenerateLayout(
+    artboardId: string,
+    targets: GeneratedLayoutTarget[],
+  ): Promise<number> {
+    const applied = studioStore.getState().applyGeneratedLayout(artboardId, targets);
+    if (applied === 0) return 0;
+    try {
+      await persistence.saveNow();
+    } catch (error) {
+      studioStore.getState().rollbackLastCommit();
+      throw new Error(
+        `The generated layout could not be saved, so the previous composition was restored. ${
+          error instanceof Error ? error.message : ""
+        }`.trim(),
+      );
+    }
+    return applied;
+  }
+
+  async function handleUndoGenerateLayout(): Promise<void> {
+    studioStore.getState().undo();
+    try {
+      await persistence.saveNow();
+    } catch (error) {
+      throw new Error(
+        `The layout was undone in memory but could not be saved. ${
+          error instanceof Error ? error.message : ""
+        }`.trim(),
+      );
+    }
+  }
+
+  if (!showStudio) return <Landing onEnter={() => enterStudio()} onOpenTool={enterStudio} />;
+
+  if (!persistence.hydrated) {
+    return <LoadingShell />;
+  }
 
   return (
-    <div className="studio-shell">
-      <header className="topbar">
-        <div className="brand">
-          <StudioMark />
-          <div className="brand-wordmark">
-            <span>STUDIO</span>
-            <span className="brand-version">2.0</span>
+    <SessionNavigation.Provider value={{ requestClose: sessionDeparture, cancelPending: () => { pendingDestination.current = null; } }}><div
+      className={`studio-shell${editingTool ? " is-tool-editing" : ""}${!compact && !panelsOpen ? " panels-closed" : ""}`}
+    >
+      <Topbar
+        project={project}
+        formats={FORMAT_PRESETS}
+        saveStatus={persistence.status}
+        saveError={persistence.error}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        editingTool={editingTool}
+        onSave={() => {
+          void persistence.saveNow().catch(() => undefined);
+        }}
+        onUndo={() => studioStore.getState().undo()}
+        onRedo={() => studioStore.getState().redo()}
+        onRename={(name) => studioStore.getState().renameProject(name)}
+        onFormatChange={(formatId) => studioStore.getState().setFormat(formatId)}
+        onNewProject={() => {
+          void persistence
+            .newProject()
+            .then(() => resetEditingState())
+            .catch(() => undefined);
+        }}
+        onProjectData={() => setShowProjectData(true)}
+        onHome={() => navigate("home")}
+      />
+
+      <ToolRail layerCount={project.layers.length} activeView={activeTool} onCanvas={() => navigate("canvas")} onOpenTool={(tool) => navigate(tool)} />
+
+      {editingTool === "vector" && activeArtboard ? (
+        <VectorEditor
+          key={`vector-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          inputLayerId={inputLayerId}
+          onPublish={handlePublish}
+          onClose={finishEditorClose}
+        />
+      ) : editingTool === "image" && activeArtboard ? (
+        <ImageEditor
+          key={`image-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          inputLayerId={inputLayerId}
+          onPublish={handlePublish}
+          onClose={finishEditorClose}
+        />
+      ) : editingTool === "typography" && activeArtboard ? (
+        <TypeEditor
+          key={`type-${editingLayerId ?? "new"}-${project.id}-${inputLayerId ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          initialMode={typeMode}
+          inputLayerId={inputLayerId}
+          onPublish={handlePublish}
+          onClose={finishEditorClose}
+        />
+      ) : editingTool === "shapes" && activeArtboard ? (
+        <ShapesEditor
+          key={`shapes-${editingLayerId ?? "new"}-${project.id}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          onPublish={handlePublish}
+          onClose={finishEditorClose}
+        />
+      ) : editingTool === "generate" && activeArtboard ? (
+        <GenerateEditor
+          key={`generate-${editingLayerId ?? "new"}-${project.id}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          onPublish={handlePublish}
+          onApplyLayout={handleApplyGenerateLayout}
+          onUndoLayout={handleUndoGenerateLayout}
+          onClose={finishEditorClose}
+        />
+      ) : editingTool === "bend" && activeArtboard ? (
+        <BendEditor
+          key={`bend-${editingLayerId ?? "new"}-${project.id}-${bendHandoff?.id ?? ""}`}
+          project={project}
+          artboard={activeArtboard}
+          layer={editingLayer}
+          handoff={bendHandoff}
+          onPublish={handlePublish}
+          onClose={finishEditorClose}
+        />
+      ) : (
+        <>
+          <div className="canvas-region">
+            {compact && <div className="compact-panel-actions" aria-label="Studio panels">
+              {(["Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
+            </div>}
+
+            <CanvasWorkspace
+              onOpenTool={openNewTool}
+              onAnimateComposition={() => animateInBend(null, true)}
+              onExport={() => setShowExport(true)}
+              panelsOpen={panelsOpen}
+              onTogglePanels={!compact ? () => setPanelsOpen((open) => !open) : undefined}
+            />
           </div>
+
+          {!compact && panelsOpen && <aside className="sidepanel" aria-label="Layers and inspector">
+            <LayersPanel
+              onOpenTool={openNewTool}
+              onEditLayer={openExistingTool}
+            />
+            <InspectorPanel
+              onEditLayer={openExistingTool}
+              onContinueInVector={(layerId) => void startHandoff(layerId, "vector")}
+              onUseAsTypePattern={(layerId) => void startHandoff(layerId, "typography")}
+              onUseAsImageInput={useAsImageInput}
+              onGenerateLayouts={() => openNewTool("generate")}
+              onAnimateInBend={(layerId) => animateInBend(layerId)}
+            />
+          </aside>}
+
+          {compactPanel && <CompactPanel title={compactPanel} onClose={closeCompactPanel}>
+            {compactPanel === "Layers" && <LayersPanel onOpenTool={(tool) => { setCompactPanel(null); openNewTool(tool); }} onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} />}
+            {compactPanel === "Inspector" && <InspectorPanel onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} onContinueInVector={(id) => { setCompactPanel(null); void startHandoff(id, "vector"); }} onUseAsTypePattern={(id) => { setCompactPanel(null); void startHandoff(id, "typography"); }} onUseAsImageInput={(id) => { setCompactPanel(null); useAsImageInput(id); }} onGenerateLayouts={() => { setCompactPanel(null); openNewTool("generate"); }} onAnimateInBend={(id) => { setCompactPanel(null); animateInBend(id); }} />}
+          </CompactPanel>}
+        </>
+      )}
+
+      {showBendHandoff && activeArtboard ? (
+        <AnimateInBendDialog
+          project={project}
+          artboard={activeArtboard}
+          selectedLayer={selectedLayer}
+          preferComposition={preferBendComposition}
+          onCancel={() => setShowBendHandoff(false)}
+          onOpen={openBendHandoff}
+        />
+      ) : null}
+
+      {showExport && activeArtboard ? (
+        <ExportDialog
+          project={project}
+          artboard={activeArtboard}
+          onClose={() => setShowExport(false)}
+        />
+      ) : null}
+
+      {showProjectData ? (
+        <ProjectDataDialog
+          project={project}
+          onAdopt={(imported, revision) => {
+            persistence.adoptImportedProject(imported, revision);
+            resetEditingState();
+          }}
+          onClose={() => setShowProjectData(false)}
+        />
+      ) : null}
+
+      {handoffError ? (
+        <div className="storage-banner handoff-banner" role="alert">
+          <strong>Could not start handoff</strong>
+          <span>{handoffError}</span>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => setHandoffError(null)}
+          >
+            Dismiss
+          </button>
         </div>
+      ) : null}
 
-        <div className="project-identity">
-          <label className="project-label" htmlFor="project-name">
-            Project
-          </label>
-          <input
-            id="project-name"
-            className="project-name-input"
-            value={projectName}
-            maxLength={80}
-            spellCheck={false}
-            onChange={(event) => setProjectName(event.target.value)}
-            aria-label="Project name"
-          />
+      {persistence.error ? (
+        <div className="storage-banner" role="alert">
+          <strong>Project save failed</strong>
+          <span>{persistence.error}</span>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => void persistence.saveNow().catch(() => undefined)}
+          >
+            Retry save
+          </button>
         </div>
-
-        <div className="topbar-meta">
-          <span className="draft-pill">
-            <span className="status-dot" aria-hidden="true" />
-            Private draft
-          </span>
-          <div className="format-display" aria-label={`Format: ${format.label}, ${width} by ${height} pixels`}>
-            <span className="format-eyebrow">Format</span>
-            <span className="format-value">
-              {width} × {height}
-            </span>
-            <span className="format-unit">px</span>
-          </div>
-        </div>
-      </header>
-
-      <aside className="toolrail" aria-label="Tool navigation">
-        <button
-          type="button"
-          className="canvas-nav"
-          aria-current={activeWorkspace === "canvas" ? "page" : undefined}
-          onClick={() => setActiveWorkspace("canvas")}
-        >
-          <span className="canvas-nav-glyph" aria-hidden="true">
-            <i />
-            <i />
-          </span>
-          <span>
-            <strong>Canvas</strong>
-            <small>Project overview</small>
-          </span>
-        </button>
-
-        <div className="rail-heading">
-          <span>Tools</span>
-          <span className="rail-count">{String(toolNav.length).padStart(2, "0")}</span>
-        </div>
-
-        <nav className="tool-list" aria-label="Editing tools">
-          {toolNav.map((tool) => {
-            const isActive = tool.id === activeWorkspace;
-            return (
-              <button
-                key={tool.id}
-                type="button"
-                className={`tool-nav-item${isActive ? " is-active" : ""}`}
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => setActiveWorkspace(tool.id)}
-              >
-                <span className="tool-index">{tool.index}</span>
-                <span className="tool-copy">
-                  <strong>{tool.label}</strong>
-                  <small>{tool.discipline}</small>
-                </span>
-                <span className="tool-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="rail-footer">
-          <div className="rail-status">
-            <span className="status-dot" aria-hidden="true" />
-            <span>{baselineCount} baselines preserved</span>
-          </div>
-          <p>Studio 2.0 foundation · Phase 0</p>
-        </div>
-      </aside>
-
-      <main className="workspace">
-        <header className="workspace-head">
-          <div>
-            <span className="eyebrow">Workspace</span>
-            <h1>{activeTool ? `${activeTool.label} workspace` : "Canvas workspace"}</h1>
-          </div>
-          <div className="workspace-tools" aria-label="Workspace display">
-            <span className="workspace-chip">{activeTool ? activeTool.discipline : "Composition"}</span>
-            <span className="workspace-zoom">Fit · 100%</span>
-          </div>
-        </header>
-
-        <div className="workspace-body">
-          {activeTool ? (
-            <div className="source-notice" role="status">
-              <span className="notice-mark" aria-hidden="true" />
-              <div>
-                <strong>{activeTool.label} baseline is preserved</strong>
-                <span>
-                  <code>{activeTool.sourcePath}</code> · not mounted in Phase 0
-                </span>
-              </div>
-              <span className="notice-state">Frozen baseline</span>
-            </div>
-          ) : null}
-
-          <div className="artboard-wrap">
-            <div className="artboard-ruler">
-              <span>Artboard 01</span>
-              <span>Post · 1:1</span>
-            </div>
-
-            <section className="artboard" aria-label="Empty square canvas placeholder">
-              <ArtboardCorners />
-              <div className="artboard-grid" aria-hidden="true" />
-
-              <div className="artboard-empty">
-                <span className="artboard-kicker">
-                  <span>Canvas</span>
-                  <span>1080 square</span>
-                </span>
-                <h2>
-                  One canvas.
-                  <br />
-                  Every tool.
-                </h2>
-                <p>
-                  {activeTool
-                    ? `The ${activeTool.label} editor will be mounted here through its preserved adapter.`
-                    : "Tool surfaces will mount here in Phase 1. Their output becomes independent, editable layers."}
-                </p>
-                <span className="placeholder-label">Workspace placeholder</span>
-              </div>
-
-              <div className="artboard-footer">
-                <span>{width} × {height} px</span>
-                <span>RGB · 72 dpi</span>
-              </div>
-            </section>
-
-            <div className="artboard-caption">
-              <span>
-                <i aria-hidden="true" />
-                {artboard.name}
-              </span>
-              <span>Background #FFFFFF</span>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      <aside className="sidepanel" aria-label="Layers and inspector">
-        <section className="panel layers-panel">
-          <header className="panel-head">
-            <div>
-              <span className="eyebrow">Structure</span>
-              <h2>Layers</h2>
-            </div>
-            <span className="panel-count">0</span>
-          </header>
-          <div className="empty-layers">
-            <LayerStackGlyph />
-            <strong>No layers yet</strong>
-            <p>Preserved tool output will appear here as compositable layers.</p>
-          </div>
-          <div className="layer-placeholder-rows" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        </section>
-
-        <section className="panel inspector-panel">
-          <header className="panel-head">
-            <div>
-              <span className="eyebrow">Properties</span>
-              <h2>Inspector</h2>
-            </div>
-            <span className="panel-state">Empty</span>
-          </header>
-          <div className="inspector-empty">
-            <strong>Nothing selected</strong>
-            <p>Select a layer to inspect its transform, blending and source state.</p>
-          </div>
-          <dl className="format-spec">
-            <div>
-              <dt>Format</dt>
-              <dd>{format.label}</dd>
-            </div>
-            <div>
-              <dt>Dimensions</dt>
-              <dd>{width} × {height} px</dd>
-            </div>
-            <div>
-              <dt>Artboards</dt>
-              <dd>{defaultProject.artboards.length.toString().padStart(2, "0")}</dd>
-            </div>
-            <div>
-              <dt>Background</dt>
-              <dd>
-                <span className="swatch" aria-hidden="true" />#FFFFFF
-              </dd>
-            </div>
-            <div>
-              <dt>Color</dt>
-              <dd>RGB / sRGB</dd>
-            </div>
-          </dl>
-          <p className="inspector-note">Format controls arrive with the shared project store.</p>
-        </section>
-      </aside>
-
-      <footer className="statusbar">
-        <div className="status-left">
-          <span className="status-dot is-muted" aria-hidden="true" />
-          <span>Unsaved draft · in-memory only</span>
-        </div>
-        <div className="status-center">
-          <span>Studio foundation</span>
-          <span className="status-divider" />
-          <span>{format.label} · {width} × {height}</span>
-        </div>
-        <div className="status-right">
-          <span>Shared contracts v1</span>
-          <span className="status-divider" />
-          <span>Instrument Sans</span>
-        </div>
-      </footer>
-    </div>
+      ) : null}
+    </div></SessionNavigation.Provider>
   );
 }

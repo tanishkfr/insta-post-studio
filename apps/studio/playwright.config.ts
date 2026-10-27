@@ -2,7 +2,14 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/browser",
-  fullyParallel: true,
+  testIgnore: ["bend-production.spec.ts"],
+  fullyParallel: false,
+  // The preserved Image/Type renderers do synchronous full-resolution work.
+  // Two workers keep the local suite deterministic without starving those frames.
+  // CI runs one worker because BEND video encoding is CPU-heavy and concurrent
+  // WebCodecs/WebGL workers can starve each other on shared runners.
+  workers: process.env.CI ? 1 : 2,
+  timeout: 120_000,
   retries: 0,
   reporter: "list",
   use: {
@@ -12,13 +19,27 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
   ],
-  webServer: {
-    command: "npm run dev -- --port 4175 --strictPort",
-    url: "http://127.0.0.1:4175",
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: "npm run dev -- --host 127.0.0.1 --port 4175 --strictPort",
+      url: "http://127.0.0.1:4175",
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+    {
+      command: "node ../../scripts/serve-static.mjs tests/fixtures/fake-tool 4189",
+      url: "http://127.0.0.1:4189/fake-adapter.html",
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+    {
+      command: "node ../../scripts/serve-static.mjs ../../tools/legacy 4187",
+      url: "http://127.0.0.1:4187/vector/arnav.html",
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+  ],
 });

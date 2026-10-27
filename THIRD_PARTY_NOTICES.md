@@ -29,9 +29,19 @@ Studio 2.0 is a private integration workspace. It preserves source code from fou
 - Preserved notices: `tools/bend/THIRD_PARTY_NOTICES.md` and `tools/bend/docs/OSS_AUDIT.md`.
 - Runtime packages retain their upstream licence files when dependencies are installed. Notable: PixiJS (MIT), Mediabunny (MPL-2.0).
 
+## Vendored adapter dependencies
+
+The derived Studio adapter pages use local copies so specialized exports remain deterministic without cdnjs:
+
+- **JSZip 3.10.1** — MIT — <https://stuk.github.io/jszip/>. Used by the preserved Image layered-ZIP export.
+- **opentype.js 1.3.4** — MIT — <https://opentype.js.org/>. Used by the preserved Custom Type OTF export.
+- **@types/opentype.js** — MIT — TypeScript declarations used by host tests only.
+
+Copies live in `apps/studio/public/vendor/`. The original standalone Image/Custom Type pages keep their upstream cdnjs script references. These notices do not change the unresolved licence status of the imported Legacy/Typography source repositories.
+
 ## Studio host and contracts
 
-New Phase 0 host/contract code is part of this private repository. No public licence is granted by this document.
+New Phase 0–2 host/contract code is part of this private repository. No public licence is granted by this document.
 
 ## Rule for future phases
 

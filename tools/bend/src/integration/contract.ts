@@ -105,3 +105,75 @@ export interface BendIntegrationAdapter {
   ): Promise<BendStillMedia>;
   exportEditableProject(project: BendProject, onProgress?: (progress: BendIntegrationProgress) => void): Promise<{ blob: Blob; byteLength: number }>;
 }
+
+/* ---- Studio bridge publish descriptors (mirrored in @studio/contracts) ---- */
+
+export type BendExportQuality = "preview" | "final";
+
+export interface BendArtifactDescriptor {
+  url: string;
+  mimeType: string;
+  byteLength: number;
+  sha256: string;
+}
+
+export interface BendVideoArtifactDescriptor extends BendArtifactDescriptor {
+  container: string;
+  codec: string | null;
+  width: number;
+  height: number;
+  durationSeconds: number;
+  fps: number;
+  audioPresent: boolean;
+  audioMessage?: string;
+  frameCount?: number;
+}
+
+export interface BendPosterArtifactDescriptor extends BendArtifactDescriptor {
+  width: number;
+  height: number;
+  timestamp: number;
+}
+
+export interface BendPackageMediaDescriptor {
+  id: string;
+  name: string;
+  mimeType: string;
+  byteLength: number;
+  sha256: string | null;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+}
+
+export interface BendPackageArtifactDescriptor extends BendArtifactDescriptor {
+  format: "bendpkg";
+  formatVersion: number;
+  projectId: string;
+  sourceRevision: string;
+  media: BendPackageMediaDescriptor[];
+}
+
+export interface BendPublishRequest {
+  quality: BendExportQuality;
+  expectedSourceVersion?: string;
+  includePackage?: boolean;
+}
+
+export interface BendPublishResult {
+  sourceProjectId: string;
+  sourceRevision: string;
+  sourceProjectName: string;
+  aspectPreset: "4:5" | "1:1" | "9:16" | "16:9";
+  canvas: { width: number; height: number; fps: number; duration: number };
+  coverTime: number;
+  exportQuality: BendExportQuality;
+  isPreview: boolean;
+  video: BendVideoArtifactDescriptor;
+  poster: BendPosterArtifactDescriptor;
+  package: BendPackageArtifactDescriptor | null;
+  audioPresent: boolean;
+  audioMessage?: string;
+  renderedAt: string;
+}
+

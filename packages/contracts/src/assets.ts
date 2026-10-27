@@ -60,6 +60,7 @@ export interface RenderedAssetReference {
   durationSeconds?: number;
   /** Set when transparency is meaningful and preserved. */
   hasAlpha?: boolean;
+  contentHash?: string;
 }
 
 /** Tool-specific editable state is opaque to the host. */
@@ -70,6 +71,13 @@ export interface ToolSourceStateReference {
   mimeType: string;
   storage: StorageLocator;
   updatedAt: IsoDateTime;
+  /**
+   * Monotonic host-side revision for this layer's source document. A new
+   * revision must use a new storage key so project undo/history can still read
+   * the prior document.
+   */
+  revision: number;
+  contentHash?: string;
 }
 
 export interface ToolSourceStatePayload {

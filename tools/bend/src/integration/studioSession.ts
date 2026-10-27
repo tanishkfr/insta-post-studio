@@ -1,0 +1,180 @@
+import { makeId } from "../engine/core/project";
+import type { BendProject, MediaAssetRecord, StoredAssetRecord } from "../engine/core/types";
+import { decodeBendPackage } from "../engine/package/bendPackage";
+import { cleanupUnreferencedAssets, deleteAsset, deleteProject, loadAsset, saveAsset, saveProject } from "../storage/indexedDb";
+import { getProjectVersion } from "./version";
+
+export interface StudioPackageRestore {
+  project: BendProject;
+  assets: Record<string, MediaAssetRecord>;
+  urls: Record<string, string>;
+  warnings: string[];
+  byteLength: number;
+  sourceProjectId: string;
+  sourceVersion: string;
+  tempProjectId: string;
+}
+
+/** Deterministic, non-user project id for a temporary Studio edit session. */
+export function studioTempProjectId(scope: { layerId?: string | null; sessionId: string }): string {
+  const key = (scope.layerId || scope.sessionId).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 96);
+  return `bend-studio-${key || "session"}`;
+}
+
+/**
+ * Restore an editable `.bendpkg` into a deliberate temporary project record.
+ *
+ * Media blobs are content-deduplicated against BEND's existing asset store, so
+ * reopening the same package does not duplicate footage. The temporary project
+ * id is replaced (never appended) and cleanup only deletes that project, then
+ * runs BEND's conservative reference scan across every saved project.
+ */
+export async function restoreStudioEditPackage(input: {
+  blob: Blob;
+  tempProjectId: string;
+  expectedProjectId?: string;
+  expectedSourceVersion?: string;
+}): Promise<StudioPackageRestore> {
+  const decoded = await decodeBendPackage(input.blob);
+  if (!decoded.manifest.complete) {
+    throw new Error("The editable BEND package is marked incomplete.");
+  }
+  const sourceProjectId = decoded.project.id;
+  if (input.expectedProjectId && input.expectedProjectId !== sourceProjectId) {
+    throw new Error("The editable BEND package belongs to a different source project.");
+  }
+  const sourceVersion = getProjectVersion(decoded.project);
+  if (input.expectedSourceVersion && input.expectedSourceVersion !== sourceVersion) {
+    throw new Error("The editable BEND package does not match the committed source revision. Reopen the layer before editing.");
+  }
+
+  const idMap = new Map<string, string>();
+  const assets: Record<string, MediaAssetRecord> = {};
+  const urls: Record<string, string> = {};
+  const savedAssetIds: string[] = [];
+  const warnings: string[] = [];
+  const tempProjectId =
+    decoded.project.id.startsWith("bend-studio-")
+      ? decoded.project.id
+      : input.tempProjectId;
+
+  try {
+    for (const [sourceId, packaged] of Object.entries(decoded.assets)) {
+      const current = await loadAsset(sourceId);
+      if (current && await sameBlobContent(current.blob, packaged.blob)) {
+        assets[sourceId] = {
+          ...decoded.project.assets[sourceId],
+          id: sourceId,
+          storageKey: current.storageKey,
+          size: packaged.blob.size,
+          mimeType: packaged.manifest.mimeType,
+        };
+        urls[sourceId] = URL.createObjectURL(packaged.blob);
+        continue;
+      }
+      const assetId = current ? makeId("asset") : sourceId;
+      idMap.set(sourceId, assetId);
+      if (current) {
+        warnings.push(
+          `Imported ${packaged.manifest.name} as a new local asset because an asset with the same source id has different content.`,
+        );
+      }
+      const record: MediaAssetRecord = {
+        ...decoded.project.assets[sourceId],
+        id: assetId,
+        storageKey: makeId("blob"),
+        size: packaged.blob.size,
+        mimeType: packaged.manifest.mimeType,
+      };
+      await saveAsset({ ...record, blob: packaged.blob } satisfies StoredAssetRecord);
+      savedAssetIds.push(assetId);
+      assets[assetId] = record;
+      urls[assetId] = URL.createObjectURL(packaged.blob);
+    }
+
+    const project: BendProject = {
+      ...decoded.project,
+      id: tempProjectId,
+      assets: Object.fromEntries(
+        Object.entries(decoded.project.assets).map(([sourceId, asset]) => {
+          const assetId = idMap.get(sourceId) ?? sourceId;
+          return [
+            assetId,
+            {
+              ...asset,
+              id: assetId,
+              storageKey: assets[assetId]?.storageKey ?? asset.storageKey,
+            },
+          ];
+        }),
+      ),
+      layers: decoded.project.layers.map((layer) =>
+        layer.kind === "video"
+          ? { ...layer, assetId: idMap.get(layer.assetId) ?? layer.assetId }
+          : layer,
+      ),
+      soundtrack: decoded.project.soundtrack
+        ? {
+            ...decoded.project.soundtrack,
+            assetId:
+              idMap.get(decoded.project.soundtrack.assetId) ??
+              decoded.project.soundtrack.assetId,
+          }
+        : null,
+      metadata: { ...decoded.project.metadata, updatedAt: Date.now() },
+    };
+
+    // Replace the previous temporary record for this host layer. We never touch
+    // a project id that was not generated by Studio.
+    if (tempProjectId.startsWith("bend-studio-")) {
+      await deleteProject(tempProjectId).catch(() => undefined);
+    }
+    await saveProject(project, Date.now());
+    return {
+      project,
+      assets,
+      urls,
+      warnings,
+      byteLength: decoded.byteLength,
+      sourceProjectId,
+      sourceVersion,
+      tempProjectId,
+    };
+  } catch (error) {
+    Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    await Promise.all(savedAssetIds.map((id) => deleteAsset(id).catch(() => undefined)));
+    throw error;
+  }
+}
+
+/**
+ * Remove only the temporary Studio project, then reclaim blobs that no saved
+ * BEND project references. Existing standalone projects and their media are
+ * protected by the reference scan.
+ */
+export async function cleanupStudioSession(
+  tempProjectIds: string | Iterable<string> | null,
+): Promise<void> {
+  const ids = typeof tempProjectIds === "string"
+    ? [tempProjectIds]
+    : tempProjectIds
+      ? [...tempProjectIds]
+      : [];
+  const owned = ids.filter((id) => id.startsWith("bend-studio-"));
+  if (owned.length === 0) return;
+  await Promise.all(owned.map((id) => deleteProject(id).catch(() => undefined)));
+  await cleanupUnreferencedAssets().catch(() => undefined);
+}
+
+async function sameBlobContent(left: Blob, right: Blob): Promise<boolean> {
+  if (left.size !== right.size) return false;
+  const [leftBytes, rightBytes] = await Promise.all([
+    new Uint8Array(await left.arrayBuffer()),
+    new Uint8Array(await right.arrayBuffer()),
+  ]);
+  if (leftBytes.byteLength !== rightBytes.byteLength) return false;
+  for (let index = 0; index < leftBytes.byteLength; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) return false;
+  }
+  return true;
+}
