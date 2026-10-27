@@ -8,7 +8,7 @@ type LiveTool = Extract<
 
 interface ToolRailProps {
   layerCount: number;
-  activeView: "canvas";
+  activeView: NavToolId | "canvas";
   onCanvas: () => void;
   onOpenTool: (tool: LiveTool) => void;
 }
@@ -54,7 +54,7 @@ export function ToolRail({
               type="button"
               className="toolnav-item"
               data-testid={`tool-${tool.id}`}
-              aria-current={activeView === "canvas" ? undefined : "page"}
+              aria-current={activeView === tool.id ? "page" : undefined}
               onClick={() => onOpenTool(tool.id as LiveTool)}
               disabled={!enabled}
               title={
@@ -72,6 +72,7 @@ export function ToolRail({
           );
         })}
       </div>
+      <div id="studio-session-controls" />
     </nav>
   );
 }

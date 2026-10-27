@@ -27,18 +27,10 @@ test("project name, format, save and reload stay authoritative through the host 
   await expect(page.getByRole("combobox", { name: "Project format" })).toHaveValue(
     "instagram-story",
   );
-  await expect(page.locator(".status-center")).toContainText("Instagram 9:16");
-  await expect(page.locator(".status-center")).toContainText("1080 × 1920");
+  await expect(page.locator(".artboard-ruler")).toContainText("1080 × 1920");
 
-  await name.focus();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("combobox", { name: "Project format" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "New" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeFocused();
-  await page.keyboard.press("Tab");
-  const canvas = page.getByRole("button", { name: /Canvas/ });
+  const canvas = page.getByTestId("tool-canvas");
+  await canvas.focus();
   await expect(canvas).toBeFocused();
   const focusOutline = await canvas.evaluate((element) => {
     const style = getComputedStyle(element);

@@ -19,7 +19,7 @@ test("Image and Type sessions remain usable at narrower desktop widths", async (
   await page.setViewportSize({ width: 1024, height: 768 });
   await waitForStudio(page);
   await openImage(page);
-  await expect(page.getByRole("button", { name: "Canvas" })).toBeVisible();
+  await expect(page.getByTestId("tool-canvas")).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Add to composition|Update layer/ }),
   ).toBeVisible();
@@ -29,7 +29,7 @@ test("Image and Type sessions remain usable at narrower desktop widths", async (
 
   await page.setViewportSize({ width: 900, height: 700 });
   await openType(page);
-  await expect(page.getByRole("button", { name: "Canvas" })).toBeVisible();
+  await expect(page.getByTestId("tool-canvas")).toBeVisible();
   await expect(page.getByTestId("type-mode-library")).toBeVisible();
   await expect(page.getByTestId("type-mode-custom")).toBeVisible();
   await expect(

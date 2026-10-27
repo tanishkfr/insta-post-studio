@@ -23,6 +23,8 @@ interface CanvasWorkspaceProps {
   onOpenTool: (tool: LiveTool) => void;
   onAnimateComposition?: () => void;
   onExport?: () => void;
+  panelsOpen?: boolean;
+  onTogglePanels?: () => void;
 }
 
 interface DragState {
@@ -458,7 +460,7 @@ function LayerView({
   );
 }
 
-export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport, panelsOpen, onTogglePanels }: CanvasWorkspaceProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -612,6 +614,7 @@ export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport }: 
           <h1 id="workspace-title">Canvas workspace</h1>
         </div>
         <div className="workspace-tools" aria-label="Workspace display">
+          {onTogglePanels && <button type="button" className="button small" aria-expanded={panelsOpen} onClick={onTogglePanels}>{panelsOpen ? "Hide panels" : "Show panels"}</button>}
           <span className="workspace-chip">{artboard.name}</span>
           <span className="workspace-zoom">{formatRatio(artboard)} · Fit</span>
           {layers.length >= 2 ? (

@@ -44,7 +44,7 @@ const evidenceFile = (name: string) => {
 };
 
 async function backToCanvas(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Canvas", exact: true }).click();
+  await page.locator(".tool-session").getByRole("button", { name: "Canvas", exact: true }).click();
   await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 30_000 });
 }
 

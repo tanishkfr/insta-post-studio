@@ -2,6 +2,7 @@ import type { AssetReference, LayerProvenance, StudioProject, SourceToolId } fro
 import { useEffect, useRef, useState } from "react";
 import { createBendVideoLayer, createRasterLayer } from "./adapters/session/layerFactory";
 import type { ToolSessionCapture } from "./adapters/session/toolSession";
+import { SessionNavigation, type SessionDepartureResult } from "./adapters/session/navigation";
 import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
 import { parseBendSourceState } from "./adapters/bend/bendSourceState";
 import type { StaticMotionHandoff } from "./adapters/bend/staticToVideo";
@@ -15,6 +16,7 @@ import { GenerateEditor } from "./components/GenerateEditor";
 import { ImageEditor } from "./components/ImageEditor";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { LayersPanel } from "./components/LayersPanel";
+import { Landing } from "./components/Landing";
 import { ProjectDataDialog } from "./components/ProjectDataDialog";
 import { ShapesEditor } from "./components/ShapesEditor";
 import { ToolRail } from "./components/ToolRail";
@@ -28,6 +30,7 @@ import { studioStore, useStudioStore } from "./state/projectStore";
 import type { GeneratedLayoutTarget } from "./state/projectStore";
 import { useProjectPersistence } from "./state/useProjectPersistence";
 import { CompactPanel } from "./phase5a/components";
+import "./phase5a/components.css";
 
 type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate" | "bend";
 
@@ -90,6 +93,10 @@ export default function App() {
   const [panelsOpen, setPanelsOpen] = useState(false);
   const previousLayerCount = useRef(0);
   const panelOpener = useRef<HTMLButtonElement | null>(null);
+  const sessionDeparture = useRef<(() => SessionDepartureResult) | null>(null);
+  const pendingDestination = useRef<EditableTool | "canvas" | "home" | null>(null);
+  const pendingEntryTool = useRef<EditableTool | null>(null);
+  const [showStudio, setShowStudio] = useState(() => window.location.hash === "#studio");
 
   useEffect(() => {
     if (project.layers.length > previousLayerCount.current) setPanelsOpen(true);
@@ -160,6 +167,70 @@ export default function App() {
     studioStore.getState().setActiveTool("canvas");
   }
 
+  function enterStudio(tool?: EditableTool) {
+    if (tool) {
+      if (persistence.hydrated) openNewTool(tool);
+      else pendingEntryTool.current = tool;
+    }
+    window.history.pushState(null, "", `${window.location.pathname}${window.location.search}#studio`);
+    setShowStudio(true);
+  }
+
+  function goHome(updateHistory = true) {
+    if (updateHistory) window.history.pushState(null, "", `${window.location.pathname}${window.location.search}`);
+    setShowStudio(false);
+  }
+
+  function finishEditorClose() {
+    const destination = pendingDestination.current;
+    pendingDestination.current = null;
+    resetEditingState();
+    if (destination === "home") goHome(window.location.hash === "#studio");
+    else if (destination && destination !== "canvas") openNewTool(destination);
+  }
+
+  function navigate(destination: EditableTool | "canvas" | "home"): boolean {
+    if (destination === activeTool) return true;
+    if (!editingTool) {
+      if (destination === "home") goHome();
+      else if (destination === "canvas") resetEditingState();
+      else openNewTool(destination);
+      return true;
+    }
+    pendingDestination.current = destination;
+    if (sessionDeparture.current) {
+      const departure = sessionDeparture.current();
+      if (departure === "pending") {
+        // The editor is showing its own discard confirmation. Keep the
+        // destination so a confirmed leave can finish the navigation.
+        return false;
+      }
+      if (!departure) {
+        pendingDestination.current = null;
+        return false;
+      }
+    } else if (editingTool === "bend") {
+      // BEND can be preparing or asking for a format decision before a session exists.
+      finishEditorClose();
+    } else {
+      // Do not bypass a session that has not registered its close handler yet.
+      pendingDestination.current = null;
+      return false;
+    }
+    return true;
+  }
+
+  useEffect(() => {
+    const onHistory = () => {
+      if (window.location.hash === "#studio") setShowStudio(true);
+      else if (showStudio && !navigate("home")) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#studio`);
+      }
+    };
+    window.addEventListener("popstate", onHistory);
+    return () => window.removeEventListener("popstate", onHistory);
+  });
+
   function openNewTool(tool: EditableTool) {
     setEditingLayerId(null);
     setInputLayerId(null);
@@ -171,6 +242,14 @@ export default function App() {
     studioStore.getState().selectLayer(null);
     studioStore.getState().setActiveTool(tool);
   }
+
+  useEffect(() => {
+    if (persistence.hydrated && pendingEntryTool.current) {
+      const tool = pendingEntryTool.current;
+      pendingEntryTool.current = null;
+      openNewTool(tool);
+    }
+  }, [persistence.hydrated]);
 
   function openExistingTool(layerId: string) {
     const layer = studioStore.getState().project.layers.find(
@@ -421,12 +500,14 @@ export default function App() {
     }
   }
 
+  if (!showStudio) return <Landing onEnter={() => enterStudio()} onOpenTool={enterStudio} />;
+
   if (!persistence.hydrated) {
     return <LoadingShell />;
   }
 
   return (
-    <div
+    <SessionNavigation.Provider value={{ requestClose: sessionDeparture, cancelPending: () => { pendingDestination.current = null; } }}><div
       className={`studio-shell${editingTool ? " is-tool-editing" : ""}${!compact && !panelsOpen ? " panels-closed" : ""}`}
     >
       <Topbar
@@ -451,7 +532,10 @@ export default function App() {
             .catch(() => undefined);
         }}
         onProjectData={() => setShowProjectData(true)}
+        onHome={() => navigate("home")}
       />
+
+      <ToolRail layerCount={project.layers.length} activeView={activeTool} onCanvas={() => navigate("canvas")} onOpenTool={(tool) => navigate(tool)} />
 
       {editingTool === "vector" && activeArtboard ? (
         <VectorEditor
@@ -461,7 +545,7 @@ export default function App() {
           layer={editingLayer}
           inputLayerId={inputLayerId}
           onPublish={handlePublish}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : editingTool === "image" && activeArtboard ? (
         <ImageEditor
@@ -471,7 +555,7 @@ export default function App() {
           layer={editingLayer}
           inputLayerId={inputLayerId}
           onPublish={handlePublish}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : editingTool === "typography" && activeArtboard ? (
         <TypeEditor
@@ -482,7 +566,7 @@ export default function App() {
           initialMode={typeMode}
           inputLayerId={inputLayerId}
           onPublish={handlePublish}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : editingTool === "shapes" && activeArtboard ? (
         <ShapesEditor
@@ -491,7 +575,7 @@ export default function App() {
           artboard={activeArtboard}
           layer={editingLayer}
           onPublish={handlePublish}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : editingTool === "generate" && activeArtboard ? (
         <GenerateEditor
@@ -502,7 +586,7 @@ export default function App() {
           onPublish={handlePublish}
           onApplyLayout={handleApplyGenerateLayout}
           onUndoLayout={handleUndoGenerateLayout}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : editingTool === "bend" && activeArtboard ? (
         <BendEditor
@@ -512,19 +596,11 @@ export default function App() {
           layer={editingLayer}
           handoff={bendHandoff}
           onPublish={handlePublish}
-          onClose={resetEditingState}
+          onClose={finishEditorClose}
         />
       ) : (
         <>
-          <ToolRail
-            layerCount={project.layers.length}
-            activeView="canvas"
-            onCanvas={() => studioStore.getState().setActiveTool("canvas")}
-            onOpenTool={openNewTool}
-          />
-
           <div className="canvas-region">
-            {!compact && <div className="desktop-panel-actions"><button type="button" className="button small" aria-expanded={panelsOpen} onClick={() => setPanelsOpen((open) => !open)}>{panelsOpen ? "Hide panels" : "Show panels"}</button></div>}
             {compact && <div className="compact-panel-actions" aria-label="Studio panels">
               {(["Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
             </div>}
@@ -533,6 +609,8 @@ export default function App() {
               onOpenTool={openNewTool}
               onAnimateComposition={() => animateInBend(null, true)}
               onExport={() => setShowExport(true)}
+              panelsOpen={panelsOpen}
+              onTogglePanels={!compact ? () => setPanelsOpen((open) => !open) : undefined}
             />
           </div>
 
@@ -615,6 +693,6 @@ export default function App() {
           </button>
         </div>
       ) : null}
-    </div>
+    </div></SessionNavigation.Provider>
   );
 }

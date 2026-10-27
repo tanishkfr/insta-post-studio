@@ -80,7 +80,7 @@ test("Generate excludes hidden layers, preserves locked layers and handles missi
     beforeLocked,
   );
 
-  await page.getByRole("button", { name: "Canvas" }).click();
+  await page.getByTestId("generate-editor").getByRole("button", { name: "Canvas" }).click();
   await expect(page.getByTestId("artboard")).toBeVisible();
   await page.getByRole("button", { name: `Unlock layer ${image.name}` }).click();
   await page.getByRole("button", { name: `Show layer ${vector.name}` }).click();

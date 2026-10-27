@@ -18,6 +18,7 @@ interface TopbarProps {
   onFormatChange: (formatId: string) => void;
   onNewProject: () => void;
   onProjectData: () => void;
+  onHome?: () => void;
 }
 
 function StudioMark() {
@@ -109,16 +110,17 @@ export function Topbar({
   onFormatChange,
   onNewProject,
   onProjectData,
+  onHome,
 }: TopbarProps) {
   return (
     <StudioHeader className={`topbar p5a-host-header${editingTool ? " is-editing" : ""}`}>
-      <div className="brand">
+      <button type="button" className="brand" onClick={onHome} aria-label="Studio home">
         <StudioMark />
         <div className="brand-wordmark">
           <span>STUDIO</span>
           <span className="brand-version">2.0</span>
         </div>
-      </div>
+      </button>
 
       <div className="project-identity">
         <label className="project-label" htmlFor="project-name">

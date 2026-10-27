@@ -13,6 +13,7 @@ import type {
 } from "@studio/contracts";
 import {
   useCallback,
+  useContext,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -20,6 +21,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   IframeToolAdapter,
   ToolAdapterTransportError,
@@ -27,6 +29,7 @@ import {
 import { createId } from "../../lib/ids";
 import { assetRepository } from "../../storage/instances";
 import { sourceRevisionForLayer } from "../vector/captureVectorArtwork";
+import { SessionNavigation } from "./navigation";
 
 export interface ToolSessionCapture {
   sourceState: ToolSourceStateReference;
@@ -486,6 +489,9 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
     ref,
   } = props;
   const session = useToolSession(props);
+  const navigation = useContext(SessionNavigation);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const leaveDialogRef = useRef<HTMLDialogElement>(null);
   const {
     iframeRef,
     sessionState,
@@ -506,6 +512,44 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
     cancelPublishing,
   } = session;
 
+  useEffect(() => {
+    if (!navigation) return;
+    const requestClose = () => {
+      if (publishing) return false;
+      // Tool bridges debounce their dirty events, so even a seemingly clean
+      // session can contain an edit that has not reached the host yet. Ask
+      // with the host's styled dialog instead of the browser's native confirm.
+      setLeaveConfirmOpen(true);
+      return "pending" as const;
+    };
+    navigation.requestClose.current = requestClose;
+    return () => {
+      if (navigation.requestClose.current === requestClose) {
+        navigation.requestClose.current = null;
+      }
+    };
+  }, [navigation, publishing]);
+
+  useEffect(() => {
+    const dialog = leaveDialogRef.current;
+    if (!dialog) return;
+    if (leaveConfirmOpen && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector<HTMLButtonElement>("[data-leave-stay]")?.focus();
+    }
+    if (!leaveConfirmOpen && dialog.open) dialog.close();
+  }, [leaveConfirmOpen]);
+
+  function confirmLeave() {
+    setLeaveConfirmOpen(false);
+    void cancel();
+  }
+
+  function cancelLeave() {
+    setLeaveConfirmOpen(false);
+    navigation?.cancelPending();
+  }
+
   useImperativeHandle(
     ref,
     () => ({
@@ -520,14 +564,8 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
     ? props.updateLabel ?? config.updateLabel ?? "Update layer"
     : props.publishLabel ?? config.publishLabel ?? "Add to composition";
 
-  return (
-    <main
-      className={`vector-editor tool-session tool-${config.toolId}${sessionState === "ready" ? " is-ready" : ""}`}
-      data-testid={config.testId}
-      data-tool-id={config.toolId}
-      aria-label={`${config.label} editor session`}
-    >
-      <header className="vector-session-bar tool-session-bar">
+  const header = (
+      <header className={`vector-session-bar tool-session-bar${config.toolId === "bend" ? " tool-session-inline" : ""}`}>
         <button
           type="button"
           className="back-button"
@@ -587,6 +625,17 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
           </button>
         ) : null}
       </header>
+  );
+
+  const inlineTarget = config.toolId === "bend" ? document.getElementById("studio-session-controls") : null;
+  return (
+    <main
+      className={`vector-editor tool-session tool-${config.toolId}${sessionState === "ready" ? " is-ready" : ""}`}
+      data-testid={config.testId}
+      data-tool-id={config.toolId}
+      aria-label={`${config.label} editor session`}
+    >
+      {inlineTarget ? createPortal(header, inlineTarget) : header}
 
       {sessionNote ? <div className="tool-session-note">{sessionNote}</div> : null}
 
@@ -659,6 +708,36 @@ export function ToolSession<TCapture extends ToolSessionCapture>(
           </button>
         </div>
       ) : null}
+      <dialog
+        ref={leaveDialogRef}
+        className="leave-editor-dialog"
+        aria-labelledby="leave-editor-title"
+        data-testid="leave-editor-dialog"
+        onCancel={(event) => {
+          event.preventDefault();
+          cancelLeave();
+        }}
+      >
+        <span className="eyebrow">Unsaved session</span>
+        <h2 id="leave-editor-title">Leave this editor?</h2>
+        <p>
+          Any unpublished changes in this {config.label} session will be discarded.
+          The last saved source and the current composition stay intact.
+        </p>
+        <div className="dialog-actions">
+          <button
+            type="button"
+            className="button"
+            data-leave-stay=""
+            onClick={cancelLeave}
+          >
+            Keep editing
+          </button>
+          <button type="button" className="button primary" onClick={confirmLeave}>
+            Discard and leave
+          </button>
+        </div>
+      </dialog>
     </main>
   );
 }

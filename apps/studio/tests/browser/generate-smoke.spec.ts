@@ -194,7 +194,7 @@ test("Generate uses real Studio layers, applies a reversible layout and publishe
   expect(afterReload?.project.layers).toHaveLength(3);
 
   // Background layer is reorderable like any other layer.
-  await page.getByRole("button", { name: "Canvas" }).click();
+  await page.getByTestId("generate-editor").getByRole("button", { name: "Canvas" }).click();
   await expect(page.getByTestId("artboard")).toBeVisible();
   await selectLayer(page, layerId);
   await page.getByRole("button", { name: `Move layer ${generated.name} up` }).click();
@@ -248,7 +248,7 @@ test("Generate is aspect-aware for 1:1 and 9:16 instead of reusing 4:5 coordinat
       expect(placement.y).toBeGreaterThanOrEqual(0);
       expect(placement.y).toBeLessThanOrEqual(expectedFrame + 1);
     }
-    await page.getByRole("button", { name: "Canvas" }).click();
+    await page.getByTestId("generate-editor").getByRole("button", { name: "Canvas" }).click();
     await expect(page.getByTestId("artboard")).toBeVisible();
   }
 });

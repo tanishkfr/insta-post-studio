@@ -429,7 +429,7 @@ test.describe("BEND in Studio", () => {
     await selectLayer(page, layerId);
     await page.getByTestId("inspector-edit-layer").click();
     await waitForBendReady(page);
-    await page.getByRole("button", { name: /Update BEND layer/ }).click();
+    await page.getByRole("button", { name: /Update video layer/ }).click();
     await expect(page.getByTestId("cancel-publish")).toBeVisible({ timeout: 15_000 });
     await page.getByTestId("cancel-publish").click();
     await expect(page.locator(".publish-error")).toContainText(/cancel/i, {
@@ -439,7 +439,8 @@ test.describe("BEND in Studio", () => {
     expect(afterCancel!.sourceState.revision).toBe(committed!.sourceState.revision);
     expect(afterCancel!.rendered.assetId).toBe(committed!.rendered.assetId);
 
-    await page.getByTestId("bend-editor").getByRole("button", { name: "Canvas" }).click();
+    page.once("dialog", dialog => dialog.accept());
+    await page.getByTestId("tool-canvas").click();
     await expect(page.getByTestId("artboard")).toBeVisible();
 
     // Corrupt only the editable package. Reopening must fail before the editor
@@ -530,7 +531,7 @@ test.describe("BEND in Studio", () => {
       database.close();
     }, layerId);
 
-    await page.getByRole("button", { name: /Update BEND layer/ }).click();
+    await page.getByRole("button", { name: /Update video layer/ }).click();
     await expect(page.locator(".publish-error")).toContainText(/another Studio tab|updated elsewhere/i, {
       timeout: 240_000,
     });

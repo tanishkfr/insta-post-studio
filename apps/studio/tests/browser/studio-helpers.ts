@@ -1,7 +1,10 @@
 import { expect, type FrameLocator, type Page } from "@playwright/test";
 
 export async function waitForStudio(page: Page): Promise<void> {
-  await page.goto("/");
+  const alreadyAtStudio = new URL(page.url()).hash === "#studio";
+  await page.goto("/#studio");
+  // A same-document hash navigation does not reload seeded IndexedDB state.
+  if (alreadyAtStudio) await page.reload();
   await expect(page.getByRole("textbox", { name: "Project name" })).toBeVisible({
     timeout: 20_000,
   });
@@ -149,11 +152,11 @@ export async function waitForBendReady(page: Page): Promise<void> {
   await expect(page.getByTestId("bend-editor")).toBeVisible();
   await expect(
     page.getByRole("button", {
-      name: /Publish BEND video|Update BEND layer|Publish motion derivative/,
+      name: /Publish video|Update video layer|Publish motion derivative/,
     }),
   ).toBeEnabled({ timeout: 60_000 });
   await expect(page.getByText("Opening preserved BEND editor…")).toHaveCount(0);
-  const frame = page.frameLocator('iframe[title="BEND motion editor"]');
+  const frame = page.frameLocator('iframe[title="Video editor"]');
   await expect(frame.getByRole("heading", { name: /BEND editor:/ })).toBeVisible({
     timeout: 90_000,
   });
@@ -163,7 +166,7 @@ export async function waitForBendReady(page: Page): Promise<void> {
 }
 
 export function bendFrame(page: Page): FrameLocator {
-  return page.frameLocator('iframe[title="BEND motion editor"]');
+  return page.frameLocator('iframe[title="Video editor"]');
 }
 
 export async function addBendSignalField(frame: FrameLocator): Promise<void> {
@@ -183,7 +186,7 @@ export async function addBendMotionEcho(frame: FrameLocator): Promise<void> {
 
 export async function publishBend(page: Page, timeout = 240_000): Promise<void> {
   const button = page.getByRole("button", {
-    name: /Publish BEND video|Update BEND layer|Publish motion derivative/,
+    name: /Publish video|Update video layer|Publish motion derivative/,
   });
   await expect(button).toBeEnabled({ timeout: 90_000 });
   await button.click();

@@ -5,10 +5,15 @@ test("Studio shell exposes an empty persisted canvas and Image/Vector/Type entri
 }) => {
   await page.goto("/");
 
+  await expect(page.getByRole("heading", { name: /Less stress/ })).toBeVisible();
+  await page.getByRole("button", { name: /Enter Studio/ }).first().click();
+
   await expect(page.getByRole("textbox", { name: "Project name" })).toHaveValue(
     "Untitled Project",
   );
   await expect(page.getByRole("heading", { name: "Canvas workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Layers", exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Show panels" }).click();
   await expect(page.getByRole("heading", { name: "Layers", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Inspector", exact: true })).toBeVisible();
   await expect(page.getByTestId("save-state")).toContainText("Saved locally");

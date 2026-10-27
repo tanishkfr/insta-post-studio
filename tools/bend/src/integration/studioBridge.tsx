@@ -533,7 +533,7 @@ function installStudioBendBridge(
       return;
     }
     const name = typeof params.projectName === "string" && params.projectName.trim()
-      ? `${params.projectName.trim()} / BEND motion`
+      ? `${params.projectName.trim()} / Video`
       : "Studio BEND composition";
     const project = createProject(aspect, name);
     project.id = tempProjectId;
@@ -911,7 +911,7 @@ function installStudioBendBridge(
   }
 
   function installEmbedChrome(): void {
-    document.title = "BEND · Studio";
+    document.title = "Video · Studio";
     document.body.classList.add("studio-embedded-bend");
     const style = document.createElement("style");
     style.id = "studio-bend-embed-style";
@@ -921,6 +921,13 @@ function installStudioBendBridge(
       "body.studio-embedded-bend .studio-bend-context span{font-size:11px;color:#526C6E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       "body.studio-embedded-bend .studio-bend-context i{width:5px;height:5px;border-radius:50%;background:#236F72;display:inline-block;margin-right:5px;vertical-align:1px}",
       "body.studio-embedded-bend .studio-bend-quality{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#526C6E;border:1px solid rgba(35,111,114,.25);border-radius:999px;padding:3px 7px}",
+      "body.studio-embedded-bend .editor-topbar .wordmark{font-size:0}",
+      "body.studio-embedded-bend .editor-topbar .wordmark::after{content:'VIDEO';font-size:18px;letter-spacing:-.02em}",
+      "body.studio-embedded-bend .editor-topbar .wordmark span{display:none}",
+      "body.studio-embedded-bend .editor-page{height:100svh;min-height:0}",
+      "@media (min-width:821px){body.studio-embedded-bend .editor-page{grid-template-rows:56px minmax(0,1fr) clamp(150px,27svh,240px)}}",
+      "body.studio-embedded-bend .editor-workspace{padding:8px 12px}",
+      "body.studio-embedded-bend .canvas-frame,body.studio-embedded-bend .canvas-frame canvas{max-height:max(120px,calc(100svh - 400px))}",
     ].join("\n");
     document.head.appendChild(style);
     const badge = document.createElement("span");
@@ -942,11 +949,12 @@ function installStudioBendBridge(
         return;
       }
       if (document.querySelector(".studio-bend-context")) return;
+      document.querySelector(".editor-topbar .wordmark")?.setAttribute("aria-label", "Video home");
       const context = document.createElement("div");
       context.className = "studio-bend-context";
       context.setAttribute("data-testid", "bend-studio-context");
       const title = document.createElement("strong");
-      title.textContent = "Studio · BEND";
+      title.textContent = "Studio · Video";
       const meta = document.createElement("span");
       meta.id = "studioBendContext";
       meta.textContent = "motion layer";

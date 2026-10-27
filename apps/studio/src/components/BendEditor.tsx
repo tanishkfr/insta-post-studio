@@ -207,11 +207,11 @@ export function BendEditor({
   const config = useMemo<ToolSessionConfig<ToolSessionCapture>>(
     () => ({
       toolId: "bend",
-      label: "BEND",
+      label: "Video",
       bridgePath: "tools/bend/index.html",
-      iframeTitle: "BEND motion editor",
+      iframeTitle: "Video editor",
       testId: "bend-editor",
-      newDocumentTitle: handoff ? "Animate Studio artwork" : "New BEND composition",
+      newDocumentTitle: handoff ? "Animate Studio artwork" : "New video composition",
       handshakeTimeoutMs: 60_000,
       requestTimeoutMs: 180_000,
       parseSource: assertRestorableBendPayload,
@@ -318,10 +318,10 @@ export function BendEditor({
           <button type="button" className="back-button" onClick={onClose}>
             ← Canvas
           </button>
-          <strong>BEND did not open</strong>
+          <strong>Video did not open</strong>
         </header>
         <div className="vector-overlay" role="alert">
-          <strong>The editable BEND source is unavailable</strong>
+          <strong>The editable video source is unavailable</strong>
           <p>{prepareError}</p>
           <p className="handoff-note">
             The prior committed video, cover and package were not changed.
@@ -339,7 +339,7 @@ export function BendEditor({
       <main className="vector-editor tool-session tool-bend" data-testid="bend-editor">
         <div className="vector-overlay" role="status">
           <span className="loading-orbit" aria-hidden="true" />
-          <strong>Verifying editable BEND source…</strong>
+          <strong>Verifying editable video source…</strong>
           <p>Checking the .bendpkg package, source media and committed revision.</p>
         </div>
       </main>
@@ -353,15 +353,15 @@ export function BendEditor({
           <button type="button" className="back-button" onClick={onClose}>
             ← Canvas
           </button>
-          <strong>BEND project format</strong>
+          <strong>Video project format</strong>
         </header>
         <div className="vector-overlay bend-format-gate" role="dialog" aria-label="BEND format decision">
-          <strong>This BEND project uses a different aspect ratio</strong>
+          <strong>This video project uses a different aspect ratio</strong>
           <p>
             The saved project is {bendAspectLabel(source.canvas.width, source.canvas.height)} at{" "}
             {source.canvas.width}×{source.canvas.height}. The Studio artboard is{" "}
             {bendAspectLabel(artboard.width, artboard.height)} at {artboard.width}×{artboard.height}.
-            Choose an explicit treatment; BEND will not silently stretch the composition.
+            Choose an explicit treatment; the editor will not silently stretch the composition.
           </p>
           <div className="overlay-actions">
             <button
@@ -385,8 +385,8 @@ export function BendEditor({
             </button>
           </div>
           <p className="handoff-note">
-            Fit preserves the BEND canvas and places the exported layer inside the
-            Studio artboard. Reformat changes the BEND canvas to the Studio format.
+            Fit preserves the video canvas and places the exported layer inside the
+            Studio artboard. Reformat changes the video canvas to the Studio format.
           </p>
         </div>
       </main>
@@ -403,14 +403,14 @@ export function BendEditor({
       onPublish={onPublish}
       onClose={onClose}
       publishLabel={
-        handoff ? "Publish motion derivative" : layer ? "Update BEND layer" : "Publish BEND video"
+        handoff ? "Publish motion derivative" : layer ? "Update video layer" : "Publish video"
       }
-      updateLabel="Update BEND layer"
+      updateLabel="Update video layer"
       headerAddon={
         <label className="bend-quality-control" data-testid="bend-quality">
           <span>Export</span>
           <select
-            aria-label="BEND export quality"
+            aria-label="Video export quality"
             value={quality}
             onChange={(event) => setQuality(event.target.value as "preview" | "final")}
           >
@@ -418,22 +418,6 @@ export function BendEditor({
             <option value="final">Final · full canvas</option>
           </select>
         </label>
-      }
-      sessionNote={
-        <>
-          The complete preserved BEND editor is running in an isolated React 19 /
-          PixiJS / Mediabunny iframe. Publish produces a verified video, cover frame
-          and editable <code>.bendpkg</code>. Studio stores one temporal layer and
-          never replaces BEND&apos;s timeline, effects or audio mixer.
-          {handoff ? (
-            <>
-              {" "}This session started from Studio artwork as a real video clip
-              ({handoff.width}×{handoff.height}, {handoff.durationSeconds.toFixed(1)}s).
-              The flat handoff background is deliberate because the video codec path
-              does not claim alpha.
-            </>
-          ) : null}
-        </>
       }
     />
   );
