@@ -12,6 +12,7 @@ export interface ProjectPersistence {
   hydrated: boolean;
   saveNow: () => Promise<void>;
   newProject: () => Promise<void>;
+  adoptImportedProject: (project: StudioProject, revision: number) => void;
 }
 
 function saveErrorMessage(error: unknown): string {
@@ -185,5 +186,26 @@ export function useProjectPersistence(
     }
   }, [clearTimer, error, pump, saveNow, store]);
 
-  return { status, error, hydrated, saveNow, newProject };
+  const adoptImportedProject = useCallback(
+    (project: StudioProject, revision: number) => {
+      clearTimer();
+      revisionRef.current = revision;
+      latestProjectRef.current = project;
+      dirtyRef.current = false;
+      failedRef.current = false;
+      store.getState().replaceProject(project);
+      setStatus("saved");
+      setError(null);
+    },
+    [clearTimer, store],
+  );
+
+  return {
+    status,
+    error,
+    hydrated,
+    saveNow,
+    newProject,
+    adoptImportedProject,
+  };
 }

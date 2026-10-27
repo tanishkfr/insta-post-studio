@@ -93,6 +93,7 @@ describe("Studio shell components", () => {
         onRename={onRename}
         onFormatChange={onFormatChange}
         onNewProject={() => undefined}
+      onProjectData={() => undefined}
       />,
     );
 

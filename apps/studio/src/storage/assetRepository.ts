@@ -71,6 +71,41 @@ export interface MissingAssetReport {
   integrityErrors: string[];
 }
 
+export interface ImportAssetRecordInput {
+  id: string;
+  bytes: Uint8Array;
+  contentHash: string;
+  kind: AssetKind;
+  name: string;
+  mimeType: string;
+  sourceTool: SourceToolId;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  createdAt?: string;
+}
+
+export interface ImportSourceStateRecordInput {
+  id: string;
+  bytes: Uint8Array;
+  contentHash: string;
+  tool: SourceToolId;
+  toolStateVersion: string;
+  mimeType: string;
+  revision: number;
+  label?: string;
+  savedAt?: string;
+}
+
+export class AssetImportCollisionError extends Error {
+  readonly code = "ASSET_IMPORT_COLLISION" as const;
+
+  constructor(readonly recordId: string) {
+    super(`An existing local record (${recordId}) has different content. Import was refused.`);
+    this.name = "AssetImportCollisionError";
+  }
+}
+
 export class MissingAssetError extends Error {
   readonly code = "MISSING_ASSET" as const;
 
@@ -110,6 +145,14 @@ function dedupeSourceKey(
   mimeType: string,
 ): string {
   return [contentHash, tool, toolStateVersion, mimeType].join("|");
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
 }
 
 function toAssetReference(record: StoredAssetRecord): AssetReference {
@@ -362,6 +405,154 @@ export class AssetRepository {
       content: isText ? decodeBytes(record.bytes) : record.bytes,
       label: record.label,
     };
+  }
+
+  /**
+   * Adds an asset under its original package ID without overwriting a local
+   * record. Same-ID/same-content re-import is idempotent; different content is
+   * rejected so a malicious or stale package cannot replace local data.
+   */
+  async importAssetRecord(input: ImportAssetRecordInput): Promise<AssetReference> {
+    if (!input.id) throw new Error("Imported asset ID is required.");
+    if (!input.bytes.byteLength) throw new Error("Refusing to import an empty asset.");
+    const bytes = new Uint8Array(input.bytes);
+    const actualHash = await sha256Hex(bytes);
+    if (actualHash !== input.contentHash) {
+      throw new AssetIntegrityError(
+        input.id,
+        "Imported asset content does not match its package hash.",
+      );
+    }
+    const dedupeKey = dedupeAssetKey(
+      input.contentHash,
+      input.kind,
+      input.mimeType,
+      input.sourceTool,
+      input.width,
+      input.height,
+    );
+    const database = await this.database();
+    const transaction = database.transaction(ASSET_STORE, "readwrite");
+    const store = transaction.objectStore(ASSET_STORE);
+    try {
+      const existing = (await requestToPromise(store.get(input.id))) as
+        | StoredAssetRecord
+        | undefined;
+      if (existing) {
+        if (!bytesEqual(existing.bytes, bytes)) {
+          throw new AssetImportCollisionError(input.id);
+        }
+        await transactionDone(transaction);
+        return toAssetReference(existing);
+      }
+      const record: StoredAssetRecord = {
+        id: input.id,
+        bytes,
+        contentHash: input.contentHash,
+        dedupeKey,
+        kind: input.kind,
+        name: input.name,
+        mimeType: input.mimeType,
+        sourceTool: input.sourceTool,
+        width: input.width,
+        height: input.height,
+        durationSeconds: input.durationSeconds,
+        createdAt: input.createdAt ?? nowIso(),
+      };
+      store.add(record);
+      await transactionDone(transaction);
+      return toAssetReference(record);
+    } catch (error) {
+      try {
+        transaction.abort();
+      } catch {
+        // The transaction may already be settled.
+      }
+      throw error;
+    }
+  }
+
+  async importSourceStateRecord(
+    input: ImportSourceStateRecordInput,
+  ): Promise<ToolSourceStateReference> {
+    if (!input.id) throw new Error("Imported source-state ID is required.");
+    if (!input.bytes.byteLength) {
+      throw new Error("Refusing to import empty tool source state.");
+    }
+    if (!Number.isInteger(input.revision) || input.revision < 1) {
+      throw new Error("Imported source-state revision must be a positive integer.");
+    }
+    const bytes = new Uint8Array(input.bytes);
+    const actualHash = await sha256Hex(bytes);
+    if (actualHash !== input.contentHash) {
+      throw new AssetIntegrityError(
+        input.id,
+        "Imported source state does not match its package hash.",
+      );
+    }
+    const dedupeKey = dedupeSourceKey(
+      input.contentHash,
+      input.tool,
+      input.toolStateVersion,
+      input.mimeType,
+    );
+    const database = await this.database();
+    const transaction = database.transaction(SOURCE_STATE_STORE, "readwrite");
+    const store = transaction.objectStore(SOURCE_STATE_STORE);
+    try {
+      const existing = (await requestToPromise(store.get(input.id))) as
+        | StoredSourceStateRecord
+        | undefined;
+      if (existing) {
+        if (!bytesEqual(existing.bytes, bytes)) {
+          throw new AssetImportCollisionError(input.id);
+        }
+        await transactionDone(transaction);
+        return toSourceReference(existing);
+      }
+      const record: StoredSourceStateRecord = {
+        id: input.id,
+        bytes,
+        contentHash: input.contentHash,
+        dedupeKey,
+        tool: input.tool,
+        toolStateVersion: input.toolStateVersion,
+        mimeType: input.mimeType,
+        revision: input.revision,
+        label: input.label,
+        savedAt: input.savedAt ?? nowIso(),
+      };
+      store.add(record);
+      await transactionDone(transaction);
+      return toSourceReference(record);
+    } catch (error) {
+      try {
+        transaction.abort();
+      } catch {
+        // The transaction may already be settled.
+      }
+      throw error;
+    }
+  }
+
+  async listAssets(): Promise<AssetReference[]> {
+    const database = await this.database();
+    const transaction = database.transaction(ASSET_STORE, "readonly");
+    const records = (await requestToPromise(
+      transaction.objectStore(ASSET_STORE).getAll(),
+    )) as StoredAssetRecord[];
+    await transactionDone(transaction);
+    return records.map(toAssetReference);
+  }
+
+  async listSourceStates(): Promise<ToolSourceStateReference[]> {
+    const database = await this.database();
+    const transaction = database.transaction(SOURCE_STATE_STORE, "readonly");
+    const records = (await requestToPromise(
+      transaction.objectStore(SOURCE_STATE_STORE).getAll(),
+    )) as StoredSourceStateRecord[];
+    await transactionDone(transaction);
+    return records.map(toSourceReference);
   }
 
   async inspectProjectAssets(project: StudioProject): Promise<MissingAssetReport> {

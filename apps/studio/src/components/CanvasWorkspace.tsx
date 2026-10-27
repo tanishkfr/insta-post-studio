@@ -12,6 +12,7 @@ import { studioStore, useStudioStore } from "../state/projectStore";
 import { assetRepository, objectUrls } from "../storage/instances";
 import { loadRenderedSvg } from "../studio/renderedAssets";
 import type { NavToolId } from "../project/defaultProject";
+import { ArtboardBar } from "./ArtboardBar";
 
 type LiveTool = Extract<
   NavToolId,
@@ -21,6 +22,7 @@ type LiveTool = Extract<
 interface CanvasWorkspaceProps {
   onOpenTool: (tool: LiveTool) => void;
   onAnimateComposition?: () => void;
+  onExport?: () => void;
 }
 
 interface DragState {
@@ -456,7 +458,7 @@ function LayerView({
   );
 }
 
-export function CanvasWorkspace({ onOpenTool, onAnimateComposition }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport }: CanvasWorkspaceProps) {
   const project = useStudioStore((state) => state.project);
   const activeArtboardId = useStudioStore((state) => state.activeArtboardId);
   const selectedLayerId = useStudioStore((state) => state.selectedLayerId);
@@ -634,6 +636,17 @@ export function CanvasWorkspace({ onOpenTool, onAnimateComposition }: CanvasWork
               Animate composition
             </button>
           ) : null}
+          {onExport ? (
+            <button
+              type="button"
+              className="button small primary export-button"
+              data-testid="open-export"
+              onClick={onExport}
+              title="Export the active artboard at native resolution"
+            >
+              Export
+            </button>
+          ) : null}
           <button
             type="button"
             className="button small"
@@ -645,6 +658,8 @@ export function CanvasWorkspace({ onOpenTool, onAnimateComposition }: CanvasWork
           </button>
         </div>
       </header>
+
+      <ArtboardBar />
 
       <div
         className="canvas-stage"

@@ -60,6 +60,11 @@ export interface StudioProjectActions {
   renameProject(name: string): void;
   setFormat(formatId: string): void;
   setActiveArtboard(artboardId: ArtboardId): void;
+  addArtboard(): ArtboardId;
+  duplicateArtboard(artboardId: ArtboardId): ArtboardId | null;
+  renameArtboard(artboardId: ArtboardId, name: string): void;
+  reorderArtboard(artboardId: ArtboardId, direction: "left" | "right"): void;
+  deleteArtboard(artboardId: ArtboardId): boolean;
   setActiveTool(tool: ActiveTool): void;
   selectLayer(layerId: LayerId | null): void;
   addLayer(
@@ -274,6 +279,154 @@ export function createProjectStore(
         if (get().project.artboards.some((artboard) => artboard.id === artboardId)) {
           set({ activeArtboardId: artboardId, selectedLayerId: null });
         }
+      },
+
+      addArtboard() {
+        const state = get();
+        const index =
+          state.project.artboards.reduce(
+            (highest, artboard) => Math.max(highest, artboard.index),
+            -1,
+          ) + 1;
+        const artboard: Artboard = {
+          id: createId("artboard"),
+          name: `Artboard ${String(index + 1).padStart(2, "0")}`,
+          index,
+          width: state.project.format.width,
+          height: state.project.format.height,
+          background: { kind: "solid", color: "#ffffff" },
+          layerOrder: [],
+        };
+        commit((project) => ({
+          ...project,
+          artboards: [...project.artboards, artboard],
+        }));
+        set({ activeArtboardId: artboard.id, selectedLayerId: null });
+        return artboard.id;
+      },
+
+      duplicateArtboard(artboardId) {
+        const state = get();
+        const source = state.project.artboards.find(
+          (artboard) => artboard.id === artboardId,
+        );
+        if (!source) return null;
+        const layersById = new Map(
+          state.project.layers.map((layer) => [layer.id, layer]),
+        );
+        const newArtboardId = createId("artboard");
+        const layerIdMap = new Map<LayerId, LayerId>();
+        const timestamp = nowIso();
+        const clonedLayers: SharedLayer[] = [];
+        for (const oldLayerId of source.layerOrder) {
+          const original = layersById.get(oldLayerId);
+          if (!original) continue;
+          const newLayerId = createId("layer");
+          layerIdMap.set(oldLayerId, newLayerId);
+          clonedLayers.push({
+            ...structuredClone(original),
+            id: newLayerId,
+            artboardId: newArtboardId,
+            metadata: {
+              ...original.metadata,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          });
+        }
+        // Preserve cross-layer provenance only when it points inside the
+        // duplicated artboard. References outside it keep their original IDs.
+        for (const layer of clonedLayers) {
+          if (
+            layer.provenance &&
+            layerIdMap.has(layer.provenance.sourceLayerId)
+          ) {
+            layer.provenance = {
+              ...layer.provenance,
+              sourceLayerId: layerIdMap.get(layer.provenance.sourceLayerId)!,
+            };
+          }
+        }
+        const newArtboard: Artboard = {
+          ...structuredClone(source),
+          id: newArtboardId,
+          name: `${source.name} copy`.slice(0, 80),
+          index: source.index + 1,
+          layerOrder: source.layerOrder
+            .filter((id) => layerIdMap.has(id))
+            .map((id) => layerIdMap.get(id)!),
+        };
+        commit((project) => {
+          const artboards = [...project.artboards];
+          const sourceIndex = artboards.findIndex(
+            (artboard) => artboard.id === source.id,
+          );
+          artboards.splice(sourceIndex + 1, 0, newArtboard);
+          return {
+            ...project,
+            artboards: artboards.map((artboard, index) => ({
+              ...artboard,
+              index,
+            })),
+            layers: [...project.layers, ...clonedLayers],
+          };
+        });
+        set({ activeArtboardId: newArtboardId, selectedLayerId: null });
+        return newArtboardId;
+      },
+
+      renameArtboard(artboardId, name) {
+        const clean = name.trim().slice(0, 80);
+        if (!clean) return;
+        if (!get().project.artboards.some((artboard) => artboard.id === artboardId)) return;
+        commit((project) => ({
+          ...project,
+          artboards: project.artboards.map((artboard) =>
+            artboard.id === artboardId ? { ...artboard, name: clean } : artboard,
+          ),
+        }));
+      },
+
+      reorderArtboard(artboardId, direction) {
+        commit((project) => {
+          const ordered = project.artboards
+            .slice()
+            .sort((left, right) => left.index - right.index);
+          const from = ordered.findIndex((artboard) => artboard.id === artboardId);
+          if (from < 0) return project;
+          const to = direction === "left" ? from - 1 : from + 1;
+          if (to < 0 || to >= ordered.length) return project;
+          [ordered[from], ordered[to]] = [ordered[to], ordered[from]];
+          return {
+            ...project,
+            artboards: ordered.map((artboard, index) => ({ ...artboard, index })),
+          };
+        });
+      },
+
+      deleteArtboard(artboardId) {
+        const state = get();
+        if (state.project.artboards.length <= 1) return false;
+        const target = state.project.artboards.find(
+          (artboard) => artboard.id === artboardId,
+        );
+        if (!target) return false;
+        const remaining = state.project.artboards
+          .filter((artboard) => artboard.id !== artboardId)
+          .sort((left, right) => left.index - right.index)
+          .map((artboard, index) => ({ ...artboard, index }));
+        commit((project) => ({
+          ...project,
+          artboards: remaining,
+          layers: project.layers.filter((layer) => layer.artboardId !== artboardId),
+        }));
+        if (state.activeArtboardId === artboardId) {
+          const next =
+            remaining[Math.min(target.index, remaining.length - 1)] ??
+            remaining[0];
+          set({ activeArtboardId: next.id, selectedLayerId: null });
+        }
+        return true;
       },
 
       setActiveTool(tool) {

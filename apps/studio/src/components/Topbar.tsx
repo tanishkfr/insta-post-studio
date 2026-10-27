@@ -17,6 +17,7 @@ interface TopbarProps {
   onRename: (name: string) => void;
   onFormatChange: (formatId: string) => void;
   onNewProject: () => void;
+  onProjectData: () => void;
 }
 
 function StudioMark() {
@@ -107,6 +108,7 @@ export function Topbar({
   onRename,
   onFormatChange,
   onNewProject,
+  onProjectData,
 }: TopbarProps) {
   return (
     <StudioHeader className={`topbar p5a-host-header${editingTool ? " is-editing" : ""}`}>
@@ -183,6 +185,16 @@ export function Topbar({
 
         {!editingTool ? (
           <>
+            <button
+              type="button"
+              className="button subtle"
+              onClick={onProjectData}
+              disabled={saveStatus === "loading"}
+              title="Export or import editable project data"
+              data-testid="open-project-data"
+            >
+              Project data
+            </button>
             <button
               type="button"
               className="button subtle"

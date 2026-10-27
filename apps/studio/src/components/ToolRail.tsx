@@ -1,7 +1,5 @@
 import type { SharedLayer } from "@studio/contracts";
 import { toolNav, type NavToolId } from "../project/defaultProject";
-import { StudioToolRail } from "../phase5a/components";
-import "../phase5a/components.css";
 
 type LiveTool = Extract<
   NavToolId,
@@ -15,6 +13,11 @@ interface ToolRailProps {
   onOpenTool: (tool: LiveTool) => void;
 }
 
+/**
+ * The Studio tool navigation. The routing authority remains the host store;
+ * this component only presents the same live tool destinations as a compact
+ * horizontal tab row beneath the project header.
+ */
 export function ToolRail({
   layerCount,
   activeView,
@@ -22,21 +25,54 @@ export function ToolRail({
   onOpenTool,
 }: ToolRailProps) {
   return (
-    <StudioToolRail
-      tools={toolNav.map((tool) => ({
-        id: tool.id, name: tool.label, purpose: tool.discipline,
-        enabled: tool.status === "live",
-        reason: tool.status === "live" ? undefined : "This editor is not available yet.",
-      }))}
-      canvasDetail={layerCount ? `${layerCount} layer${layerCount === 1 ? "" : "s"}` : "Project overview"}
-      showAvailability
-      active={activeView === "canvas" ? "compose" : activeView}
-      onCompose={onCanvas}
-      onTool={(id) => {
-        const tool = toolNav.find((candidate) => candidate.id === id && candidate.status === "live");
-        if (tool) onOpenTool(tool.id as LiveTool);
-      }}
-    />
+    <nav className="toolnav" aria-label="Studio tools">
+      <div className="toolnav-track">
+        <button
+          type="button"
+          className="toolnav-item toolnav-canvas"
+          data-testid="tool-canvas"
+          aria-current={activeView === "canvas" ? "page" : undefined}
+          onClick={onCanvas}
+        >
+          <span className="toolnav-mark" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <span className="toolnav-label">Canvas</span>
+          <span className="sr-only">
+            {layerCount ? `${layerCount} layer${layerCount === 1 ? "" : "s"}` : "Project overview"}
+          </span>
+        </button>
+
+        <span className="toolnav-rule" aria-hidden="true" />
+
+        {toolNav.map((tool) => {
+          const enabled = tool.status === "live";
+          return (
+            <button
+              key={tool.id}
+              type="button"
+              className="toolnav-item"
+              data-testid={`tool-${tool.id}`}
+              aria-current={activeView === "canvas" ? undefined : "page"}
+              onClick={() => onOpenTool(tool.id as LiveTool)}
+              disabled={!enabled}
+              title={
+                enabled
+                  ? `${tool.label} — ${tool.discipline}`
+                  : "This editor is not available yet."
+              }
+            >
+              <span className="toolnav-index" aria-hidden="true">
+                {tool.index}
+              </span>
+              <span className="toolnav-label">{tool.label}</span>
+              <span className="sr-only">{enabled ? "Live" : "Soon"}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 

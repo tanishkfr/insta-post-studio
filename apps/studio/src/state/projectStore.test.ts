@@ -355,4 +355,65 @@ describe("project store", () => {
       store.getState().project.layers.find((layer) => layer.id === headlineId)!.transform,
     ).toEqual(before.find((layer) => layer.id === headlineId)!.transform);
   });
+
+  it("creates, duplicates, renames, reorders and deletes artboards with independent layer graphs", () => {
+    const store = createProjectStore(project);
+    store.getState().addLayer(makeLayer(project, "One"));
+    const firstArtboardId = store.getState().project.artboards[0].id;
+
+    const secondArtboardId = store.getState().addArtboard();
+    expect(store.getState().activeArtboardId).toBe(secondArtboardId);
+    expect(store.getState().project.artboards).toHaveLength(2);
+
+    const secondLayer = {
+      ...makeLayer(store.getState().project, "Two"),
+      artboardId: secondArtboardId,
+    };
+    store.getState().addLayer(secondLayer);
+    const firstArtboard = store
+      .getState()
+      .project.artboards.find((artboard) => artboard.id === firstArtboardId)!;
+    const secondArtboard = store
+      .getState()
+      .project.artboards.find((artboard) => artboard.id === secondArtboardId)!;
+    expect(firstArtboard.layerOrder).toHaveLength(1);
+    expect(secondArtboard.layerOrder).toHaveLength(1);
+
+    const copyId = store.getState().duplicateArtboard(secondArtboardId)!;
+    expect(copyId).toBeTruthy();
+    expect(store.getState().activeArtboardId).toBe(copyId);
+    expect(store.getState().project.artboards).toHaveLength(3);
+    const copy = store
+      .getState()
+      .project.artboards.find((artboard) => artboard.id === copyId)!;
+    expect(copy.layerOrder).toHaveLength(1);
+    expect(copy.layerOrder).not.toEqual(secondArtboard.layerOrder);
+    const copiedLayers = store
+      .getState()
+      .project.layers.filter((layer) => layer.artboardId === copyId);
+    expect(copiedLayers).toHaveLength(1);
+    expect(copiedLayers.every((layer) => layer.artboardId === copyId)).toBe(true);
+
+    store.getState().renameArtboard(copyId, "Carousel slide");
+    expect(
+      store.getState().project.artboards.find((artboard) => artboard.id === copyId)!.name,
+    ).toBe("Carousel slide");
+
+    store.getState().reorderArtboard(copyId, "left");
+    const ordered = store
+      .getState()
+      .project.artboards.slice()
+      .sort((left, right) => left.index - right.index)
+      .map((artboard) => artboard.name);
+    expect(ordered[1]).toBe("Carousel slide");
+
+    expect(store.getState().deleteArtboard(copyId)).toBe(true);
+    expect(store.getState().project.artboards).toHaveLength(2);
+    expect(
+      store.getState().project.layers.every((layer) => layer.artboardId !== copyId),
+    ).toBe(true);
+    expect(store.getState().deleteArtboard(secondArtboardId)).toBe(true);
+    expect(store.getState().project.artboards).toHaveLength(1);
+    expect(store.getState().deleteArtboard(firstArtboardId)).toBe(false);
+  });
 });

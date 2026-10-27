@@ -10,10 +10,12 @@ import { createVectorLayer } from "./adapters/vector/vectorLayer";
 import { AnimateInBendDialog } from "./components/AnimateInBendDialog";
 import { BendEditor } from "./components/BendEditor";
 import { CanvasWorkspace } from "./components/CanvasWorkspace";
+import { ExportDialog } from "./components/ExportDialog";
 import { GenerateEditor } from "./components/GenerateEditor";
 import { ImageEditor } from "./components/ImageEditor";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { LayersPanel } from "./components/LayersPanel";
+import { ProjectDataDialog } from "./components/ProjectDataDialog";
 import { ShapesEditor } from "./components/ShapesEditor";
 import { ToolRail } from "./components/ToolRail";
 import { Topbar } from "./components/Topbar";
@@ -78,11 +80,13 @@ export default function App() {
   const [inputLayerId, setInputLayerId] = useState<string | null>(null);
   const [bendHandoff, setBendHandoff] = useState<StaticMotionHandoff | null>(null);
   const [showBendHandoff, setShowBendHandoff] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showProjectData, setShowProjectData] = useState(false);
   const [preferBendComposition, setPreferBendComposition] = useState(false);
   const [typeMode, setTypeMode] = useState<TypographyMode>("library");
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [compact, setCompact] = useState(() => window.innerWidth <= 760);
-  const [compactPanel, setCompactPanel] = useState<"Tools" | "Layers" | "Inspector" | null>(null);
+  const [compactPanel, setCompactPanel] = useState<"Layers" | "Inspector" | null>(null);
   const panelOpener = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -412,7 +416,7 @@ export default function App() {
 
   return (
     <div
-      className={`studio-shell${editingTool ? " is-vector-editing is-tool-editing" : ""}`}
+      className={`studio-shell${editingTool ? " is-tool-editing" : ""}`}
     >
       <Topbar
         project={project}
@@ -435,6 +439,7 @@ export default function App() {
             .then(() => resetEditingState())
             .catch(() => undefined);
         }}
+        onProjectData={() => setShowProjectData(true)}
       />
 
       {editingTool === "vector" && activeArtboard ? (
@@ -500,21 +505,24 @@ export default function App() {
         />
       ) : (
         <>
-          {!compact && <ToolRail
+          <ToolRail
             layerCount={project.layers.length}
             activeView="canvas"
             onCanvas={() => studioStore.getState().setActiveTool("canvas")}
             onOpenTool={openNewTool}
-          />}
-
-          {compact && <div className="compact-panel-actions" aria-label="Studio panels">
-            {(["Tools", "Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
-          </div>}
-
-          <CanvasWorkspace
-            onOpenTool={openNewTool}
-            onAnimateComposition={() => animateInBend(null, true)}
           />
+
+          <div className="canvas-region">
+            {compact && <div className="compact-panel-actions" aria-label="Studio panels">
+              {(["Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
+            </div>}
+
+            <CanvasWorkspace
+              onOpenTool={openNewTool}
+              onAnimateComposition={() => animateInBend(null, true)}
+              onExport={() => setShowExport(true)}
+            />
+          </div>
 
           {!compact && <aside className="sidepanel" aria-label="Layers and inspector">
             <LayersPanel
@@ -532,29 +540,9 @@ export default function App() {
           </aside>}
 
           {compactPanel && <CompactPanel title={compactPanel} onClose={closeCompactPanel}>
-            {compactPanel === "Tools" && <ToolRail layerCount={project.layers.length} activeView="canvas" onCanvas={closeCompactPanel} onOpenTool={(tool) => { setCompactPanel(null); openNewTool(tool); }} />}
             {compactPanel === "Layers" && <LayersPanel onOpenTool={(tool) => { setCompactPanel(null); openNewTool(tool); }} onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} />}
             {compactPanel === "Inspector" && <InspectorPanel onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} onContinueInVector={(id) => { setCompactPanel(null); void startHandoff(id, "vector"); }} onUseAsTypePattern={(id) => { setCompactPanel(null); void startHandoff(id, "typography"); }} onUseAsImageInput={(id) => { setCompactPanel(null); useAsImageInput(id); }} onGenerateLayouts={() => { setCompactPanel(null); openNewTool("generate"); }} onAnimateInBend={(id) => { setCompactPanel(null); animateInBend(id); }} />}
           </CompactPanel>}
-
-          <footer className="statusbar">
-            <div className="status-left">
-              <span className={`status-dot ${persistence.status === "error" ? "is-error" : ""}`} aria-hidden="true" />
-              <span>{persistence.error ? "Local save needs attention" : "Local-first project"}</span>
-            </div>
-            <div className="status-center">
-              <span>Image · Vector · Type · Shapes · BEND · Generate</span>
-              <span className="status-divider" />
-              <span>
-                {project.format.label} · {project.format.width} × {project.format.height}
-              </span>
-            </div>
-            <div className="status-right">
-              <span>{project.layers.length} layer{project.layers.length === 1 ? "" : "s"}</span>
-              <span className="status-divider" />
-              <span>{selectedLayerId ? "Layer selected" : "Shared contracts v1"}</span>
-            </div>
-          </footer>
         </>
       )}
 
@@ -566,6 +554,25 @@ export default function App() {
           preferComposition={preferBendComposition}
           onCancel={() => setShowBendHandoff(false)}
           onOpen={openBendHandoff}
+        />
+      ) : null}
+
+      {showExport && activeArtboard ? (
+        <ExportDialog
+          project={project}
+          artboard={activeArtboard}
+          onClose={() => setShowExport(false)}
+        />
+      ) : null}
+
+      {showProjectData ? (
+        <ProjectDataDialog
+          project={project}
+          onAdopt={(imported, revision) => {
+            persistence.adoptImportedProject(imported, revision);
+            resetEditingState();
+          }}
+          onClose={() => setShowProjectData(false)}
         />
       ) : null}
 

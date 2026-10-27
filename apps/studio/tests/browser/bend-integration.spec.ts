@@ -28,12 +28,6 @@ const evidence = (name: string) => {
   return resolve(dir, name);
 };
 
-const phase5bEvidence = (name: string) => {
-  const dir = resolve(process.cwd(), "../../docs/evidence/phase-5b");
-  mkdirSync(dir, { recursive: true });
-  return resolve(dir, name);
-};
-
 async function captureDownload(
   page: Page,
   action: () => Promise<void>,
@@ -59,7 +53,6 @@ test.describe("BEND in Studio", () => {
     await addBendSignalField(frame);
     await frame.getByLabel("Duration value").first().fill("2");
     await addBendMotionEcho(frame);
-    await page.screenshot({ path: evidence("02-bend-editor-timeline.png"), fullPage: true });
     await publishBend(page);
 
     const layerElement = page
@@ -178,7 +171,6 @@ test.describe("BEND in Studio", () => {
 
     // The static composition shows the cover; explicit play starts the video.
     await expect(layerElement.locator("img.raster-artwork")).toBeVisible();
-    await page.screenshot({ path: evidence("03-published-video-layer.png"), fullPage: true });
     await layerElement.click();
     await page.getByTestId(`bend-video-toggle-${layerId}`).click();
     const playing = await layerElement.locator("video").evaluate((video) => ({
@@ -227,7 +219,6 @@ test.describe("BEND in Studio", () => {
     expect(
       await page.locator(`[data-testid="canvas-layer"][data-layer-id="${layerId}"]`).count(),
     ).toBe(1);
-    await page.screenshot({ path: evidence("05-same-layer-update.png"), fullPage: true });
 
     await page.reload();
     await waitForStudio(page);
@@ -236,7 +227,6 @@ test.describe("BEND in Studio", () => {
     await waitForBendReady(page);
     await bendFrame(page).getByRole("tab", { name: /Effects/ }).click();
     await expect(bendFrame(page).locator(".temporal-stack-row").first()).toBeVisible();
-    await page.screenshot({ path: evidence("04-source-reentry.png"), fullPage: true });
   });
 });
 
@@ -268,7 +258,6 @@ test.describe("BEND in Studio", () => {
     await page.getByTestId("animate-in-bend").click();
     const dialog = page.getByTestId("animate-in-bend-dialog");
     await expect(dialog).toBeVisible();
-    await page.screenshot({ path: evidence("06-static-handoff-dialog.png"), fullPage: true });
     await page.getByLabel("Handoff clip duration seconds").fill("1.5");
     await page.getByTestId("start-bend-handoff").click();
     await waitForBendReady(page);
@@ -303,7 +292,6 @@ test.describe("BEND in Studio", () => {
       });
     expect(imported.videoLayers).toBe(1);
     expect(imported.assets).toBe(1);
-    await page.screenshot({ path: evidence("07-static-handoff-timeline.png"), fullPage: true });
 
     await addBendMotionEcho(bend);
     await publishBend(page);
@@ -330,7 +318,6 @@ test.describe("BEND in Studio", () => {
     expect(source!.package.media.length).toBe(1);
     expect(source!.package.media[0].mimeType).toMatch(/video\/(mp4|webm)/);
 
-    await page.screenshot({ path: evidence("08-static-derivative.png"), fullPage: true });
   });
 
   test("publishes source audio and packaged media honestly", async ({ page }) => {
@@ -414,7 +401,6 @@ test.describe("BEND in Studio", () => {
     }, layer!);
     expect(playback.currentTime).toBeGreaterThan(0);
     expect(playback.duration).toBeGreaterThan(1.5);
-    await page.screenshot({ path: evidence("09-audio-layer.png"), fullPage: true });
   });
 
   test("cancel, corrupt source and stale revisions preserve the previous committed layer", async ({
@@ -485,7 +471,6 @@ test.describe("BEND in Studio", () => {
     await expect(page.getByRole("alert")).toContainText(/BEND source is unavailable/i, {
       timeout: 30_000,
     });
-    await page.screenshot({ path: evidence("10-failure-recovery.png"), fullPage: true });
     await page.getByRole("button", { name: "Back to canvas" }).click();
     const afterCorrupt = await readBendLayer(page, layerId);
     expect(afterCorrupt!.rendered.assetId).toBe(committed!.rendered.assetId);
@@ -553,7 +538,6 @@ test.describe("BEND in Studio", () => {
     expect(after!.rendered.assetId).toBe(committed!.rendered.assetId);
     expect(after!.poster.assetId).toBe(committed!.poster.assetId);
     expect(after!.sourceState.revision).toBe(99);
-    await page.screenshot({ path: evidence("11-stale-revision-rejected.png"), fullPage: true });
   });
 
   test("requires an explicit fit decision when artboard and BEND aspect differ", async ({
@@ -588,7 +572,6 @@ test.describe("BEND in Studio", () => {
     const source = await readSourceStateById(page, after!.sourceState.id);
     expect(source!.aspectPreset).toBe("1:1");
     expect(source!.host.fitDecision).toBe("fit");
-    await page.screenshot({ path: evidence("12-format-fit-decision.png"), fullPage: true });
   });
 
 test("mixed static and BEND layers reorder, persist and export native video/package", async ({
@@ -644,7 +627,6 @@ test("mixed static and BEND layers reorder, persist and export native video/pack
   );
   expect(packageDownload.filename).toMatch(/\.bendpkg$/);
   expect(packageDownload.bytes.subarray(0, 8).toString("ascii")).toBe("BENDPKG1");
-  await page.screenshot({ path: phase5bEvidence("mixed-static-video-1440.png") });
 
   await page.reload();
   await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 20_000 });

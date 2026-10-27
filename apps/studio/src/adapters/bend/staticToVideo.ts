@@ -10,11 +10,13 @@ import {
   Quality,
   WebMOutputFormat,
 } from "mediabunny";
-import type { Artboard, SharedLayer, StudioProject } from "@studio/contracts";
-import { assetRepository } from "../../storage/instances";
-import { loadRenderedSvg } from "../../studio/renderedAssets";
+import type { Artboard, StudioProject } from "@studio/contracts";
 import { sha256Hex } from "../../lib/hash";
 import { createId } from "../../lib/ids";
+import {
+  renderCompositionToPng,
+  type CompositionBackgroundPolicy,
+} from "../../studio/compositionRenderer";
 
 export type StaticHandoffBackground = "artboard" | "white" | "black";
 export type StaticHandoffScope = "layer" | "composition";
@@ -71,12 +73,11 @@ export async function renderStaticArtworkToPng(
   options: RenderStaticArtworkOptions,
 ): Promise<RenderedStaticArtwork> {
   const { project, artboard, scope, selectedLayerId } = options;
-  const ordered = project.layers
-    .filter((layer) => layer.artboardId === artboard.id)
-    .sort((left, right) => left.order - right.order);
-  let layers: SharedLayer[];
+  let layerIds: string[] | undefined;
   if (scope === "layer") {
-    const selected = ordered.find((layer) => layer.id === selectedLayerId);
+    const selected = project.layers.find(
+      (layer) => layer.id === selectedLayerId && layer.artboardId === artboard.id,
+    );
     if (!selected) {
       throw new StaticArtworkRenderError("Select a static Studio layer to animate in BEND.");
     }
@@ -85,56 +86,39 @@ export async function renderStaticArtworkToPng(
         "That layer is already temporal. Select a static Image, Vector, Type, Shapes or Generate layer, or animate the whole composition.",
       );
     }
-    layers = [selected];
+    layerIds = [selected.id];
   } else {
-    layers = ordered.filter((layer) => layer.visible);
-    if (layers.length === 0) {
+    const visible = project.layers.filter(
+      (layer) => layer.artboardId === artboard.id && layer.visible && layer.kind !== "audio",
+    );
+    if (visible.length === 0) {
       throw new StaticArtworkRenderError("The active composition has no visible layers to animate.");
     }
   }
 
-  const backgroundHex = resolveBackground(options);
-  const canvas = document.createElement("canvas");
-  canvas.width = artboard.width;
-  canvas.height = artboard.height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new StaticArtworkRenderError("Studio could not create an artwork canvas.");
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  if (backgroundHex !== "transparent") {
-    context.fillStyle = backgroundHex;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  for (const layer of layers) {
-    if (!layer.visible || !layer.rendered?.assetId) continue;
-    const source = await loadLayerPixels(layer);
-    if (!source) continue;
-    try {
-      await drawLayer(context, layer, source, artboard);
-    } finally {
-      source.close();
-    }
-  }
-
-  const png = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new StaticArtworkRenderError("The static artwork PNG could not be encoded."))),
-      "image/png",
-    );
+  const background = resolveHandoffBackground(options);
+  const rendered = await renderCompositionToPng({
+    project,
+    artboard,
+    background,
+    layerIds,
+    includeHidden: scope === "layer",
+    strict: false,
   });
-  const hasTransparency = backgroundHex === "transparent" && containsTransparency(canvas);
 
   return {
-    png,
-    width: canvas.width,
-    height: canvas.height,
-    backgroundHex,
-    sourceLayerIds: layers.map((layer) => layer.id),
+    png: rendered.png,
+    width: rendered.width,
+    height: rendered.height,
+    backgroundHex: rendered.backgroundHex ?? "#ffffff",
+    sourceLayerIds: rendered.drawnLayerIds,
     sourceRevisions: Object.fromEntries(
-      layers.map((layer) => [layer.id, layer.sourceState?.revision ?? 0]),
+      rendered.drawnLayerIds.map((layerId) => [
+        layerId,
+        project.layers.find((layer) => layer.id === layerId)?.sourceState?.revision ?? 0,
+      ]),
     ),
-    hasTransparency,
+    hasTransparency: rendered.hasTransparency,
   };
 }
 
@@ -266,167 +250,18 @@ export async function createStaticMotionHandoff(options: {
   };
 }
 
-function resolveBackground(options: RenderStaticArtworkOptions): string {
-  if (options.background === "white") return "#ffffff";
-  if (options.background === "black") return "#000000";
+function resolveHandoffBackground(
+  options: RenderStaticArtworkOptions,
+): CompositionBackgroundPolicy {
+  if (options.background === "white") return "white";
+  if (options.background === "black") return "black";
   const artboard = options.artboard;
   if (artboard.background.kind === "solid" && artboard.background.color) {
-    return artboard.background.color;
+    return "artboard";
   }
   // A transparent artboard would otherwise become black in the video codec.
   // The handoff dialog defaults to this explicit white treatment.
-  return "#ffffff";
-}
-
-async function loadLayerPixels(layer: SharedLayer): Promise<{
-  image: CanvasImageSource;
-  width: number;
-  height: number;
-  close: () => void;
-} | null> {
-  const rendered = layer.poster?.assetId ? layer.poster : layer.rendered;
-  if (!rendered?.assetId) return null;
-  const asset = await assetRepository.getAsset(rendered.assetId);
-  const bytes = new Uint8Array(asset.bytes.byteLength);
-  bytes.set(asset.bytes);
-  if (rendered.kind === "svg") {
-    const svg = await loadRenderedSvg(rendered.assetId);
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    try {
-      const image = await decodeImage(url);
-      return {
-        image,
-        width: image.naturalWidth || image.width,
-        height: image.naturalHeight || image.height,
-        close: () => URL.revokeObjectURL(url),
-      };
-    } catch (error) {
-      URL.revokeObjectURL(url);
-      throw new StaticArtworkRenderError("A Vector asset could not be rasterized for the BEND handoff.", { cause: error });
-    }
-  }
-  const blob = new Blob([bytes.buffer], { type: asset.reference.mimeType || "image/png" });
-  const bitmap = await createImageBitmap(blob).catch(async () => {
-    const url = URL.createObjectURL(blob);
-    try {
-      return await decodeImage(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  });
-  if (bitmap instanceof HTMLImageElement) {
-    return {
-      image: bitmap,
-      width: bitmap.naturalWidth || bitmap.width,
-      height: bitmap.naturalHeight || bitmap.height,
-      close: () => undefined,
-    };
-  }
-  return {
-    image: bitmap,
-    width: bitmap.width,
-    height: bitmap.height,
-    close: () => bitmap.close(),
-  };
-}
-
-function decodeImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.decoding = "sync";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new StaticArtworkRenderError("The static artwork image could not be decoded."));
-    image.src = url;
-  });
-}
-
-async function drawLayer(
-  target: CanvasRenderingContext2D,
-  layer: SharedLayer,
-  source: { image: CanvasImageSource; width: number; height: number },
-  artboard: Artboard,
-): Promise<void> {
-  const displayWidth = Math.max(1, layer.transform.width * Math.abs(layer.transform.scaleX || 1));
-  const displayHeight = Math.max(1, layer.transform.height * Math.abs(layer.transform.scaleY || 1));
-  const mask = layer.mask;
-  let paintTarget = target;
-  let layerCanvas: HTMLCanvasElement | null = null;
-  if (mask?.assetId) {
-    layerCanvas = document.createElement("canvas");
-    layerCanvas.width = artboard.width;
-    layerCanvas.height = artboard.height;
-    const context = layerCanvas.getContext("2d");
-    if (context) paintTarget = context;
-  }
-  paintTarget.save();
-  paintTarget.globalAlpha = Math.min(1, Math.max(0, layer.opacity));
-  paintTarget.globalCompositeOperation = compositeMode(layer.blendMode);
-  paintTarget.translate(
-    layer.transform.x + displayWidth * layer.transform.anchorX,
-    layer.transform.y + displayHeight * layer.transform.anchorY,
-  );
-  paintTarget.rotate((layer.transform.rotationDegrees * Math.PI) / 180);
-  paintTarget.scale(
-    layer.transform.flipHorizontal ? -1 : 1,
-    layer.transform.flipVertical ? -1 : 1,
-  );
-  paintTarget.drawImage(
-    source.image,
-    -displayWidth * layer.transform.anchorX,
-    -displayHeight * layer.transform.anchorY,
-    displayWidth,
-    displayHeight,
-  );
-  paintTarget.restore();
-
-  if (layerCanvas && paintTarget !== target && mask) {
-    const maskPixels = await loadMaskPixels(mask.assetId!);
-    if (maskPixels) {
-      paintTarget.save();
-      paintTarget.globalCompositeOperation = mask.inverted ? "destination-out" : "destination-in";
-      paintTarget.drawImage(maskPixels.image, 0, 0, artboard.width, artboard.height);
-      paintTarget.restore();
-      maskPixels.close();
-    }
-    target.save();
-    target.globalAlpha = 1;
-    target.globalCompositeOperation = compositeMode(layer.blendMode);
-    target.drawImage(layerCanvas, 0, 0);
-    target.restore();
-  }
-}
-
-async function loadMaskPixels(
-  assetId: string,
-): Promise<{ image: CanvasImageSource; close: () => void } | null> {
-  try {
-    const asset = await assetRepository.getAsset(assetId);
-    const bytes = new Uint8Array(asset.bytes.byteLength);
-    bytes.set(asset.bytes);
-    const blob = new Blob([bytes.buffer], { type: asset.reference.mimeType || "image/png" });
-    const bitmap = await createImageBitmap(blob);
-    return { image: bitmap, close: () => bitmap.close() };
-  } catch {
-    // A missing optional mask must not silently erase the layer; report through
-    // pixel output instead of blocking the handoff.
-    return null;
-  }
-}
-
-function compositeMode(mode: SharedLayer["blendMode"]): GlobalCompositeOperation {
-  return mode === "normal" ? "source-over" : (mode as GlobalCompositeOperation);
-}
-
-function containsTransparency(canvas: HTMLCanvasElement): boolean {
-  const context = canvas.getContext("2d");
-  if (!context) return false;
-  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  const step = Math.max(4, Math.floor(data.length / 4 / 4096) * 4);
-  for (let index = 3; index < data.length; index += step) {
-    if (data[index] < 250) return true;
-  }
-  return false;
+  return "white";
 }
 
 async function verifyHandoffVideo(

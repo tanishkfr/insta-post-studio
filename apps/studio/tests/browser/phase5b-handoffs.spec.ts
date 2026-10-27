@@ -28,7 +28,6 @@ test("contextual handoffs focus the first option, support arrow keys and return 
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y).toBeGreaterThanOrEqual(0);
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(viewport.height);
-  await page.screenshot({ path: "../../docs/evidence/phase-5b/step-c-menu.png" });
 
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("button", { name: /Generate layouts/ })).toBeFocused();
