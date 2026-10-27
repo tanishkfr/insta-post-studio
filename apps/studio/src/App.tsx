@@ -1,5 +1,5 @@
 import type { AssetReference, LayerProvenance, StudioProject, SourceToolId } from "@studio/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createBendVideoLayer, createRasterLayer } from "./adapters/session/layerFactory";
 import type { ToolSessionCapture } from "./adapters/session/toolSession";
 import { loadRasterInputForLayer } from "./adapters/session/inputAssets";
@@ -25,6 +25,7 @@ import { FORMAT_PRESETS } from "./project/defaultProject";
 import { studioStore, useStudioStore } from "./state/projectStore";
 import type { GeneratedLayoutTarget } from "./state/projectStore";
 import { useProjectPersistence } from "./state/useProjectPersistence";
+import { CompactPanel } from "./phase5a/components";
 
 type EditableTool = "image" | "vector" | "typography" | "shapes" | "generate" | "bend";
 
@@ -80,6 +81,24 @@ export default function App() {
   const [preferBendComposition, setPreferBendComposition] = useState(false);
   const [typeMode, setTypeMode] = useState<TypographyMode>("library");
   const [handoffError, setHandoffError] = useState<string | null>(null);
+  const [compact, setCompact] = useState(() => window.innerWidth <= 760);
+  const [compactPanel, setCompactPanel] = useState<"Tools" | "Layers" | "Inspector" | null>(null);
+  const panelOpener = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const resize = () => {
+      const next = window.innerWidth <= 760;
+      setCompact(next);
+      if (!next) setCompactPanel(null);
+    };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  function closeCompactPanel() {
+    setCompactPanel(null);
+    requestAnimationFrame(() => panelOpener.current?.focus());
+  }
 
   const editingTool = isEditableTool(activeTool) ? activeTool : null;
   const activeArtboard =
@@ -481,19 +500,23 @@ export default function App() {
         />
       ) : (
         <>
-          <ToolRail
+          {!compact && <ToolRail
             layerCount={project.layers.length}
             activeView="canvas"
             onCanvas={() => studioStore.getState().setActiveTool("canvas")}
             onOpenTool={openNewTool}
-          />
+          />}
+
+          {compact && <div className="compact-panel-actions" aria-label="Studio panels">
+            {(["Tools", "Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
+          </div>}
 
           <CanvasWorkspace
             onOpenTool={openNewTool}
             onAnimateComposition={() => animateInBend(null, true)}
           />
 
-          <aside className="sidepanel" aria-label="Layers and inspector">
+          {!compact && <aside className="sidepanel" aria-label="Layers and inspector">
             <LayersPanel
               onOpenTool={openNewTool}
               onEditLayer={openExistingTool}
@@ -506,7 +529,13 @@ export default function App() {
               onGenerateLayouts={() => openNewTool("generate")}
               onAnimateInBend={(layerId) => animateInBend(layerId)}
             />
-          </aside>
+          </aside>}
+
+          {compactPanel && <CompactPanel title={compactPanel} onClose={closeCompactPanel}>
+            {compactPanel === "Tools" && <ToolRail layerCount={project.layers.length} activeView="canvas" onCanvas={closeCompactPanel} onOpenTool={(tool) => { setCompactPanel(null); openNewTool(tool); }} />}
+            {compactPanel === "Layers" && <LayersPanel onOpenTool={(tool) => { setCompactPanel(null); openNewTool(tool); }} onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} />}
+            {compactPanel === "Inspector" && <InspectorPanel onEditLayer={(id) => { setCompactPanel(null); openExistingTool(id); }} onContinueInVector={(id) => { setCompactPanel(null); void startHandoff(id, "vector"); }} onUseAsTypePattern={(id) => { setCompactPanel(null); void startHandoff(id, "typography"); }} onUseAsImageInput={(id) => { setCompactPanel(null); useAsImageInput(id); }} onGenerateLayouts={() => { setCompactPanel(null); openNewTool("generate"); }} onAnimateInBend={(id) => { setCompactPanel(null); animateInBend(id); }} />}
+          </CompactPanel>}
 
           <footer className="statusbar">
             <div className="status-left">

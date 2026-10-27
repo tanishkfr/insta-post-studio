@@ -79,3 +79,5 @@
 .p5a-host-inspector .p5a-menu button:hover:not(:disabled) { background:#eaf1ef; }
 .p5a-host-inspector .p5a-menu small { color:#526c6e; }
 .p5a-host-inspector .p5a-menu button:disabled { opacity:.6; cursor:not-allowed; }
+.p5a-compact-head button { min-height:40px; padding:8px 12px; border:1px solid #dee7e5; border-radius:7px; background:#fff; color:#193438; font:inherit; cursor:pointer; }
+.p5a-compact-head button:focus-visible { outline:2px solid #236f72; outline-offset:2px; }
