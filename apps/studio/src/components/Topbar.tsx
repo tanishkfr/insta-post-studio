@@ -1,6 +1,7 @@
 import type { ProjectFormat, StudioProject } from "@studio/contracts";
 import { useEffect, useState } from "react";
 import type { SaveStatus } from "../state/useProjectPersistence";
+import { StudioStatusAndFeedback } from "../phase5a/components";
 
 interface TopbarProps {
   project: StudioProject;
@@ -127,12 +128,11 @@ export function Topbar({
       <div className="topbar-meta">
         <span
           className={`save-state is-${saveStatus}`}
-          role="status"
           title={saveError ?? undefined}
           data-testid="save-state"
         >
           <span className="status-dot" aria-hidden="true" />
-          {saveLabel(saveStatus)}
+          <StudioStatusAndFeedback text={saveLabel(saveStatus)} />
         </span>
 
         {!editingTool ? (

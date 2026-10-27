@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { studioStore, useStudioStore } from "../state/projectStore";
 import type { NavToolId } from "../project/defaultProject";
 import { layerIcon } from "./ToolRail";
+import { StudioEmptyStates } from "../phase5a/components";
 
 type LiveTool = Extract<
   NavToolId,
@@ -131,8 +132,7 @@ export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
           <span className="empty-layer-glyph" aria-hidden="true">
             ◈
           </span>
-          <strong>No layers yet</strong>
-          <p>Open any integrated editor to create your first shared layer.</p>
+          <StudioEmptyStates title="No layers yet" detail="Open any integrated editor to create your first shared layer." />
           <div className="empty-layer-actions">
             <button
               type="button"

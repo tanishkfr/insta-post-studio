@@ -1,5 +1,7 @@
 import type { SharedLayer } from "@studio/contracts";
 import { toolNav, type NavToolId } from "../project/defaultProject";
+import { StudioToolRail } from "../phase5a/components";
+import "../phase5a/components.css";
 
 type LiveTool = Extract<
   NavToolId,
@@ -20,68 +22,21 @@ export function ToolRail({
   onOpenTool,
 }: ToolRailProps) {
   return (
-    <aside className="toolrail" aria-label="Tool navigation">
-      <button
-        type="button"
-        className="canvas-nav"
-        aria-current={activeView === "canvas" ? "page" : undefined}
-        onClick={onCanvas}
-      >
-        <span className="canvas-nav-glyph" aria-hidden="true">
-          <i />
-          <i />
-        </span>
-        <span>
-          <strong>Canvas</strong>
-          <small>{layerCount ? `${layerCount} layer${layerCount === 1 ? "" : "s"}` : "Project overview"}</small>
-        </span>
-      </button>
-
-      <div className="rail-heading">
-        <span>Tools</span>
-        <span className="rail-count">{String(toolNav.length).padStart(2, "0")}</span>
-      </div>
-
-      <nav className="tool-list" aria-label="Editing tools">
-        {toolNav.map((tool) => {
-          const isLive = tool.status === "live";
-          return (
-            <button
-              key={tool.id}
-              type="button"
-              className={`tool-nav-item${isLive ? " is-live" : " is-locked"}`}
-              onClick={
-                isLive ? () => onOpenTool(tool.id as LiveTool) : undefined
-              }
-              disabled={!isLive}
-              data-testid={`tool-${tool.id}`}
-              title={
-                isLive
-                  ? `Open ${tool.label} editor`
-                  : `${tool.label} integration arrives in a later phase`
-              }
-            >
-              <span className="tool-index">{tool.index}</span>
-              <span className="tool-copy">
-                <strong>{tool.label}</strong>
-                <small>{tool.discipline}</small>
-              </span>
-              <span className={`tool-availability${isLive ? " live" : ""}`}>
-                {isLive ? "Live" : "Soon"}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="rail-footer">
-        <div className="rail-status">
-          <span className="status-dot" aria-hidden="true" />
-          <span>Image · Vector · Type · Shapes · BEND · Generate integrated</span>
-        </div>
-        <p>One shared project · local-first storage</p>
-      </div>
-    </aside>
+    <StudioToolRail
+      tools={toolNav.map((tool) => ({
+        id: tool.id, name: tool.label, purpose: tool.discipline,
+        enabled: tool.status === "live",
+        reason: tool.status === "live" ? undefined : "This editor is not available yet.",
+      }))}
+      canvasDetail={layerCount ? `${layerCount} layer${layerCount === 1 ? "" : "s"}` : "Project overview"}
+      showAvailability
+      active={activeView === "canvas" ? "compose" : activeView}
+      onCompose={onCanvas}
+      onTool={(id) => {
+        const tool = toolNav.find((candidate) => candidate.id === id && candidate.status === "live");
+        if (tool) onOpenTool(tool.id as LiveTool);
+      }}
+    />
   );
 }
 
