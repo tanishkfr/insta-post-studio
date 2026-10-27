@@ -128,7 +128,7 @@ describe("Studio shell components", () => {
     expect(screen.getByRole("button", { name: /Type/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Shapes/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Generate/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /BEND/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Video/ })).toBeEnabled();
     expect(screen.getAllByText("Live")).toHaveLength(6);
     expect(screen.getByText("1 layer")).toBeInTheDocument();
   });

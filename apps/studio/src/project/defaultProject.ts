@@ -205,7 +205,7 @@ export const toolNav: ToolNavItem[] = [
   {
     id: "bend",
     index: "05",
-    label: "BEND",
+    label: "Video",
     discipline: "Video & motion",
     sourcePath: "tools/bend/",
     status: "live",
