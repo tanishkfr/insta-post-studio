@@ -87,7 +87,18 @@ export default function App() {
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [compact, setCompact] = useState(() => window.innerWidth <= 760);
   const [compactPanel, setCompactPanel] = useState<"Layers" | "Inspector" | null>(null);
+  const [panelsOpen, setPanelsOpen] = useState(false);
+  const previousLayerCount = useRef(0);
   const panelOpener = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (project.layers.length > previousLayerCount.current) setPanelsOpen(true);
+    previousLayerCount.current = project.layers.length;
+  }, [project.layers.length]);
+
+  useEffect(() => {
+    if (selectedLayerId) setPanelsOpen(true);
+  }, [selectedLayerId]);
 
   useEffect(() => {
     const resize = () => {
@@ -416,7 +427,7 @@ export default function App() {
 
   return (
     <div
-      className={`studio-shell${editingTool ? " is-tool-editing" : ""}`}
+      className={`studio-shell${editingTool ? " is-tool-editing" : ""}${!compact && !panelsOpen ? " panels-closed" : ""}`}
     >
       <Topbar
         project={project}
@@ -513,6 +524,7 @@ export default function App() {
           />
 
           <div className="canvas-region">
+            {!compact && <div className="desktop-panel-actions"><button type="button" className="button small" aria-expanded={panelsOpen} onClick={() => setPanelsOpen((open) => !open)}>{panelsOpen ? "Hide panels" : "Show panels"}</button></div>}
             {compact && <div className="compact-panel-actions" aria-label="Studio panels">
               {(["Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
             </div>}
@@ -524,7 +536,7 @@ export default function App() {
             />
           </div>
 
-          {!compact && <aside className="sidepanel" aria-label="Layers and inspector">
+          {!compact && panelsOpen && <aside className="sidepanel" aria-label="Layers and inspector">
             <LayersPanel
               onOpenTool={openNewTool}
               onEditLayer={openExistingTool}

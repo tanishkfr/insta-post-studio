@@ -91,6 +91,9 @@ select:focus-visible,
   grid-template-rows: var(--topbar-h) minmax(0, 1fr);
 }
 
+.studio-shell.panels-closed:not(.is-tool-editing) { grid-template-columns: minmax(0, 1fr); }
+.desktop-panel-actions { display: flex; justify-content: flex-end; padding: 5px 12px; background: var(--white); border-bottom: 1px solid var(--line); }
+
 /* ============================ topbar ============================ */
 
 .topbar {
@@ -727,7 +730,8 @@ select:focus-visible,
   min-height: 0;
   overflow: auto;
   padding: 18px 24px 20px;
-  --artboard-display-width: min(calc(76vh * var(--artboard-ratio)), calc(100% - 28px), 720px);
+  container-type: size;
+  --artboard-display-width: min(calc((100cqh - 80px) * var(--artboard-ratio)), calc(100% - 28px));
 }
 
 .artboard-ruler,
@@ -2357,7 +2361,7 @@ select:focus-visible,
   .workspace-head > div:first-child { flex:0 0 auto; }
   .workspace-tools { width:100%; flex-wrap:wrap; justify-content:flex-start; }
   .workspace-tools .workspace-chip, .workspace-tools .workspace-zoom { display:none; }
-  .canvas-stage { padding:10px; --artboard-display-width:min(calc(62vh * var(--artboard-ratio)), calc(100% - 16px), 520px); }
+  .canvas-stage { padding:10px; --artboard-display-width:min(calc((100cqh - 60px) * var(--artboard-ratio)), calc(100% - 16px)); }
   .artboard-bar { flex-wrap:wrap; gap:4px; min-height:0; padding:4px 10px; }
   .artboard-tabs { width:100%; }
   .artboard-actions { width:100%; justify-content:flex-end; }

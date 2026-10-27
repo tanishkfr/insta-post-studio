@@ -688,11 +688,9 @@ export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport }: 
         >
           {layers.length === 0 ? (
             <div className="canvas-empty">
-              <span className="canvas-empty-index">01 / Empty canvas</span>
-              <h2>Make your first layer.</h2>
+              <h2>Your canvas is ready.</h2>
               <p>
-                Start with a photo treatment, vector artwork or typography. Every tool
-                publishes into this same composition and keeps its editable source.
+                Start creating artwork for this composition.
               </p>
               <div className="canvas-empty-actions">
                 <button
@@ -700,35 +698,7 @@ export function CanvasWorkspace({ onOpenTool, onAnimateComposition, onExport }: 
                   className="button primary"
                   onClick={() => onOpenTool("image")}
                 >
-                  Open Image
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => onOpenTool("vector")}
-                >
-                  Open Vector
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => onOpenTool("typography")}
-                >
-                  Open Type
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => onOpenTool("shapes")}
-                >
-                  Open Shapes
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => onOpenTool("bend")}
-                >
-                  Add video
+                  Create artwork
                 </button>
               </div>
             </div>
