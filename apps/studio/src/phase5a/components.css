@@ -69,6 +69,7 @@
 .p5a-host-layers .layer-row { min-height:52px; border:0; border-radius:8px; }
 .p5a-host-layers .layer-row.is-selected { background:#dcefeb; box-shadow:none; }
 .p5a-host-layers .layer-name-copy { display:grid; gap:3px; min-width:0; }
+.p5a-host-layers .layer-name-copy > * { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .p5a-host-layers .layer-name-copy small { color:#526c6e; font-size:11px; }
 .p5a-host-layers .layer-icon { width:32px; height:32px; border:0; border-radius:5px; background:#d1e1dc; }
 .p5a-host-layers .layer-name-text { font-size:12px; }

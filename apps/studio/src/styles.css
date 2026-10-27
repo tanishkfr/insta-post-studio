@@ -466,7 +466,7 @@ select:focus-visible,
 
 .toolnav-item[aria-current="page"] {
   border-bottom-color: var(--accent);
-  background: linear-gradient(180deg, transparent, var(--accent-wash));
+  background: var(--accent-wash);
   color: var(--accent-deep);
 }
 
@@ -590,7 +590,7 @@ select:focus-visible,
 .artboard-actions .mini-button {
   min-height: 26px;
   padding: 0 7px;
-  font-size: 8.5px;
+  font-size: 9.5px;
 }
 
 .artboard-rename input {
@@ -1788,6 +1788,11 @@ select:focus-visible,
 }
 
 @media (max-width: 1000px) {
+  .workspace-chip,
+  .workspace-zoom {
+    display: none;
+  }
+
   .studio-shell {
     --sidepanel-w: 262px;
   }
@@ -2348,8 +2353,10 @@ select:focus-visible,
   .toolnav-canvas { padding-left:0; padding-right:12px; }
   .compact-panel-actions { display:flex; flex:0 0 auto; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); background:#fff; }
   .compact-panel-actions button { flex:1; min-height:34px; border:1px solid #dee7e5; border-radius:6px; background:#fff; color:#193438; font-weight:600; }
-  .workspace-head { flex-wrap:wrap; gap:8px; padding:9px 12px; min-height:0; }
-  .workspace-tools { flex-wrap:wrap; }
+  .workspace-head { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:8px; padding:9px 12px; min-height:0; }
+  .workspace-head > div:first-child { flex:0 0 auto; }
+  .workspace-tools { width:100%; flex-wrap:wrap; justify-content:flex-start; }
+  .workspace-tools .workspace-chip, .workspace-tools .workspace-zoom { display:none; }
   .canvas-stage { padding:10px; --artboard-display-width:min(calc(62vh * var(--artboard-ratio)), calc(100% - 16px), 520px); }
   .artboard-bar { flex-wrap:wrap; gap:4px; min-height:0; padding:4px 10px; }
   .artboard-tabs { width:100%; }
