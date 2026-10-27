@@ -1,7 +1,7 @@
 import type { ProjectFormat, StudioProject } from "@studio/contracts";
 import { useEffect, useState } from "react";
 import type { SaveStatus } from "../state/useProjectPersistence";
-import { StudioStatusAndFeedback } from "../phase5a/components";
+import { StudioHeader, StudioStatusAndFeedback } from "../phase5a/components";
 
 interface TopbarProps {
   project: StudioProject;
@@ -109,7 +109,7 @@ export function Topbar({
   onNewProject,
 }: TopbarProps) {
   return (
-    <header className={`topbar${editingTool ? " is-editing" : ""}`}>
+    <StudioHeader className={`topbar p5a-host-header${editingTool ? " is-editing" : ""}`}>
       <div className="brand">
         <StudioMark />
         <div className="brand-wordmark">
@@ -203,6 +203,6 @@ export function Topbar({
           </>
         ) : null}
       </div>
-    </header>
+    </StudioHeader>
   );
 }

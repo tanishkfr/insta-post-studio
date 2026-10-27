@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { studioStore, useStudioStore } from "../state/projectStore";
 import type { NavToolId } from "../project/defaultProject";
 import { layerIcon } from "./ToolRail";
-import { StudioEmptyStates } from "../phase5a/components";
+import { StudioEmptyStates, StudioLayersPanel } from "../phase5a/components";
 
 type LiveTool = Extract<
   NavToolId,
@@ -27,9 +27,11 @@ function toolLabel(layer: SharedLayer): string {
 function LayerName({
   layer,
   onCommit,
+  selected,
 }: {
   layer: SharedLayer;
   onCommit: (value: string) => void;
+  selected: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(layer.name);
@@ -84,6 +86,7 @@ function LayerName({
     <button
       type="button"
       className="layer-name-button"
+      aria-pressed={selected}
       onClick={() => studioStore.getState().selectLayer(layer.id)}
       onDoubleClick={(event) => {
         event.stopPropagation();
@@ -94,7 +97,7 @@ function LayerName({
       <span className="layer-icon" aria-hidden="true">
         {layerIcon(layer)}
       </span>
-      <span className="layer-name-text">{layer.name}</span>
+      <span className="layer-name-copy"><span className="layer-name-text">{layer.name}</span><small>{toolLabel(layer)}{layer.kind === "video" ? " · Video" : ""}</small></span>
     </button>
   );
 }
@@ -118,7 +121,7 @@ export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
     : -1;
 
   return (
-    <section className="panel layers-panel" aria-labelledby="layers-title">
+    <StudioLayersPanel className="panel layers-panel p5a-host-layers" labelledBy="layers-title">
       <header className="panel-head">
         <div>
           <span className="eyebrow">Structure</span>
@@ -192,6 +195,7 @@ export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
 
                 <LayerName
                   layer={layer}
+                  selected={selected}
                   onCommit={(name) =>
                     studioStore.getState().updateLayer(layer.id, { name })
                   }
@@ -278,6 +282,6 @@ export function LayersPanel({ onOpenTool, onEditLayer }: LayersPanelProps) {
           ×
         </button>
       </footer>
-    </section>
+    </StudioLayersPanel>
   );
 }

@@ -41,11 +41,11 @@ export function ToolRail({
 }
 
 export function layerIcon(layer: SharedLayer): string {
-  if (layer.kind === "vector") return "?";
-  if (layer.kind === "typography") return "T";
-  if (layer.kind === "shapes") return "?";
-  if (layer.kind === "generated-layout") return "?";
-  if (layer.kind === "video") return "?";
-  if (layer.kind === "image") return "?";
-  return "?";
+  if (layer.sourceTool === "bend") return "B";
+  if (layer.sourceTool === "typography") return "T";
+  if (layer.sourceTool === "shapes") return "S";
+  if (layer.sourceTool === "generate") return "G";
+  if (layer.sourceTool === "image") return "I";
+  if (layer.sourceTool === "vector") return "V";
+  return "•";
 }
