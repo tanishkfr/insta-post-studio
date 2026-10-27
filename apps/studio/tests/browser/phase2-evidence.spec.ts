@@ -70,6 +70,7 @@ test("Phase 2 integrated workflow evidence", async ({ page }) => {
 
   // Image -> Vector tracing.
   await page.locator(`[data-testid="layer-row-${imageLayerId}"] .layer-name-button`).click();
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await page.getByTestId("continue-in-vector").click();
   await waitForVectorReady(page);
   await page.frameLocator('iframe[title="Vector editor"]').getByRole("button", {
@@ -80,6 +81,7 @@ test("Phase 2 integrated workflow evidence", async ({ page }) => {
 
   // Image -> Custom Type motif.
   await page.locator(`[data-testid="layer-row-${imageLayerId}"] .layer-name-button`).click();
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await page.getByTestId("use-as-type-pattern").click();
   await waitForTypeReady(page, "custom");
   await typeFrame(page, "custom").locator("#text").fill("TYPE");

@@ -239,6 +239,7 @@ test.describe("BEND in Studio", () => {
     const vectorId = (await vector.getAttribute("data-layer-id"))!;
     const vectorBefore = await readBendLayer(page, vectorId);
     await vector.click();
+    await page.getByRole("button", { name: "Continue in…" }).click();
     await page.getByTestId("animate-in-bend").click();
     const dialog = page.getByTestId("animate-in-bend-dialog");
     await expect(dialog).toBeVisible();

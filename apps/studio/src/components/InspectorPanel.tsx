@@ -8,6 +8,7 @@ import {
   type BendSourceStateV1,
 } from "../adapters/bend/bendSourceState";
 import { assetRepository } from "../storage/instances";
+import { ContinueInMenu, StudioInspectorLayout, type RouteItem } from "../phase5a/components";
 
 interface InspectorProps {
   onEditLayer: (layerId: string) => void;
@@ -246,8 +247,28 @@ export function InspectorPanel({
         ? layer.transform.width / Math.max(1, layer.transform.height)
         : 1;
 
+  const routes: RouteItem[] = [];
+  if (layer) {
+    if (layer.kind !== "video") routes.push({ id: "bend", label: "Animate in BEND", description: "Create a video from this layer; its source remains unchanged.", enabled: Boolean(layer.rendered), reason: "This layer has no rendered artwork.", testId: "animate-in-bend" });
+    if (layer.sourceTool === "image" && layer.rendered?.kind === "image") {
+      routes.push({ id: "vector", label: "Continue in Vector", description: "Trace a new editable derivative.", enabled: true, testId: "continue-in-vector" });
+      routes.push({ id: "type", label: "Use as Type Pattern", description: "Create a Custom Type motif.", enabled: true, testId: "use-as-type-pattern" });
+      routes.push({ id: "image", label: "Use as Image Input", description: "Create a new Image derivative.", enabled: true, testId: "use-as-image-input" });
+    }
+    if (layer.sourceTool === "shapes" && layer.rendered?.kind === "image") routes.push({ id: "image", label: "Continue in Image", description: "Use the transparent Shapes render as a new input.", enabled: true, testId: "shapes-continue-in-image" });
+    routes.push({ id: "generate", label: "Generate layouts", description: "Arrange the current composition without flattening it.", enabled: true, testId: layer.sourceTool === "shapes" ? "shapes-generate-layouts" : layer.sourceTool === "generate" ? "generate-reopen-layouts" : undefined });
+  }
+  function chooseRoute(id: string) {
+    if (!layer) return;
+    if (id === "bend") onAnimateInBend(layer.id);
+    if (id === "vector") onContinueInVector(layer.id);
+    if (id === "type") onUseAsTypePattern(layer.id);
+    if (id === "image") onUseAsImageInput(layer.id);
+    if (id === "generate") onGenerateLayouts();
+  }
+
   return (
-    <section className="panel inspector-panel" aria-labelledby="inspector-title">
+    <StudioInspectorLayout className="panel inspector-panel p5a-host-inspector" labelledBy="inspector-title" hostContent={<>
       <header className="panel-head">
         <div>
           <span className="eyebrow">Properties</span>
@@ -577,104 +598,7 @@ export function InspectorPanel({
             </div>
           ) : null}
 
-          {layer.kind !== "video" && layer.rendered ? (
-            <div className="handoff-actions">
-              <span className="handoff-heading">Motion</span>
-              <button
-                type="button"
-                className="button small"
-                onClick={() => onAnimateInBend(layer.id)}
-                data-testid="animate-in-bend"
-              >
-                Animate in BEND
-              </button>
-              <p className="handoff-note">
-                Rasterizes this static layer at the artboard size and imports it
-                as a real editable clip in BEND. The original source layer is not
-                changed.
-              </p>
-            </div>
-          ) : null}
-
-          {layer.sourceTool === "image" && layer.rendered?.kind === "image" ? (
-            <div className="handoff-actions">
-              <span className="handoff-heading">Continue in…</span>
-              <button
-                type="button"
-                className="button small"
-                onClick={() => onContinueInVector(layer.id)}
-                data-testid="continue-in-vector"
-              >
-                Continue in Vector
-              </button>
-              <button
-                type="button"
-                className="button small"
-                onClick={() => onUseAsTypePattern(layer.id)}
-                data-testid="use-as-type-pattern"
-              >
-                Use as Type Pattern
-              </button>
-              <button
-                type="button"
-                className="button small"
-                onClick={() => onUseAsImageInput(layer.id)}
-                data-testid="use-as-image-input"
-              >
-                Use as Image Input
-              </button>
-              <p className="handoff-note">
-                Vector traces the raster into editable contour lines. Custom Type uses
-                it as a pattern motif. The original Image layer stays unchanged.
-              </p>
-            </div>
-          ) : null}
-
-          {layer.sourceTool === "shapes" && layer.rendered?.kind === "image" ? (
-            <div className="handoff-actions">
-              <span className="handoff-heading">Continue in…</span>
-              <button
-                type="button"
-                className="button small"
-                onClick={() => onUseAsImageInput(layer.id)}
-                data-testid="shapes-continue-in-image"
-              >
-                Continue in Image
-              </button>
-              <button
-                type="button"
-                className="button small"
-                onClick={onGenerateLayouts}
-                data-testid="shapes-generate-layouts"
-              >
-                Generate layouts
-              </button>
-              <p className="handoff-note">
-                The transparent Shapes render becomes a new Image input; the 3D source
-                stays editable. Generate receives it as a real layer alongside the rest
-                of the composition.
-              </p>
-            </div>
-          ) : null}
-
-          {layer.sourceTool === "generate" ? (
-            <div className="handoff-actions">
-              <span className="handoff-heading">Composition</span>
-              <button
-                type="button"
-                className="button small"
-                onClick={onGenerateLayouts}
-                data-testid="generate-reopen-layouts"
-              >
-                Generate layouts
-              </button>
-              <p className="handoff-note">
-                This is an independent generated background layer. Reopen it to adjust
-                the treatment; Apply layout composes the current foreground layers
-                without flattening them.
-              </p>
-            </div>
-          ) : null}
+          <ContinueInMenu routes={routes} onChoose={chooseRoute} />
 
           <p className="inspector-note">
             Host transform and stacking order are separate from {sourceLabel(layer)}'s
@@ -682,6 +606,6 @@ export function InspectorPanel({
           </p>
         </div>
       )}
-    </section>
+    </>} />
   );
 }

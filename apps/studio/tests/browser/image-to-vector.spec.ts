@@ -35,6 +35,7 @@ test("Image to Vector creates a traced derivative layer and keeps the Image sour
   );
 
   await page.locator(`[data-testid="layer-row-${imageLayerId}"] .layer-name-button`).click();
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await expect(page.getByTestId("continue-in-vector")).toBeVisible();
   await page.getByTestId("continue-in-vector").click();
   await waitForVectorReady(page);

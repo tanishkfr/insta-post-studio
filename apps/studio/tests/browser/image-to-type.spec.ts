@@ -42,6 +42,7 @@ test("Image to Custom Type uses a motif derivative without changing the Image la
   );
 
   await page.locator(`[data-testid="layer-row-${imageLayerId}"] .layer-name-button`).click();
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await page.getByTestId("use-as-type-pattern").click();
   await waitForTypeReady(page, "custom");
   await expect(page.getByTestId("type-editor")).toContainText("Motif input");

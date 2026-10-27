@@ -63,6 +63,7 @@ test("Phase 3 integrated workflows evidence", async ({ page }) => {
 
   // Shapes → Image derivative.
   await page.locator('[data-testid="canvas-layer"][data-layer-kind="shapes"]').first().click();
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await page.getByTestId("shapes-continue-in-image").click();
   await waitForImageReady(page);
   await page.screenshot({ path: evidence("04-shapes-to-image.png") });

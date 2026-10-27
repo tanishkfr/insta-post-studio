@@ -72,3 +72,10 @@
 .p5a-host-layers .layer-name-copy small { color:#526c6e; font-size:11px; }
 .p5a-host-layers .layer-icon { width:32px; height:32px; border:0; border-radius:5px; background:#d1e1dc; }
 .p5a-host-layers .layer-name-text { font-size:12px; }
+
+.p5a-host-inspector { --p5a-line:#dee7e5; --p5a-muted:#526c6e; }
+.p5a-host-inspector .p5a-continue > button, .p5a-host-inspector .p5a-menu button { font:inherit; color:#193438; background:#fff; cursor:pointer; padding:9px 11px; border:1px solid #dee7e5; border-radius:7px; }
+.p5a-host-inspector .p5a-menu button { border:0; }
+.p5a-host-inspector .p5a-menu button:hover:not(:disabled) { background:#eaf1ef; }
+.p5a-host-inspector .p5a-menu small { color:#526c6e; }
+.p5a-host-inspector .p5a-menu button:disabled { opacity:.6; cursor:not-allowed; }

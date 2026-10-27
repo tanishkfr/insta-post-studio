@@ -90,6 +90,7 @@ test("Phase 3 pipeline composes Image + Vector + Type + Shapes, continues in Ima
     (record) => record.tool === "shapes",
   )!;
   await selectLayer(page, shapesId);
+  await page.getByRole("button", { name: "Continue in…" }).click();
   await page.getByTestId("shapes-continue-in-image").click();
   await waitForImageReady(page);
   await publishActiveTool(page);
