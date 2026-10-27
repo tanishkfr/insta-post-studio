@@ -2384,6 +2384,8 @@ select:focus-visible,
 @media (min-width:761px) and (max-width:1000px) {
   .topbar { grid-template-columns:178px minmax(120px,1fr) auto; }
   .topbar-meta .history-controls, .topbar-meta .format-select-wrap, .topbar-meta .format-chip { display:flex; }
+  /* Keep the full format label readable; the earlier 128px cap clipped it at 900px. */
+  .topbar-meta .format-select-wrap select { max-width:170px; }
 }
 @media (max-width:760px) {
   .topbar-meta { flex-wrap:wrap; overflow:visible; }

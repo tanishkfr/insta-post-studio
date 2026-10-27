@@ -153,14 +153,32 @@ test("Custom Type native PNG and OTF exports remain available", async ({ page })
   await openType(page);
   await switchTypeMode(page, "custom");
   const frame = typeFrame(page, "custom");
-  const box = await frame.locator("#draw").boundingBox();
-  expect(box).toBeTruthy();
-  await page.mouse.move(box!.x + box!.width * 0.44, box!.y + box!.height * 0.46);
-  await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width * 0.56, box!.y + box!.height * 0.58, {
-    steps: 10,
+  const drawCanvas = frame.locator("#draw");
+  await expect(drawCanvas).toBeVisible();
+  // Click positions are resolved at action time, so a slow parallel run cannot
+  // leave this gesture aimed at stale page coordinates.
+  const drawSize = await drawCanvas.evaluate((canvas) => ({
+    width: (canvas as HTMLCanvasElement).clientWidth,
+    height: (canvas as HTMLCanvasElement).clientHeight,
+  }));
+  await drawCanvas.click({
+    position: { x: drawSize.width * 0.44, y: drawSize.height * 0.46 },
   });
-  await page.mouse.up();
+  await drawCanvas.click({
+    position: { x: drawSize.width * 0.56, y: drawSize.height * 0.58 },
+  });
+  await expect
+    .poll(async () =>
+      frame.locator("body").evaluate(() => {
+        const bridge = (window as unknown as {
+          __STUDIO_CUSTOM_TYPE_BRIDGE__?: {
+            snapshot?: () => { strokes?: unknown[] };
+          };
+        }).__STUDIO_CUSTOM_TYPE_BRIDGE__;
+        return bridge?.snapshot?.().strokes?.length ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
   await frame.locator("#to-type").click();
   await frame.locator("#text").fill("OTF");
 

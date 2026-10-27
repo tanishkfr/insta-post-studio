@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 
 export interface ToolItem { id: string; name: string; purpose: string; enabled: boolean; reason?: string }
 export interface LayerItem { id: string; name: string; source: string; kind: string; visible: boolean; locked: boolean }
@@ -34,9 +40,87 @@ export function StudioToolSessionHeader(p: { tool: string; project: string; artb
 export function ContinueInMenu(p: { routes: RouteItem[]; onChoose: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  function close() { setOpen(false); trigger.current?.focus(); }
-  return <div className="p5a-continue" ref={root} onKeyDown={e => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(); } }} onBlur={e => { if (!root.current?.contains(e.relatedTarget)) setOpen(false); }}><button ref={trigger} type="button" aria-expanded={open} aria-controls="p5a-continue-options" onClick={() => setOpen(v => !v)}>Continue in…</button>{open && <div id="p5a-continue-options" className="p5a-menu">{p.routes.map(r => <div key={r.id}><button type="button" data-testid={r.testId} onClick={() => { close(); p.onChoose(r.id); }} disabled={!r.enabled} title={r.reason}><strong>{r.label}</strong><small>{r.enabled ? r.description : r.reason}</small></button></div>)}</div>}</div>;
+
+  // Move focus into the menu so its first option is scrolled into view even
+  // when the trigger sits at the bottom of the scrollable inspector.
+  useEffect(() => {
+    if (!open) return;
+    const first = menu.current?.querySelector<HTMLButtonElement>("button:not(:disabled)");
+    (first ?? menu.current)?.focus();
+    menu.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function onMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!open) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];
+    if (!items.length) return;
+    event.preventDefault();
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = index < 0
+      ? event.key === "ArrowDown"
+        ? 0
+        : items.length - 1
+      : event.key === "ArrowDown"
+        ? (index + 1) % items.length
+        : (index - 1 + items.length) % items.length;
+    items[next]?.focus();
+  }
+
+  return (
+    <div
+      className="p5a-continue"
+      ref={root}
+      onKeyDown={onMenuKeyDown}
+      onBlur={event => {
+        if (!root.current?.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <button
+        ref={trigger}
+        type="button"
+        aria-expanded={open}
+        aria-controls="p5a-continue-options"
+        onClick={() => setOpen(value => !value)}
+      >
+        Continue in…
+      </button>
+      {open && (
+        <div id="p5a-continue-options" className="p5a-menu" ref={menu} tabIndex={-1}>
+          {p.routes.map(route => (
+            <div key={route.id}>
+              <button
+                type="button"
+                data-testid={route.testId}
+                onClick={() => {
+                  close();
+                  p.onChoose(route.id);
+                }}
+                disabled={!route.enabled}
+                title={route.reason}
+              >
+                <strong>{route.label}</strong>
+                <small>{route.enabled ? route.description : route.reason}</small>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** A host controls visibility and restores focus to its invoking control. */

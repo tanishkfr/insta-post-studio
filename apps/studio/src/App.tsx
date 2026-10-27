@@ -508,7 +508,7 @@ export default function App() {
           />}
 
           {compact && <div className="compact-panel-actions" aria-label="Studio panels">
-            {(["Tools", "Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
+            {(["Tools", "Layers", "Inspector"] as const).map((panel) => <button key={panel} type="button" aria-haspopup="dialog" aria-expanded={compactPanel === panel} onClick={(event) => { panelOpener.current = event.currentTarget; setCompactPanel(panel); }}>{panel}</button>)}
           </div>}
 
           <CanvasWorkspace

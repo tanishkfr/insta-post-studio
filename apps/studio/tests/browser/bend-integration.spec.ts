@@ -1,17 +1,23 @@
 import { expect, test } from "./studio-test";
-import { mkdirSync } from "node:fs";
+import type { Page } from "@playwright/test";
+import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   addBendMotionEcho,
   addBendSignalField,
   bendFrame,
   chooseFormat,
+  layerRowOrder,
   openBend,
+  openVector,
   publishBend,
+  publishVector,
   readBendLayer,
   readBendSourceState,
   readSourceStateById,
+  saveStudio,
   selectLayer,
+  vectorFrame,
   waitForBendReady,
   waitForStudio,
 } from "./studio-helpers";
@@ -21,6 +27,25 @@ const evidence = (name: string) => {
   mkdirSync(dir, { recursive: true });
   return resolve(dir, name);
 };
+
+const phase5bEvidence = (name: string) => {
+  const dir = resolve(process.cwd(), "../../docs/evidence/phase-5b");
+  mkdirSync(dir, { recursive: true });
+  return resolve(dir, name);
+};
+
+async function captureDownload(
+  page: Page,
+  action: () => Promise<void>,
+): Promise<{ filename: string; bytes: Buffer }> {
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 120_000 }),
+    action(),
+  ]);
+  const path = await download.path();
+  if (!path) throw new Error("The download did not produce a local file.");
+  return { filename: download.suggestedFilename(), bytes: readFileSync(path) };
+}
 
 test.describe("BEND in Studio", () => {
   test("publishes a playable video layer and reopens the same editable timeline", async ({
@@ -565,3 +590,78 @@ test.describe("BEND in Studio", () => {
     expect(source!.host.fitDecision).toBe("fit");
     await page.screenshot({ path: evidence("12-format-fit-decision.png"), fullPage: true });
   });
+
+test("mixed static and BEND layers reorder, persist and export native video/package", async ({
+  page,
+}) => {
+  test.slow();
+  await waitForStudio(page);
+  await chooseFormat(page, "instagram-square");
+
+  await openVector(page);
+  await vectorFrame(page).getByRole("button", { name: "Randomise shape" }).click();
+  await publishVector(page);
+  const staticLayer = page
+    .locator('[data-testid="canvas-layer"][data-layer-kind="vector"]')
+    .first();
+  const staticId = (await staticLayer.getAttribute("data-layer-id"))!;
+  expect(staticId).toBeTruthy();
+
+  await openBend(page);
+  await addBendSignalField(bendFrame(page));
+  await bendFrame(page).getByLabel("Duration value").first().fill("1.5");
+  await publishBend(page);
+
+  const videoLayer = page
+    .locator('[data-testid="canvas-layer"][data-layer-kind="video"]')
+    .first();
+  const videoId = (await videoLayer.getAttribute("data-layer-id"))!;
+  expect(videoId).not.toBe(staticId);
+  await expect(page.locator(".canvas-layer")).toHaveCount(2);
+
+  // BEND is topmost after publishing; move it below the static layer.
+  expect(await layerRowOrder(page)).toEqual([videoId, staticId]);
+  await selectLayer(page, videoId);
+  await page.getByRole("button", { name: /Move layer .* down/ }).click();
+  await expect.poll(() => layerRowOrder(page)).toEqual([staticId, videoId]);
+  const canvasOrder = await page.locator(".canvas-layer").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-layer-id")),
+  );
+  expect(canvasOrder).toEqual([videoId, staticId]);
+  await saveStudio(page);
+
+  // The BEND inspector still exposes real native exports for the selected layer.
+  await expect(page.getByTestId("bend-layer-details")).toBeVisible();
+  await expect(page.getByTestId("bend-download-video")).toBeEnabled();
+  await expect(page.getByTestId("bend-download-package")).toBeEnabled({ timeout: 30_000 });
+  const videoDownload = await captureDownload(page, () =>
+    page.getByTestId("bend-download-video").click(),
+  );
+  expect(videoDownload.filename).toMatch(/\.(mp4|webm)$/);
+  expect(videoDownload.bytes.length).toBeGreaterThan(1_000);
+  const packageDownload = await captureDownload(page, () =>
+    page.getByTestId("bend-download-package").click(),
+  );
+  expect(packageDownload.filename).toMatch(/\.bendpkg$/);
+  expect(packageDownload.bytes.subarray(0, 8).toString("ascii")).toBe("BENDPKG1");
+  await page.screenshot({ path: phase5bEvidence("mixed-static-video-1440.png") });
+
+  await page.reload();
+  await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("save-state")).toContainText("Saved locally", {
+    timeout: 20_000,
+  });
+  await expect(page.locator(".canvas-layer")).toHaveCount(2);
+  expect(await layerRowOrder(page)).toEqual([staticId, videoId]);
+  await expect(
+    page.locator(
+      `[data-testid="canvas-layer"][data-layer-id="${videoId}"] img.raster-artwork`,
+    ),
+  ).toBeVisible();
+  await expect(
+    page.locator(`[data-testid="canvas-layer"][data-layer-id="${staticId}"]`),
+  ).toHaveAttribute("data-layer-kind", "vector");
+  await selectLayer(page, videoId);
+  await expect(page.getByTestId("bend-layer-details")).toBeVisible();
+  await expect(page.getByTestId("inspector-edit-layer")).toHaveText("Edit in BEND");
+});

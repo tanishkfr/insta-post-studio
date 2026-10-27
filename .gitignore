@@ -28,3 +28,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local coding-agent configuration (machine-specific hooks)
+.codex/
+.gemini/
