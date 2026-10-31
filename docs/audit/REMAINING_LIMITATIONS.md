@@ -1,0 +1,5 @@
+# Remaining limitations
+
+The requested comprehensive audit is incomplete despite the automated gates passing. Full manual coverage of every native editor, handoff, error and export combination, dedicated performance profiling, audio/resource lifecycle review, larger-desktop and real-device inspection, screen readers, forced colors, zoom and broader accessibility/security review remain outstanding. The BEND browser suite has three upstream Firefox codec/export skips. The host suite is Chromium-only. Some assets have no safe automatic garbage collection; a cross-project reference audit is required before destructive cleanup. See the source parity matrix for features preserved in source but not exhaustively tested.
+
+Upstream source and font redistribution permissions remain unresolved; see `THIRD_PARTY_NOTICES.md`. Public release is not qualified. The remote default branch was `phase-0/foundation` at `e7b0297` when fetched; intent is unconfirmed and no branch configuration was changed. No deployment or merge was performed.
