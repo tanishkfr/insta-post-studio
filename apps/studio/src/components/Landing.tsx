@@ -32,7 +32,13 @@ export function Landing({ onEnter, onOpenTool }: { onEnter: () => void; onOpenTo
     if (audio.current) { stopSound(); setSoundOn(false); return; }
     const context = new AudioContext();
     audio.current = context;
-    await context.resume();
+    try {
+      await context.resume();
+    } catch {
+      if (audio.current === context) stopSound();
+      return;
+    }
+    if (audio.current !== context) return;
     setSoundOn(true);
     const notes = [220, 277.18, 329.63, 415.3, 329.63, 277.18];
     let index = 0;

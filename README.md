@@ -112,4 +112,4 @@ Legacy Image/Vector/Generate pages remain byte-identical and are served through 
 - [Feature parity matrix](docs/FEATURE_PARITY_MATRIX.md)
 - [Phase 1 report](docs/PHASE_1_REPORT.md) / [Vector adapter](docs/VECTOR_ADAPTER.md)
 
-This remains a private repository. Upstream licences and font redistribution rights must be resolved before public distribution.
+The GitHub repository is public. Upstream licences and font redistribution rights remain unresolved and must be settled before further public distribution or release.

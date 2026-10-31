@@ -1,0 +1,9 @@
+# Final qualification
+
+**PARTIAL — no engineering pass claimed.** The landing audio startup race LIF-001 was fixed and its focused regression passed. Post-fix host typecheck, build/unit suite, 79 Chromium browser tests, Shapes tests/build, BEND typecheck/unit/build/browser and production-route tests passed locally; BEND browser testing retains three documented Firefox skips. An isolated empty-project experiment completed ten open/close cycles for each tool, and a narrow keyboard/reduced-motion/forced-colors shell check passed at five widths.
+
+Realistic complete manual six-tool journeys, all requested cross-tool failure scenarios, loaded-project performance measurements, GPU/iframe/media resource accounting, full accessibility/security review and physical-device checks remain incomplete. No comprehensive engineering pass or unconditional private-demo readiness claim is justified. A controlled private demo may be considered with these constraints and representative preflight checks. **Public release is not ready**: the repository is already public, while upstream source and font redistribution rights remain unresolved.
+
+GitHub reported `phase-0/foundation` as default while `main` contains the later application; review making `main` default after resolving rights and agreeing branch policy. No visibility, branch configuration, merge or deployment was changed. Follow-up CI must be confirmed at the final pushed SHA separately.
+
+After the above gates, A11Y-001 corrected landing text contrast and orbit-label legibility. Desktop/mobile rendered checks and the focused landing navigation suite passed; the full host browser regression was restarted for the final change. Final CI status must be checked at the latest pushed SHA.

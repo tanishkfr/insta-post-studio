@@ -23,7 +23,7 @@ import {
 } from "./studio-helpers";
 
 const evidence = (name: string) => {
-  const dir = resolve(process.cwd(), "../../docs/evidence/phase-4");
+  const dir = test.info().outputPath("evidence");
   mkdirSync(dir, { recursive: true });
   return resolve(dir, name);
 };
@@ -439,8 +439,8 @@ test.describe("BEND in Studio", () => {
     expect(afterCancel!.sourceState.revision).toBe(committed!.sourceState.revision);
     expect(afterCancel!.rendered.assetId).toBe(committed!.rendered.assetId);
 
-    page.once("dialog", dialog => dialog.accept());
     await page.getByTestId("tool-canvas").click();
+    await page.getByRole("dialog", { name: "Leave this editor?" }).getByRole("button", { name: "Discard and leave" }).click();
     await expect(page.getByTestId("artboard")).toBeVisible();
 
     // Corrupt only the editable package. Reopening must fail before the editor
@@ -469,9 +469,10 @@ test.describe("BEND in Studio", () => {
     }, committedSource!);
     await selectLayer(page, layerId);
     await page.getByTestId("inspector-edit-layer").click();
-    await expect(page.getByRole("alert")).toContainText(/BEND source is unavailable/i, {
+    await expect(page.getByRole("alert")).toContainText(/editable video source is unavailable/i, {
       timeout: 30_000,
     });
+    await expect(page.getByRole("alert")).toContainText(/does not match its recorded hash/i);
     await page.getByRole("button", { name: "Back to canvas" }).click();
     const afterCorrupt = await readBendLayer(page, layerId);
     expect(afterCorrupt!.rendered.assetId).toBe(committed!.rendered.assetId);

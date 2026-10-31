@@ -413,6 +413,9 @@ function studioAdapterPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), studioAdapterPlugin()],
+  server: {
+    allowedHosts: ["reproductive-argument-pavilion-mysimon.trycloudflare.com"],
+  },
   resolve: {
     alias: {
       "@studio/contracts": fileURLToPath(

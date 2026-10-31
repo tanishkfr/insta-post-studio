@@ -27,7 +27,7 @@ test("production bundle serves the complete BEND editor from its nested route", 
 });
 
 test("production Studio publishes through the nested BEND bridge", async ({ page }) => {
-  const evidenceDir = resolve(process.cwd(), "../../docs/evidence/phase-4");
+  const evidenceDir = test.info().outputPath("evidence");
   mkdirSync(evidenceDir, { recursive: true });
   await waitForStudio(page);
   await chooseFormat(page, "instagram-square");

@@ -1,5 +1,4 @@
 import { expect, test } from "./studio-test";
-import path from "node:path";
 import {
   cancelVector,
   layerIds,
@@ -15,7 +14,7 @@ import {
 } from "./studio-helpers";
 
 const evidence = (name: string) =>
-  path.resolve(process.cwd(), "../../docs/evidence/phase-1", name);
+  test.info().outputPath(name);
 
 async function createVectorLayer(page: import("@playwright/test").Page, seed: number) {
   await openVector(page);

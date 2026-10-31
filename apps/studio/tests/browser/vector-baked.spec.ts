@@ -1,5 +1,4 @@
 import { expect, test } from "./studio-test";
-import path from "node:path";
 import {
   cancelVector,
   openVector,
@@ -12,7 +11,7 @@ import {
 } from "./studio-helpers";
 
 const evidence = (name: string) =>
-  path.resolve(process.cwd(), "../../docs/evidence/phase-1", name);
+  test.info().outputPath(name);
 
 test("manually baked Vector artwork restores as editable lines", async ({ page }) => {
   await waitForStudio(page);

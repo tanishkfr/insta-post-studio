@@ -1,5 +1,4 @@
 import { expect, test } from "./studio-test";
-import path from "node:path";
 import {
   cancelVector,
   chooseFormat,
@@ -19,7 +18,7 @@ import {
 } from "./studio-helpers";
 
 const evidence = (name: string) =>
-  path.resolve(process.cwd(), "../../docs/evidence/phase-1", name);
+  test.info().outputPath(name);
 
 test("Journey A/B: publish, move, persist, reopen, revise without losing host state", async ({
   page,

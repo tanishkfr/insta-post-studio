@@ -32,19 +32,22 @@ import { makePng, readPngSize } from "../fixtures/png";
 import { inspectPng } from "../../src/adapters/image/rasterValidation";
 
 const evidence = (name: string) => {
-  const dir = resolve(process.cwd(), "../../docs/evidence/phase-6/after");
+  const dir = test.info().outputPath("evidence");
   mkdirSync(dir, { recursive: true });
   return resolve(dir, name);
 };
 
 const evidenceFile = (name: string) => {
-  const dir = resolve(process.cwd(), "../../docs/evidence/phase-6/files");
+  const dir = test.info().outputPath("files");
   mkdirSync(dir, { recursive: true });
   return resolve(dir, name);
 };
 
 async function backToCanvas(page: Page): Promise<void> {
-  await page.locator(".tool-session").getByRole("button", { name: "Canvas", exact: true }).click();
+  await page.getByTestId("tool-canvas").click();
+  if (await page.getByRole("dialog", { name: "Leave this editor?" }).isVisible()) {
+    await page.getByRole("dialog", { name: "Leave this editor?" }).getByRole("button", { name: "Discard and leave" }).click();
+  }
   await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 30_000 });
 }
 
@@ -148,7 +151,9 @@ test("capture the refined Studio layout and real export files", async ({ page })
   await waitForBendReady(page);
   await addBendSignalField(bendFrame(page));
   await page.screenshot({ path: evidence("08-bend-editor-1440.png") });
-  await backToCanvas(page);
+  await page.getByTestId("tool-canvas").click();
+  await page.getByRole("dialog", { name: "Leave this editor?" }).getByRole("button", { name: "Discard and leave" }).click();
+  await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 30_000 });
 
   // Compact and intermediate widths, matching the archived before states.
   await page.setViewportSize({ width: 390, height: 844 });
