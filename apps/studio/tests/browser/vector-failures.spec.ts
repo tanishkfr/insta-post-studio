@@ -1,5 +1,4 @@
 import { expect, test } from "./studio-test";
-import path from "node:path";
 import {
   openVector,
   openVectorForLayer,
@@ -14,7 +13,7 @@ import {
 } from "./studio-helpers";
 
 const evidence = (name: string) =>
-  path.resolve(process.cwd(), "../../docs/evidence/phase-1", name);
+  test.info().outputPath(name);
 
 test("storage failure is reported and the last durable project survives reload", async ({
   page,

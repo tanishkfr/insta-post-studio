@@ -19,14 +19,11 @@ import {
   waitForTypeReady,
 } from "./studio-helpers";
 import { makePng } from "../fixtures/png";
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
 
 const evidence = (name: string) =>
-  resolve(process.cwd(), "../../docs/evidence/phase-3", name);
+  test.info().outputPath(name);
 
 test("Phase 3 integrated workflows evidence", async ({ page }) => {
-  mkdirSync(resolve(process.cwd(), "../../docs/evidence/phase-3"), { recursive: true });
   await waitForStudio(page);
   await chooseFormat(page, "instagram-4-5");
 

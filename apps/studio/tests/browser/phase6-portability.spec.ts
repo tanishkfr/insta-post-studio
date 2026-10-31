@@ -41,7 +41,10 @@ async function captureDownload(page: Page, action: () => Promise<void>): Promise
 }
 
 async function backToCanvas(page: Page): Promise<void> {
-  await page.locator(".tool-session").getByRole("button", { name: "Canvas", exact: true }).click();
+  await page.getByTestId("tool-canvas").click();
+  if (await page.getByRole("dialog", { name: "Leave this editor?" }).isVisible()) {
+    await page.getByRole("dialog", { name: "Leave this editor?" }).getByRole("button", { name: "Discard and leave" }).click();
+  }
   await expect(page.getByTestId("artboard")).toBeVisible({ timeout: 30_000 });
 }
 
@@ -192,6 +195,7 @@ test("portable project package round-trips every native source into a clean brow
     if (message.type() === "error") errors.push(`console.error: ${message.text()}`);
   });
   await page2.goto("http://127.0.0.1:4175/");
+  await page2.getByRole("button", { name: "Open your workspace" }).click();
   await expect(page2.getByRole("textbox", { name: "Project name" })).toBeVisible({
     timeout: 20_000,
   });

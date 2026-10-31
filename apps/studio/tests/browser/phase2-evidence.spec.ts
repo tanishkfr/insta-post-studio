@@ -1,4 +1,3 @@
-import path from "node:path";
 import { expect, test } from "./studio-test";
 import {
   chooseFormat,
@@ -18,7 +17,7 @@ import {
 import { makePng } from "../fixtures/png";
 
 const evidence = (name: string) =>
-  path.resolve(process.cwd(), "../../docs/evidence/phase-2", name);
+  test.info().outputPath(name);
 
 test("Phase 2 integrated workflow evidence", async ({ page }) => {
   test.setTimeout(300_000);
