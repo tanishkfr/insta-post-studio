@@ -7,3 +7,5 @@ Observed Chromium captures at 1440×900 and 390×844 show the artboard and works
 Chromium capture inspection covered populated Canvas at 1440×900, 1024×768, 900×700 and 390×844. These show the intended artboard and controls without a blocking overlap in those states; this does not cover all panels, all tools or touch interaction. The landing navigation browser tests cover Vector entry, history and safe departure, not every requested accessibility and motion condition.
 
 Qualification follow-up: no additional full manual accessibility or physical-device verification has been completed. See ACCESSIBILITY_REVIEW.md. The landing audio lifecycle repair does not alter visual styling.
+
+Landing contrast follow-up: desktop and mobile screenshots were inspected before and after the change. The cat artwork, layout and orbit interaction remain intact; supporting text and the orbit instruction now have a clearer background relationship. See ACCESSIBILITY_REVIEW.md for the limited detector evidence.

@@ -30,3 +30,5 @@ Browser gates ran outside the sandbox because Firefox exited at launch and brows
 | Production BEND browser | PASS; 2 tests |
 
 The verified baseline GitHub run 41193174981 passed both jobs at `c94ce6a`; the follow-up branch's final CI must be checked separately.
+
+After the 79-test run, A11Y-001 changed landing CSS. Five focused landing/navigation browser tests passed and the full host browser regression was restarted; final CI must be assessed at the last pushed SHA.

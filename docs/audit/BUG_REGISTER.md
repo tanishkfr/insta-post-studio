@@ -38,3 +38,11 @@
 - Correction: verify the resumed context is still current before starting the timer; close a context if resume rejects.
 - Status: fixed; three focused unit tests and the complete 79-test host browser regression pass.
 
+
+## A11Y-001 — Landing copy lacks contrast over the scene (P2)
+- Reproduction: open the landing at desktop or 390px width; inspect the supporting copy and orbit instruction over the bright sky/water.
+- Expected: readable text against its actual background.
+- Observed: the rendered detector reported approximately 2.1:1 for supporting copy and 2.5:1 for the orbit instruction at its default viewport; screenshots confirmed the visual issue. Orbit labels were 10px.
+- Root cause: white text relied on a soft shadow over a bright variable image.
+- Correction: dark ink over the sky, a white surface behind the instruction, and 11px orbit labels. Desktop and mobile rendered detector reruns no longer reported landing contrast issues; screenshots were visually inspected and all five landing-navigation tests passed. The detector is not a full contrast audit; no dedicated persistent contrast regression test was added.
+- Status: fixed for the inspected landing states; full host browser regression rerunning.
