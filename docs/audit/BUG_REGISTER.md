@@ -29,3 +29,12 @@
 - Evidence/root cause: direct paths under `docs/evidence` in browser test helpers.
 - Correction: use Playwright per-test output paths and restore the previously clean screenshots changed by the run. Status: verified by the full host suite and production BEND gate; tracked historical screenshots remained clean.
 
+
+## LIF-001 — Delayed landing audio startup outlives cleanup (P2)
+- Reproduction: enable sound, leave the landing page before `AudioContext.resume()` resolves, then allow it to resolve.
+- Expected: the audio context stays closed and no timer starts after departure.
+- Observed: the continuation installed a 2.2-second interval after unmount cleanup had already run.
+- Evidence/root cause: `Landing.test.tsx` reproduced the delayed completion and failed against the original implementation.
+- Correction: verify the resumed context is still current before starting the timer; close a context if resume rejects.
+- Status: fixed; three focused unit tests and the complete 79-test host browser regression pass.
+

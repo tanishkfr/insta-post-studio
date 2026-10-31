@@ -14,3 +14,19 @@
 | `npm run test:browser:bend:production` | PASS | 2 Chromium tests, nested route and bridge |
 
 Browser gates ran outside the sandbox because Firefox exited at launch and browser-server teardown hung inside it. `PLAYWRIGHT_BROWSERS_PATH` selected the installed browsers and TEMP/TMP pointed to writable workspace storage. The initial BEND unit run failed before executing tests due to temp-file permissions; the isolated-temp rerun passed. The clean-context portability test includes six source re-entries, duplicate import, corrupt hash rejection and future-version rejection. Full manual, accessibility, physical-device and performance qualification remains outstanding.
+
+## Qualification follow-up (2026-10-31)
+
+| Check | Result |
+| --- | --- |
+| Pre-change `npm run typecheck`, `npm run verify` | PASS; 80 host unit tests |
+| Post-change `npm run typecheck`, `npm run verify` | PASS; 82 host unit tests at the time, including two new lifecycle tests |
+| Focused landing lifecycle regression | PASS; 3 tests, including the subsequently added rapid-off case |
+| Host Chromium browser suite | PASS; 79 tests, 11.0 minutes |
+| Isolated 10-cycle tool and emulated keyboard/responsive checks | PASS; 2 checks; limitations in RESOURCE_LIFECYCLE.md and ACCESSIBILITY_REVIEW.md |
+| Shapes unit tests and build | PASS; 23 tests; build in verify |
+| BEND typecheck, unit tests and build | PASS; 131 tests; build in verify |
+| BEND browser | PASS with 3 existing Firefox skips; 35 passed |
+| Production BEND browser | PASS; 2 tests |
+
+The verified baseline GitHub run 41193174981 passed both jobs at `c94ce6a`; the follow-up branch's final CI must be checked separately.

@@ -1,6 +1,6 @@
 # Third-party notices and source attribution
 
-Studio 2.0 is a private integration workspace. It preserves source code from four upstream repositories. Upstream licence status must be resolved with the authors before any public distribution or commercial use.
+Studio 2.0 is an integration workspace that preserves source code from four upstream repositories. The GitHub repository is public; upstream licence status must be resolved with the authors before further public distribution or commercial use.
 
 ## Insta-post (`tools/legacy`)
 
@@ -41,7 +41,7 @@ Copies live in `apps/studio/public/vendor/`. The original standalone Image/Custo
 
 ## Studio host and contracts
 
-New Phase 0–2 host/contract code is part of this private repository. No public licence is granted by this document.
+New Phase 0–2 host/contract code is part of this repository. No public licence is granted by this document.
 
 ## Rule for future phases
 
